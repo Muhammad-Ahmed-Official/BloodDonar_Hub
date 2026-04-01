@@ -1,0 +1,5 @@
+npx create-expo-app@latest .
+npm install expo@^55.0.0
+npx expo install --fix 
+npx expo-doctor
+# remove : "newArchEnabled": true, "edgeToEdgeEnabled": true,
