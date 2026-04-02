@@ -1,8 +1,8 @@
 import { TextInput, StyleSheet } from "react-native";
 import { COLORS, SIZES } from "../../constants/theme";
 
-export default function AppInput(props:any) {
-  return <TextInput style={styles.input} {...props} />;
+export default function Input(props:any, type='') {
+  return <TextInput style={styles.input} {...props} type={type} />;
 }
 
 const styles = StyleSheet.create({

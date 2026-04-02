@@ -1,7 +1,7 @@
 import { View, StyleSheet } from "react-native";
 import { COLORS, SIZES, SHADOW } from "../../constants/theme";
 
-export default function AppCard({ children }:any) {
+export default function Card({ children }:any) {
   return <View style={styles.card}>{children}</View>;
 }
 
