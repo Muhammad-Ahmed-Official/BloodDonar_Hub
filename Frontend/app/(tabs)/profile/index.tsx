@@ -5,6 +5,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
+  Modal,
+  Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -25,6 +27,36 @@ export default function ProfileScreen() {
   const router = useRouter();
   const [isAvailable, setIsAvailable] = useState(true);
   const [isNotif, setIsNotif] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const handleLogout = () => {
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutModal(false);
+    // Add your logout logic here
+    // For example: router.replace("/login");
+    console.log("User logged out");
+  };
+
+  const handleMenuPress = (itemId: string) => {
+    if (itemId === "logout") {
+      handleLogout();
+    } else if (itemId === "create") {
+      router.push("/search/create");
+    } else if (itemId === "security") {
+      router.push("/profile/security");
+    } else if (itemId === "medical") {
+      // router.push("/profile/medical");
+    } else if (itemId === "activity") {
+      router.push("/activity");
+    } else if (itemId === "privacy") {
+      router.push("/profile/privacy");
+    } else if (itemId === "compatibility") {
+      router.push("/profile/compatibility");
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -86,6 +118,7 @@ export default function ProfileScreen() {
                 styles.menuItem,
                 index < MENU_ITEMS.length - 1 && styles.menuItemBorder,
               ]}
+              onPress={() => handleMenuPress(item.id)}
             >
               <View style={styles.menuIconWrap}>
                 <Ionicons
@@ -106,6 +139,46 @@ export default function ProfileScreen() {
 
         <View style={{ height: 90 }} />
       </ScrollView>
+
+      {/* Logout Confirmation Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showLogoutModal}
+        onRequestClose={() => setShowLogoutModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowLogoutModal(false)}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              
+              {/* Title */}
+              <Text style={styles.modalTitle}>Logout</Text>
+              
+              {/* Message */}
+              <Text style={styles.modalMessage}>
+                Are you sure, you want to logout?
+              </Text>
+              
+              {/* Buttons */}
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setShowLogoutModal(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.logoutButton]}
+                  onPress={confirmLogout}
+                >
+                  <Text style={styles.logoutButtonText}>Logout</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -183,7 +256,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: COLORS.primary,  // Red background
+    backgroundColor: COLORS.primary,
     borderRadius: SIZES.radius,
     padding: 10,
     alignItems: "center",
@@ -251,5 +324,78 @@ const styles = StyleSheet.create({
   menuDanger: { 
     color: COLORS.primary, 
     fontWeight: "600" 
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContainer: {
+    width: "80%",
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    padding: 10,
+    overflow: "hidden",
+    ...SHADOW,
+  },
+  modalContent: {
+    padding: 24,
+    alignItems: "center",
+  },
+  modalIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#FFE5E5",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: COLORS.text,
+    marginBottom: 12,
+  },
+  modalMessage: {
+    fontWeight: "semibold",
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelButton: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.primary,
+  },
+  logoutButton: {
+    backgroundColor: COLORS.primary,
+  },
+  logoutButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.white,
   },
 });

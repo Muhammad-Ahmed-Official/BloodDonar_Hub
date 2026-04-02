@@ -1,17 +1,25 @@
 import { Tabs, usePathname } from "expo-router";
 import { View, StyleSheet, Platform } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { COLORS } from "../../constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-function TabIcon({ name, focused }: { name: any; focused: boolean }) {
+function TabIcon({ name, focused, type = "ionicons" }: { name: any; focused: boolean; type?: "ionicons" | "material" }) {
   return (
     <View style={[styles.iconWrap, focused && styles.activeWrap]}>
-      <Ionicons
-        name={name}
-        size={22}
-        color={focused ? COLORS.primary : COLORS.white}
-      />
+      {type === "ionicons" ? (
+        <Ionicons
+          name={name}
+          size={22}
+          color={focused ? COLORS.primary : COLORS.white}
+        />
+      ) : (
+        <MaterialIcons
+          name={name}
+          size={22}
+          color={focused ? COLORS.primary : COLORS.white}
+        />
+      )}
     </View>
   );
 }
@@ -44,18 +52,18 @@ export default function TabsLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="home" focused={focused} />
+            <TabIcon name="home" focused={focused} type="ionicons" />
           ),
         }}
       />
 
-      {/* INBOX TAB */}
+      {/* INBOX TAB - Using MaterialIcons chat icon */}
       <Tabs.Screen
         name="inbox/index"
         options={{
           title: "Messages",
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="chatbubble-ellipses" focused={focused} />
+            <TabIcon name="chat" focused={focused} type="material" />
           ),
         }}
       />
@@ -66,20 +74,23 @@ export default function TabsLayout() {
         options={{
           title: "Search",
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="search" focused={focused} />
+            <TabIcon name="search" focused={focused} type="ionicons" />
           ),
         }}
       />
 
+      {/* PROFILE TAB */}
       <Tabs.Screen
         name="profile/index"
         options={{
           title: "Profile",
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="person" focused={focused} />
+            <TabIcon name="person" focused={focused} type="ionicons" />
           ),
         }}
       />
+
+      
 
       {/* HIDE CHAT SCREEN FROM TABS */}
       <Tabs.Screen
@@ -88,6 +99,28 @@ export default function TabsLayout() {
           href: null,
         }}
       />
+
+      <Tabs.Screen
+        name="profile/privacy"
+        options={{
+          href: null,
+        }}
+      />
+
+      {/* <Tabs.Screen
+        name="profile/privacy"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="profile/privacy"
+        options={{
+          href: null,
+        }}
+      /> */}
+
 
       {/* HIDE CREATE SCREEN FROM TABS */}
       <Tabs.Screen

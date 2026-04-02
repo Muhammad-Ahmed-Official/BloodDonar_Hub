@@ -22,9 +22,9 @@ export default function ProfileSetup1() {
   const router = useRouter();
   const [selectedCity, setSelectedCity] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
+  const [showGroup, setShowGroup] = useState(false);
   const [cities, setCities] = useState<string[]>([]);
   const [showCity, setShowCity] = useState(false);
-  const [showGroup, setShowGroup] = useState(false);
 
   useEffect(() => {
     fetch("https://countriesnow.space/api/v0.1/countries/cities", {
