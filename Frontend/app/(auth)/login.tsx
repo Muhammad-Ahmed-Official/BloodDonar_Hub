@@ -12,7 +12,7 @@ export default function LoginScreen() {
 
   const handleLogin = () => {
     // TODO: Add login logic here
-    router.replace("/(auth)/verification");
+    router.replace("/(tabs)");
   };
 
   return (

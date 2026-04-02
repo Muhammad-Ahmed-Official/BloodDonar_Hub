@@ -20,11 +20,9 @@ const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
 export default function ProfileSetup1() {
   const router = useRouter();
-
   const [selectedCity, setSelectedCity] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
   const [cities, setCities] = useState<string[]>([]);
-
   const [showCity, setShowCity] = useState(false);
   const [showGroup, setShowGroup] = useState(false);
 
@@ -169,13 +167,6 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     paddingTop: 10
   },
-  listContainer: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    marginBottom: 10,
-    overflow: "hidden",
-  },
   subtitle: {
     fontSize: 13,
     color: "#777",
@@ -192,6 +183,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "600",
     marginBottom: 15,
+  },
+  listContainer: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    marginBottom: 10,
+    overflow: "hidden",
   },
   dropdown: {
     height: 50,
