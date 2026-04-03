@@ -12,6 +12,7 @@ export default function Card({
   date = "12 Dec 2025",
   address = "National Stadium Rd, Karachi",
   isEmergency = true,
+  isShow = true
 }: any) {
   return (
     <View style={styles.wrapper}>
@@ -50,7 +51,7 @@ export default function Card({
             <Text style={styles.infoText}>{address}</Text>
           </View>
 
-          <View style={styles.btnRow}>
+          {isShow && <View style={styles.btnRow}>
             <TouchableOpacity style={styles.donateBtn}>
               <Text style={styles.donateText}>Donate</Text>
             </TouchableOpacity>
@@ -58,8 +59,7 @@ export default function Card({
             <TouchableOpacity style={styles.viewBtn} onPress={() => router.push("/(stack)/request/123")}>
               <Text style={styles.viewText}>View Details</Text>
             </TouchableOpacity>
-
-          </View>
+          </View>}
         </View>
 
         {/* RIGHT (Emergency) */}

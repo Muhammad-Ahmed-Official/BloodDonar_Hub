@@ -10,6 +10,7 @@ export default function RootLayout() {
       screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "white"}, animation: "slide_from_right", header: () => null,  navigationBarHidden: true }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
+      {/* <Stack.Screen name='(admin)'/> */}
     </Stack>
     <StatusBar style="light" />
     </AppProvider>

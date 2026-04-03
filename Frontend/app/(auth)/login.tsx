@@ -60,6 +60,11 @@ export default function LoginScreen() {
           <Text style={styles.signupLink} onPress={() => router.push("/(auth)/signup")}> Sign up </Text>
         </Text>
       </View>
+
+      <Button
+        title='admin'
+        onPress={() => router.push('/(admin)/admin')}
+      />
     </View>
   );
 }
