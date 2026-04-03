@@ -41,16 +41,18 @@ export default function ProfileSetup1() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, marginBottom: 10 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={styles.keyboardView}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        {/* Back */}
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={28} color="#000" />
+        {/* Back Button */}
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={28} color={COLORS.text} />
         </TouchableOpacity>
 
         {/* Header */}
@@ -61,18 +63,18 @@ export default function ProfileSetup1() {
 
         {/* Icon */}
         <View style={styles.iconContainer}>
-          <Ionicons name="person-outline" size={28} color="red" />
+          <Ionicons name="person-outline" size={32} color={COLORS.primary} />
         </View>
 
         <Text style={styles.section}>Personal Information</Text>
 
         {/* Name */}
         <Label title="Your Name" />
-        <Input placeholder="User name" />
+        <Input placeholder="Enter your full name" />
 
         {/* Phone */}
         <Label title="Mobile Number" />
-        <Input placeholder="User name" keyboardType="phone-pad" />
+        <Input placeholder="Enter mobile number" keyboardType="phone-pad" />
 
         {/* Blood Group */}
         <Label title="Select Group" />
@@ -80,8 +82,8 @@ export default function ProfileSetup1() {
           style={styles.dropdown}
           onPress={() => setShowGroup(!showGroup)}
         >
-          <Text style={styles.dropdownText}>
-            {selectedGroup || "Select group"}
+          <Text style={[styles.dropdownText, !selectedGroup && styles.placeholderText]}>
+            {selectedGroup || "Select blood group"}
           </Text>
           <Ionicons name="chevron-down" size={18} color="#888" />
         </TouchableOpacity>
@@ -100,7 +102,10 @@ export default function ProfileSetup1() {
                     setShowGroup(false);
                   }}
                 >
-                  <Text>{item}</Text>
+                  <Text style={styles.optionText}>{item}</Text>
+                  {selectedGroup === item && (
+                    <Ionicons name="checkmark" size={18} color={COLORS.primary} />
+                  )}
                 </TouchableOpacity>
               )}
             />
@@ -119,7 +124,7 @@ export default function ProfileSetup1() {
           style={styles.dropdown}
           onPress={() => setShowCity(!showCity)}
         >
-          <Text style={styles.dropdownText}>
+          <Text style={[styles.dropdownText, !selectedCity && styles.placeholderText]}>
             {selectedCity || "Select city"}
           </Text>
           <Ionicons name="chevron-down" size={18} color="#888" />
@@ -130,6 +135,7 @@ export default function ProfileSetup1() {
             <FlatList
               data={cities.slice(0, 20)}
               keyExtractor={(item) => item}
+              showsVerticalScrollIndicator={true}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.option}
@@ -138,77 +144,118 @@ export default function ProfileSetup1() {
                     setShowCity(false);
                   }}
                 >
-                  <Text>{item}</Text>
+                  <Text style={styles.optionText}>{item}</Text>
+                  {selectedCity === item && (
+                    <Ionicons name="checkmark" size={18} color={COLORS.primary} />
+                  )}
                 </TouchableOpacity>
               )}
             />
           </View>
         )}
 
-        {/* Button */}
-        <Button
-          title="Next"
-          onPress={() => router.push("/(auth)/profile-setup/step2")}
-        />
+        <View style={styles.buttonContainer}>
+          <Button
+            title="Next"
+            onPress={() => router.push("/(auth)/profile-setup/step2")}
+          />
+        </View>
+        
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  keyboardView: {
     flex: 1,
-    padding: 20,
     backgroundColor: COLORS.white,
   },
+  container: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+    backgroundColor: COLORS.white,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "flex-start",
+    marginBottom: 10,
+  },
   title: {
-    fontSize: 22,
-    fontWeight: "600",
-    marginBottom: 5,
-    paddingTop: 10
+    fontSize: 28,
+    fontWeight: "700",
+    marginBottom: 8,
+    color: COLORS.text,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#777",
-    marginBottom: 15,
+    marginBottom: 20,
+    lineHeight: 20,
   },
   iconContainer: {
     alignSelf: "center",
-    backgroundColor: "#ffe6e6",
-    padding: 15,
+    backgroundColor: "#FFE5E5",
+    padding: 18,
     borderRadius: 50,
-    marginBottom: 10,
+    marginBottom: 20,
+    marginTop: 10,
   },
   section: {
     textAlign: "center",
     fontWeight: "600",
-    marginBottom: 15,
+    fontSize: 16,
+    marginBottom: 20,
+    color: COLORS.text,
   },
   listContainer: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    marginBottom: 10,
+    borderColor: "#E0E0E0",
+    borderRadius: 12,
+    marginBottom: 16,
     overflow: "hidden",
+    backgroundColor: COLORS.white,
   },
   dropdown: {
     height: 50,
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
+    borderColor: "#E0E0E0",
+    borderRadius: 12,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 12,
-    marginBottom: 10,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+    backgroundColor: COLORS.white,
   },
   dropdownText: {
-    color: "#777",
+    color: COLORS.text,
+    fontSize: 14,
+  },
+  placeholderText: {
+    color: "#999",
   },
   option: {
-    padding: 12,
+    padding: 14,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     borderBottomWidth: 1,
-    borderColor: "#eee",
-    backgroundColor: "#fafafa",
+    borderBottomColor: "#F0F0F0",
+  },
+  optionText: {
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  buttonContainer: {
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  bottomPadding: {
+    height: 20,
   },
 });
