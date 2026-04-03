@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
 import Button from "./Button";
 import { COLORS } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 
 export default function Card({
   bloodGroup = "B+",
@@ -54,7 +55,7 @@ export default function Card({
               <Text style={styles.donateText}>Donate</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.viewBtn}>
+            <TouchableOpacity style={styles.viewBtn} onPress={() => router.push("/(stack)/request/123")}>
               <Text style={styles.viewText}>View Details</Text>
             </TouchableOpacity>
 

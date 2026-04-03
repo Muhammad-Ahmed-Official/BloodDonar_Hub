@@ -107,19 +107,26 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* <Tabs.Screen
-        name="profile/privacy"
+      <Tabs.Screen
+        name="profile/compatibility"
         options={{
           href: null,
         }}
       />
 
       <Tabs.Screen
-        name="profile/privacy"
+        name="profile/medicalInfo"
         options={{
           href: null,
         }}
-      /> */}
+      />
+
+      <Tabs.Screen
+        name="profile/security"
+        options={{
+          href: null,
+        }}
+      />
 
 
       {/* HIDE CREATE SCREEN FROM TABS */}

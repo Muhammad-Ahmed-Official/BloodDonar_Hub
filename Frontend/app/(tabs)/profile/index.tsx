@@ -48,7 +48,7 @@ export default function ProfileScreen() {
     } else if (itemId === "security") {
       router.push("/profile/security");
     } else if (itemId === "medical") {
-      // router.push("/profile/medical");
+      router.push("/profile/medicalInfo");
     } else if (itemId === "activity") {
       router.push("/activity");
     } else if (itemId === "privacy") {

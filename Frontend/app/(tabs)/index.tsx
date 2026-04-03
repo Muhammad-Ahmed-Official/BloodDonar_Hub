@@ -31,7 +31,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header - Full width with bottom rounded corners */}
-        <View style={[styles.header, { paddingTop: 24 + insets.top }]}>
+        <View style={[styles.header, { paddingTop: 30 + insets.top }]}>
           <View style={styles.headerLeft}>
             <View style={styles.avatar}>
               <Ionicons name="person" size={22} color={COLORS.white} />
@@ -43,9 +43,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Content with padding */}
         <View style={styles.contentInner}>
-          {/* Search + Filter */}
           <View style={styles.searchBox}>
             <Text style={styles.searchPlaceholder}>Search Location</Text>
             <Ionicons name="location-outline" size={18} color={COLORS.primary} />
