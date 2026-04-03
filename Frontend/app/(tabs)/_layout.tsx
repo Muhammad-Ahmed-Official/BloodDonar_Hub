@@ -165,6 +165,7 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 10,
   },
   activeWrap: {
     backgroundColor: COLORS.white,

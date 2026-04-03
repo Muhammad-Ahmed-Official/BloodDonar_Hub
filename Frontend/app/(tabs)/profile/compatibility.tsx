@@ -60,7 +60,7 @@ export default function CompatibilityScreen() {
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.push("/(tabs)/profile")} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={20} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Compatibility</Text>

@@ -37,7 +37,7 @@ const DATA = [
     status: "progress",
   },
   {
-    id: "2",
+    id: "4",
     name: "Receiver Name",
     location: "Location Here",
     blood: "AB +ve",
@@ -45,7 +45,7 @@ const DATA = [
     status: "completed",
   },
   {
-    id: "3",
+    id: "5",
     name: "Receiver Name",
     location: "Location Here",
     blood: "AB +ve",
@@ -70,10 +70,10 @@ export default function ActivityScreen() {
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.container}>
 
-        {/* ── RED HEADER BLOCK ── */}
+        {/* ── RED HEADER BLOCK WITH INCREASED PADDING ── */}
         <View style={styles.headerBlock}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Activity</Text>
           <View style={styles.headerSpacer} />
@@ -117,17 +117,37 @@ export default function ActivityScreen() {
 }
 
 function ActivityCard({ item }: any) {
-  const { badgeStyle, textStyle } = getStatusStyle(item.status);
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "progress":
+        return "Terminate";
+      case "completed":
+        return "Completed";
+      case "cancelled":
+        return "Cancelled";
+      default:
+        return status;
+    }
+  };
+
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case "completed":
+        return { backgroundColor: "#34C759" };
+      case "cancelled":
+        return { backgroundColor: "#FF3B30" };
+      default:
+        return { backgroundColor: "#FF9500" };
+    }
+  };
 
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
         <Text style={styles.receiverName}>{item.name}</Text>
-        <View style={[styles.statusBadge, badgeStyle]}>
-          <Text style={[styles.statusText, textStyle]}>
-            {item.status === "progress"
-              ? "Terminate"
-              : item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+        <View style={[styles.statusBadge, getStatusStyle(item.status)]}>
+          <Text style={styles.statusText}>
+            {getStatusText(item.status)}
           </Text>
         </View>
       </View>
@@ -150,26 +170,6 @@ function ActivityCard({ item }: any) {
   );
 }
 
-const getStatusStyle = (status: string) => {
-  switch (status) {
-    case "completed":
-      return {
-        badgeStyle: { backgroundColor: COLORS.primary },
-        textStyle: { color: "#fff" },
-      };
-    case "cancelled":
-      return {
-        badgeStyle: { backgroundColor: COLORS.primary },
-        textStyle: { color: "#fff" },
-      };
-    default:
-      return {
-        badgeStyle: { backgroundColor: COLORS.primary },
-        textStyle: { color: "#fff" },
-      };
-  }
-};
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -177,19 +177,19 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: "#F8F8F8",
   },
 
-  /* ── RED HEADER BLOCK ── */
   headerBlock: {
     backgroundColor: COLORS.primary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: SIZES.padding,
-    paddingVertical: 18,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingTop: 20,
+    paddingBottom: 28,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
@@ -197,21 +197,21 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
   headerSpacer: {
-    width: 36, // mirrors backBtn width to keep title perfectly centered
+    width: 40,
   },
 
   /* ── TABS PILL ── */
@@ -219,10 +219,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: COLORS.primary,
     borderRadius: 50,
-    padding: 5,
+    padding: 6,
     marginHorizontal: SIZES.padding,
-    marginTop: 20,
-    marginBottom: 6,
+    marginTop: 24,
+    marginBottom: 8,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   },
   tabBtn: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 50,
@@ -245,22 +245,22 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   tabText: {
-    color: "rgba(255,255,255,0.65)",
-    fontSize: 10,
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 11,
     fontWeight: "600",
     letterSpacing: 0.5,
   },
   tabTextActive: {
     color: COLORS.primary,
     fontWeight: "800",
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 0.5,
   },
 
   /* ── LIST ── */
   listContent: {
     paddingHorizontal: SIZES.padding,
-    paddingTop: 16,
+    paddingTop: 20,
     paddingBottom: 20,
   },
   emptyText: {
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
 
   /* ── CARD ── */
   card: {
-    backgroundColor: "#FFE8E8",
+    backgroundColor: "#fff",
     borderRadius: 16,
     padding: 16,
     marginBottom: 14,
@@ -282,30 +282,31 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 4,
+    marginBottom: 6,
   },
   receiverName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "700",
     color: "#1A1A1A",
   },
   statusBadge: {
     paddingHorizontal: 14,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 20,
   },
   statusText: {
     fontSize: 11,
     fontWeight: "700",
+    color: "#fff",
   },
   locationText: {
     fontSize: 12,
-    color: COLORS.black,
+    color: "#666",
     marginBottom: 12,
   },
   divider: {
     height: 1,
-    backgroundColor: "#F2F2F2",
+    backgroundColor: "#F0F0F0",
     marginBottom: 12,
   },
   infoRow: {
@@ -313,16 +314,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   infoBlock: {
-    gap: 3,
+    gap: 4,
   },
   infoLabel: {
-    fontWeight: "bold",
-    fontSize: 14,
-    color: COLORS.black,
+    fontWeight: "600",
+    fontSize: 12,
+    color: "#999",
   },
   infoValue: {
-    fontSize: 13,
-    fontWeight: "semibold",
+    fontSize: 14,
+    fontWeight: "600",
     color: "#1A1A1A",
   },
 });

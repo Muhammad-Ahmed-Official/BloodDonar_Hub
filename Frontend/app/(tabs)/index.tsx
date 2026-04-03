@@ -143,7 +143,6 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* Donation Requests */}
           <Text style={styles.sectionTitle}>Donation Request</Text>
 
           <Card
@@ -250,7 +249,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fafafa",
   },
 
-  // Header - Full width with bottom rounded corners
   header: {
     backgroundColor: COLORS.primary,
     borderBottomLeftRadius: 28,
@@ -284,7 +282,6 @@ const styles = StyleSheet.create({
     maxWidth: 260,
   },
 
-  // Search
   searchBox: {
     flexDirection: "row",
     alignItems: "center",

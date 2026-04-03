@@ -33,8 +33,8 @@ export default function PrivacyPolicyScreen() {
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
       
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+        <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
+          <Ionicons name="chevron-back" size={22} color="#222" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Privacy Policy</Text>
         <View style={{ width: 40 }} />

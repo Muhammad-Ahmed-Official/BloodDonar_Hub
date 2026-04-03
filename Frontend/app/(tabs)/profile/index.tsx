@@ -35,8 +35,7 @@ export default function ProfileScreen() {
 
   const confirmLogout = () => {
     setShowLogoutModal(false);
-    // Add your logout logic here
-    // For example: router.replace("/login");
+    router.push("/(auth)/login")
     console.log("User logged out");
   };
 

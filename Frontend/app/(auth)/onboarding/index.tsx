@@ -1,21 +1,20 @@
-import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView } from "react-native";
+import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { COLORS } from "../../../constants/theme";
 import Button from "@/components/common/Button";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function Onboarding2() {   // Changed name to Onboarding2 (this is step 2)
+export default function Onboarding2() {  
   const router = useRouter();
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => router.replace("/(auth)/login")}>
           <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Illustration */}
       <View style={styles.imageContainer}>
         <Image
           source={require("../../../assets/projectImages/frame1.png")}
@@ -32,14 +31,12 @@ export default function Onboarding2() {   // Changed name to Onboarding2 (this i
         </Text>
       </View>
 
-      {/* Pagination Dots */}
       <View style={styles.dotsContainer}>
         <View style={[styles.dot, styles.activeDot]} />
         <View style={styles.dot} />
         <View style={styles.dot} />
       </View>
 
-      {/* Next Button */}
       <View style={styles.buttonContainer}>
         <Button
           title="Next"
@@ -54,13 +51,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.white,
-    margin: 10
   },
 
   topBar: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    // alignItems: "flex-end",
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 8,

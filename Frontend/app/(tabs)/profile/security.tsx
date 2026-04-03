@@ -20,10 +20,9 @@ export default function AccountSecurityScreen() {
 
   return (
     <View style={styles.container}>
-      {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color="#333" />
+        <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
+          <Ionicons name="chevron-back" size={22} color="#222" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Account And Security</Text>
         <View style={{ width: 24 }} />
@@ -108,7 +107,6 @@ export default function AccountSecurityScreen() {
         </View>
       </Modal>
 
-      {/* ================= LANGUAGE MODAL WITH RADIO BUTTONS ================= */}
       <Modal visible={langModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>

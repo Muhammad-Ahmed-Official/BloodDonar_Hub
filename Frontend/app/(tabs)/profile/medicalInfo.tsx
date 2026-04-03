@@ -51,7 +51,7 @@ export default function BecomeDonor() {
     <View style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
           <Ionicons name="chevron-back" size={22} color="#222" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Medical Info</Text>

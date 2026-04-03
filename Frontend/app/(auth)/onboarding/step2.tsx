@@ -1,10 +1,11 @@
-import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView } from "react-native";
+import { View, Text, StyleSheet, Image, TouchableOpacity} from "react-native";
 import { useRouter } from "expo-router";
 import { COLORS } from "../../../constants/theme";
 import Button from "@/components/common/Button";
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function Onboarding2() {   // Changed name to Onboarding2 (this is step 2)
+export default function Onboarding2() {  
   const router = useRouter();
 
   return (
@@ -58,7 +59,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.white,
-    margin: 10
   },
 
   topBar: {
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
 
   // Image Section
   imageContainer: {
-    flex: 1.1,                    // More space for illustration
+    flex: 1.1,                    
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 20,
