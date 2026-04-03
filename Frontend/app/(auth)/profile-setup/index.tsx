@@ -4,9 +4,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { COLORS } from "../../../constants/theme";
@@ -25,19 +26,44 @@ export default function ProfileSetup1() {
   const [showGroup, setShowGroup] = useState(false);
   const [cities, setCities] = useState<string[]>([]);
   const [showCity, setShowCity] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch("https://countriesnow.space/api/v0.1/countries/cities", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ country: "Pakistan" }),
-    })
-      .then((res) => res.json())
-      .then((data) => setCities(data.data))
-      .catch((err) => console.log(err));
+    fetchCities();
   }, []);
+
+  const fetchCities = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch("https://countriesnow.space/api/v0.1/countries/cities", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ country: "Pakistan" }),
+      });
+      const data = await response.json();
+      
+      if (data.data && data.data.length > 0) {
+        const sortedCities = data.data.sort();
+        setCities(sortedCities);
+      } else {
+        setCities([
+          "Karachi", "Lahore", "Islamabad", "Rawalpindi", "Faisalabad",
+          "Multan", "Peshawar", "Quetta", "Sialkot", "Gujranwala",
+          "Hyderabad", "Abbottabad", "Bahawalpur", "Sargodha", "Sukkur",
+        ]);
+      }
+    } catch (err) {
+      console.log(err);
+      setCities([
+        "Karachi", "Lahore", "Islamabad", "Rawalpindi", "Faisalabad",
+        "Multan", "Peshawar", "Quetta", "Sialkot", "Gujranwala",
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -47,8 +73,8 @@ export default function ProfileSetup1() {
     >
       <ScrollView
         contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Back Button */}
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -90,25 +116,21 @@ export default function ProfileSetup1() {
 
         {showGroup && (
           <View style={styles.listContainer}>
-            <FlatList
-              data={bloodGroups}
-              keyExtractor={(item) => item}
-              scrollEnabled={false}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.option}
-                  onPress={() => {
-                    setSelectedGroup(item);
-                    setShowGroup(false);
-                  }}
-                >
-                  <Text style={styles.optionText}>{item}</Text>
-                  {selectedGroup === item && (
-                    <Ionicons name="checkmark" size={18} color={COLORS.primary} />
-                  )}
-                </TouchableOpacity>
-              )}
-            />
+            {bloodGroups.map((item) => (
+              <TouchableOpacity
+                key={item}
+                style={styles.option}
+                onPress={() => {
+                  setSelectedGroup(item);
+                  setShowGroup(false);
+                }}
+              >
+                <Text style={styles.optionText}>{item}</Text>
+                {selectedGroup === item && (
+                  <Ionicons name="checkmark" size={18} color={COLORS.primary} />
+                )}
+              </TouchableOpacity>
+            ))}
           </View>
         )}
 
@@ -131,26 +153,31 @@ export default function ProfileSetup1() {
         </TouchableOpacity>
 
         {showCity && (
-          <View style={[styles.listContainer, { maxHeight: 150 }]}>
-            <FlatList
-              data={cities.slice(0, 20)}
-              keyExtractor={(item) => item}
-              showsVerticalScrollIndicator={true}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.option}
-                  onPress={() => {
-                    setSelectedCity(item);
-                    setShowCity(false);
-                  }}
-                >
-                  <Text style={styles.optionText}>{item}</Text>
-                  {selectedCity === item && (
-                    <Ionicons name="checkmark" size={18} color={COLORS.primary} />
-                  )}
-                </TouchableOpacity>
-              )}
-            />
+          <View style={[styles.listContainer, { maxHeight: 250 }]}>
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Loading cities...</Text>
+              </View>
+            ) : (
+              <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 250 }}>
+                {cities.map((item, index) => (
+                  <TouchableOpacity
+                    key={`${item}-${index}`}
+                    style={styles.option}
+                    onPress={() => {
+                      setSelectedCity(item);
+                      setShowCity(false);
+                    }}
+                  >
+                    <Text style={styles.optionText}>{item}</Text>
+                    {selectedCity === item && (
+                      <Ionicons name="checkmark" size={18} color={COLORS.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
           </View>
         )}
 
@@ -161,6 +188,7 @@ export default function ProfileSetup1() {
           />
         </View>
         
+        <View style={styles.bottomPadding} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -172,7 +200,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
   },
   container: {
-    flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 20,
@@ -256,6 +283,15 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   bottomPadding: {
-    height: 20,
+    height: 40,
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    color: "#666",
+    fontSize: 14,
   },
 });

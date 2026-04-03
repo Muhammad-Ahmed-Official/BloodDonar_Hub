@@ -17,7 +17,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
-
 export default function ProfileSetup2() {
   const router = useRouter();
   const [selectGender, setSelectGender] = useState("");
@@ -41,60 +40,66 @@ export default function ProfileSetup2() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={styles.keyboardView}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={28} color="#000" />
+        {/* Back Button */}
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={28} color={COLORS.text} />
         </TouchableOpacity>
 
         {/* Header */}
         <Text style={styles.title}>Profile Setup</Text>
         <Text style={styles.subtitle}>
-          It’s optional. You can fill it later.
+          It's optional. You can fill it later.
         </Text>
 
         {/* Icon */}
         <View style={styles.iconContainer}>
-          <Ionicons name="medkit-outline" size={28} color="red" />
+          <Ionicons name="medkit-outline" size={32} color={COLORS.primary} />
         </View>
 
         <Text style={styles.section}>Basic Information</Text>
 
         {/* DOB */}
         <Label title="Date of Birth" />
-           <TouchableOpacity
-              style={styles.dropdown}
-              onPress={() => setShow(true)}
-            >
-              <Text style={styles.dropdownText}>
-                {date ? date.toDateString() : "Select date"}
-              </Text>
-            </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.dropdown}
+          onPress={() => setShow(true)}
+        >
+          <Text style={[styles.dropdownText, !date && styles.placeholderText]}>
+            {date ? date.toDateString() : "Select date"}
+          </Text>
+          <Ionicons name="calendar-outline" size={18} color="#888" />
+        </TouchableOpacity>
 
-            {show && (
-              <DateTimePicker
-                value={date || new Date()}
-                mode="date"
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                onChange={(event, selectedDate) => {
-                  if (Platform.OS === "android") {
-                    setShow(false); // close only on Android
-                  }
-
-                  if (selectedDate) {
-                    setDate(selectedDate);
-                  }
-                }}
-              />
-            )}
-        <Text style={{ marginBottom: 10 }}>
-          Your age - {date ? calculateAge(date) : ""}
-        </Text>
+        {show && (
+          <DateTimePicker
+            value={date || new Date()}
+            mode="date"
+            display={Platform.OS === "ios" ? "spinner" : "default"}
+            onChange={(event, selectedDate) => {
+              if (Platform.OS === "android") {
+                setShow(false);
+              }
+              if (selectedDate) {
+                setDate(selectedDate);
+              }
+            }}
+          />
+        )}
+        
+        <View style={styles.ageContainer}>
+          <Text style={styles.ageText}>
+            Your age: <Text style={styles.ageValue}>{date ? calculateAge(date) : ""} years</Text>
+          </Text>
+        </View>
 
         {/* Gender Dropdown */}
         <Label title="Gender" />
@@ -102,7 +107,7 @@ export default function ProfileSetup2() {
           style={styles.dropdown}
           onPress={() => setShowGender(!showGender)}
         >
-          <Text style={styles.dropdownText}>
+          <Text style={[styles.dropdownText, !selectGender && styles.placeholderText]}>
             {selectGender || "Select gender"}
           </Text>
           <Ionicons name="chevron-down" size={18} color="#888" />
@@ -111,7 +116,7 @@ export default function ProfileSetup2() {
         {showGender && (
           <View style={styles.listContainer}>
             <FlatList
-              data={["Male", "Female"]}
+              data={["Male", "Female", "Other"]}
               keyExtractor={(item) => item}
               scrollEnabled={false}
               renderItem={({ item }) => (
@@ -122,7 +127,10 @@ export default function ProfileSetup2() {
                     setShowGender(false);
                   }}
                 >
-                  <Text>{item}</Text>
+                  <Text style={styles.optionText}>{item}</Text>
+                  {selectGender === item && (
+                    <Ionicons name="checkmark" size={18} color={COLORS.primary} />
+                  )}
                 </TouchableOpacity>
               )}
             />
@@ -130,12 +138,12 @@ export default function ProfileSetup2() {
         )}
 
         {/* Donate Dropdown */}
-        <Label title="I Want to donate blood" />
+        <Label title="I want to donate blood" />
         <TouchableOpacity
           style={styles.dropdown}
           onPress={() => setShowDonate(!showDonate)}
         >
-          <Text style={styles.dropdownText}>
+          <Text style={[styles.dropdownText, !isYes && styles.placeholderText]}>
             {isYes || "Select option"}
           </Text>
           <Ionicons name="chevron-down" size={18} color="#888" />
@@ -155,7 +163,10 @@ export default function ProfileSetup2() {
                     setShowDonate(false);
                   }}
                 >
-                  <Text>{item}</Text>
+                  <Text style={styles.optionText}>{item}</Text>
+                  {isYes === item && (
+                    <Ionicons name="checkmark" size={18} color={COLORS.primary} />
+                  )}
                 </TouchableOpacity>
               )}
             />
@@ -164,69 +175,130 @@ export default function ProfileSetup2() {
 
         {/* About */}
         <Label title="About yourself" />
-        <Input placeholder="Type about yourself" multiline numberOfLines={4} />
+        <Input 
+          placeholder="Tell us something about yourself" 
+          multiline 
+          numberOfLines={4}
+          textAlignVertical="top"
+        />
 
-        {/* Button */}
-        <Button title="Next" onPress={() => router.replace("/(tabs)")} />
+        {/* Button Container */}
+        <View style={styles.buttonContainer}>
+          <Button 
+            title="Complete Setup" 
+            onPress={() => router.replace("/(tabs)")}
+          />
+        </View>
+        
+        {/* Extra bottom padding for scroll */}
+        <View style={styles.bottomPadding} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
+  keyboardView: {
+    flex: 1,
     backgroundColor: COLORS.white,
-    paddingBottom: 40,
+  },
+  container: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+    backgroundColor: COLORS.white,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "flex-start",
+    marginBottom: 10,
   },
   title: {
-    fontSize: 22,
-    fontWeight: "600",
-    marginBottom: 5,
-    paddingTop: 10
+    fontSize: 28,
+    fontWeight: "700",
+    marginBottom: 8,
+    color: COLORS.text,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#777",
     marginBottom: 20,
+    lineHeight: 20,
   },
   iconContainer: {
     alignSelf: "center",
-    backgroundColor: "#ffe6e6",
-    padding: 15,
+    backgroundColor: "#FFE5E5",
+    padding: 18,
     borderRadius: 50,
-    marginBottom: 10,
+    marginBottom: 20,
+    marginTop: 10,
   },
   section: {
     textAlign: "center",
     fontWeight: "600",
-    marginBottom: 15,
+    fontSize: 16,
+    marginBottom: 20,
+    color: COLORS.text,
   },
   dropdown: {
     height: 50,
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
+    borderColor: "#E0E0E0",
+    borderRadius: 12,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 12,
-    marginBottom: 10,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+    backgroundColor: COLORS.white,
   },
   dropdownText: {
-    color: "#777",
+    color: COLORS.text,
+    fontSize: 14,
+  },
+  placeholderText: {
+    color: "#999",
   },
   listContainer: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    marginBottom: 10,
+    borderColor: "#E0E0E0",
+    borderRadius: 12,
+    marginBottom: 16,
     overflow: "hidden",
+    backgroundColor: COLORS.white,
   },
   option: {
-    padding: 12,
+    padding: 14,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     borderBottomWidth: 1,
-    borderColor: "#eee",
-    backgroundColor: "#fafafa",
+    borderBottomColor: "#F0F0F0",
+  },
+  optionText: {
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  ageContainer: {
+    marginBottom: 16,
+    marginTop: -8,
+  },
+  ageText: {
+    fontSize: 14,
+    color: "#666",
+  },
+  ageValue: {
+    fontWeight: "600",
+    color: COLORS.primary,
+  },
+  buttonContainer: {
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  bottomPadding: {
+    height: 20,
   },
 });

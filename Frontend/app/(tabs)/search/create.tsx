@@ -4,7 +4,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -23,6 +22,7 @@ export default function CreateRequestScreen() {
   const [selectedCity, setSelectedCity] = useState("");
   const [showCity, setShowCity] = useState(false);
   const [cities, setCities] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
 
   // Form fields state
   const [patientName, setPatientName] = useState("");
@@ -38,17 +38,43 @@ export default function CreateRequestScreen() {
   const [reason, setReason] = useState("");
 
   useEffect(() => {
-    fetch("https://countriesnow.space/api/v0.1/countries/cities", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ country: "Pakistan" }),
-    })
-      .then((res) => res.json())
-      .then((data) => setCities(data.data))
-      .catch((err) => console.log(err));
+    fetchCities();
   }, []);
+
+  const fetchCities = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch("https://countriesnow.space/api/v0.1/countries/cities", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ country: "Pakistan" }),
+      });
+      const data = await response.json();
+      
+      if (data.data && data.data.length > 0) {
+        const sortedCities = data.data.sort();
+        setCities(sortedCities);
+      } else {
+        // Fallback cities
+        setCities([
+          "Karachi", "Lahore", "Islamabad", "Rawalpindi", "Faisalabad",
+          "Multan", "Peshawar", "Quetta", "Sialkot", "Gujranwala",
+          "Hyderabad", "Abbottabad", "Bahawalpur", "Sargodha", "Sukkur",
+          "Mirpur", "Muzaffarabad", "Gilgit", "Skardu", "Mardan"
+        ]);
+      }
+    } catch (err) {
+      console.log(err);
+      setCities([
+        "Karachi", "Lahore", "Islamabad", "Rawalpindi", "Faisalabad",
+        "Multan", "Peshawar", "Quetta", "Sialkot", "Gujranwala"
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = () => {
     console.log({
@@ -82,6 +108,7 @@ export default function CreateRequestScreen() {
       <ScrollView 
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Patient Name */}
         <View style={styles.fieldGroup}>
@@ -109,12 +136,10 @@ export default function CreateRequestScreen() {
 
           {showGroup && (
             <View style={styles.listContainer}>
-              <FlatList
-                data={BLOOD_GROUPS}
-                keyExtractor={(item) => item}
-                scrollEnabled={false}
-                renderItem={({ item }) => (
+              <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 250 }}>
+                {BLOOD_GROUPS.map((item) => (
                   <TouchableOpacity
+                    key={item}
                     style={styles.option}
                     onPress={() => {
                       setSelectedGroup(item);
@@ -129,8 +154,8 @@ export default function CreateRequestScreen() {
                       <Ionicons name="checkmark" size={18} color={COLORS.primary} />
                     )}
                   </TouchableOpacity>
-                )}
-              />
+                ))}
+              </ScrollView>
             </View>
           )}
         </View>
@@ -195,13 +220,11 @@ export default function CreateRequestScreen() {
           </TouchableOpacity>
 
           {showCity && (
-            <View style={[styles.listContainer, { maxHeight: 200 }]}>
-              <FlatList
-                data={cities}
-                keyExtractor={(item) => item}
-                showsVerticalScrollIndicator={true}
-                renderItem={({ item }) => (
+            <View style={[styles.listContainer, { maxHeight: 250 }]}>
+              <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 250 }}>
+                {cities.map((item, index) => (
                   <TouchableOpacity
+                    key={`${item}-${index}`}
                     style={styles.option}
                     onPress={() => {
                       setSelectedCity(item);
@@ -213,8 +236,8 @@ export default function CreateRequestScreen() {
                       <Ionicons name="checkmark" size={18} color={COLORS.primary} />
                     )}
                   </TouchableOpacity>
-                )}
-              />
+                ))}
+              </ScrollView>
             </View>
           )}
         </View>

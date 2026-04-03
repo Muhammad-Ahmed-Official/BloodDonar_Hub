@@ -47,7 +47,6 @@ export default function PrivacyPolicyScreen() {
       >
         <View>
 
-          <View style={styles.separator} />
           <View style={styles.updateInfo}>
             <AntDesign name="clock-circle" size={18} color={COLORS.primary} />
             <Text style={styles.updateText}>Last update - </Text>
