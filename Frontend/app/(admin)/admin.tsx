@@ -215,7 +215,7 @@ export default function AdminDashboard() {
             const updatedUsers = users.map((user) =>
               user.id === userId ? { ...user, status: "suspended" } : user
             );
-            setUsers(updatedUsers);
+            setUsers(updatedUsers as any);
             Alert.alert("Success", "User suspended successfully");
           },
           style: "destructive",
