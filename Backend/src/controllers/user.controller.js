@@ -1,91 +1,279 @@
 import { StatusCodes } from "http-status-codes";
 import { UserInfo } from "../models/userInfo.model.js";
+import { User } from "../models/user.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { responseMessages } from "../constants/responseMessages.js";
 import { ApiError } from "../utils/ApiError.js";
-import { ApiResponse } from '../utils/ApiResponse.js'
+import { ApiResponse } from "../utils/ApiResponse.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { Donar } from "../models/donar.models.js";
-const { NO_USER, GET_SUCCESS_MESSAGES, UPDATE_SUCCESS_MESSAGES, DELETED_SUCCESS_MESSAGES, ADD_SUCCESS_MESSAGES, UPDATE_UNSUCCESS_MESSAGES, NO_DATA_FOUND, MISSING_FIELDS } = responseMessages
+import { Post } from "../models/post.model.js";
+import fs from "fs";
 
-const validateFields = (body, requiredFields) => {
-    const missingFields = requiredFields.filter(field => body[field] === undefined || body[field] === null);
-    if (missingFields.length > 0) {
-        throw new ApiError(StatusCodes.BAD_REQUEST, `Missing required fields: ${missingFields.join(", ")}`);
-    }
-};
+const {
+    NO_USER,
+    GET_SUCCESS_MESSAGES,
+    UPDATE_SUCCESS_MESSAGES,
+    ADD_SUCCESS_MESSAGES,
+    NO_DATA_FOUND,
+    MISSING_FIELDS,
+} = responseMessages;
 
 
+// ─── PROFILE ────────────────────────────────────────────────────────────────
 
-export const profileSetUp  = asyncHandler(async(req, res) => {
+// @desc    Create profile
+// @route   POST /api/v1/user/createProfile
+// @access  Private
+export const profileSetUp = asyncHandler(async (req, res) => {
     const userId = req.user._id;
-    if (!userId) {
-        throw new ApiError(StatusCodes.BAD_REQUEST, NO_USER);
-    };
-    
-    const avatarLocalePath = req.files?.avatar[0]?.path; 
-    if(!avatarLocalePath) throwApiError; avatar = await uploadOnCloudinary(avaltarLocaleFile)  
-
-    const { mobileNumber, bloodGroup, city, dateOfBirth, gender, canDonateBlood, about } = req.body;
-    if (!mobileNumber || !bloodGroup || !city || !dateOfBirth || !gender || canDonateBlood === undefined) {
-        throw new ApiError(StatusCodes.BAD_REQUEST, MISSING_FIELDS);
-    };
 
     const existingProfile = await UserInfo.findOne({ user: userId });
     if (existingProfile) {
-        throw new ApiError(400, "Profile already exists");
-    };
+        throw new ApiError(StatusCodes.CONFLICT, "Profile already exists. Use update endpoint.");
+    }
 
-    const profile = await UserInfo.create({ user: userId, mobileNumber, bloodGroup, city, dateOfBirth, gender, canDonateBlood, about });
-    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, ADD_SUCCESS_MESSAGES, profile))
+    const { mobileNumber, bloodGroup, city, dateOfBirth, gender, canDonateBlood, about } = req.body;
+
+    if (!mobileNumber || !bloodGroup || !city || !dateOfBirth || !gender || canDonateBlood === undefined) {
+        // Clean up uploaded file if validation fails
+        if (req.file?.path) fs.unlinkSync(req.file.path);
+        throw new ApiError(StatusCodes.BAD_REQUEST, MISSING_FIELDS);
+    }
+
+    // Handle optional avatar upload
+    let picUrl = "";
+    if (req.file?.path) {
+        const uploaded = await uploadOnCloudinary(req.file.path);
+        if (uploaded) picUrl = uploaded.secure_url;
+    }
+
+    const profile = await UserInfo.create({
+        user: userId,
+        pic: picUrl,
+        mobileNumber,
+        bloodGroup,
+        city,
+        dateOfBirth,
+        gender: gender.toLowerCase(),
+        canDonateBlood: canDonateBlood.toLowerCase(),
+        about,
+    });
+
+    return res.status(StatusCodes.CREATED).send(new ApiResponse(StatusCodes.CREATED, ADD_SUCCESS_MESSAGES, profile));
 });
 
 
+// @desc    Get current user's full profile
+// @route   GET /api/v1/user/profile
+// @access  Private
+export const getProfile = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
 
+    const user = await User.findById(userId).select("-password -otp -expiresIn");
+    const userInfo = await UserInfo.findOne({ user: userId });
+    const donarData = await Donar.findOne({ user: userId });
+
+    return res.status(StatusCodes.OK).send(
+        new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, {
+            user,
+            userInfo: userInfo || null,
+            medicalInfo: donarData?.medicalInformation || null,
+            donationRequest: donarData?.requests || null,
+        })
+    );
+});
+
+
+// @desc    Update profile
+// @route   PUT /api/v1/user/profile
+// @access  Private
+export const updateProfile = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+
+    const allowedFields = ["mobileNumber", "bloodGroup", "city", "dateOfBirth", "gender", "canDonateBlood", "about", "country"];
+    const updates = {};
+
+    for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+            updates[field] = req.body[field];
+        }
+    }
+
+    // Handle optional avatar update
+    if (req.file?.path) {
+        const uploaded = await uploadOnCloudinary(req.file.path);
+        if (uploaded) updates.pic = uploaded.secure_url;
+    }
+
+    if (Object.keys(updates).length === 0 && !req.file) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "No fields to update");
+    }
+
+    const profile = await UserInfo.findOneAndUpdate(
+        { user: userId },
+        { $set: updates },
+        { new: true, upsert: true, runValidators: false }
+    );
+
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, UPDATE_SUCCESS_MESSAGES, profile));
+});
+
+
+// ─── MEDICAL INFO ────────────────────────────────────────────────────────────
+
+// @desc    Save / update medical information
+// @route   POST /api/v1/user/medicalInfo
+// @access  Private
 export const medicalInfo = asyncHandler(async (req, res) => {
     const userId = req.user._id;
-    if (!userId) {
-        throw new ApiError(StatusCodes.BAD_REQUEST, "No user found");
-    }
-    
 
-    const requiredFields = [ "diabetes", "headOrLungsProblem", "recentCovid", "cancerHistory", "hivAidsTest", "recentVaccination" ];
-    validateFields(req.body, requiredFields);
+    const requiredFields = ["diabetes", "headOrLungsProblem", "recentCovid", "cancerHistory", "hivAidsTest", "recentVaccination"];
+    const missing = requiredFields.filter((f) => req.body[f] === undefined);
+    if (missing.length) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, `Missing fields: ${missing.join(", ")}`);
+    }
 
     const { diabetes, headOrLungsProblem, recentCovid, cancerHistory, hivAidsTest, recentVaccination } = req.body;
 
-    let donar = await Donar.findOne({ _id: userId });
-    if (!donar) {
-        donar = new Donar({ _id: userId });
-    }
+    const donar = await Donar.findOneAndUpdate(
+        { user: userId },
+        { $set: { medicalInformation: { diabetes, headOrLungsProblem, recentCovid, cancerHistory, hivAidsTest, recentVaccination } } },
+        { new: true, upsert: true }
+    );
 
-    donar.medicalInformation = { diabetes, headOrLungsProblem, recentCovid, cancerHistory, hivAidsTest, recentVaccination };
-    await donar.save();
-
-    res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, ADD_SUCCESS_MESSAGES));
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, ADD_SUCCESS_MESSAGES, donar.medicalInformation));
 });
 
 
+// @desc    Get current user's medical info
+// @route   GET /api/v1/user/medicalInfo
+// @access  Private
+export const getMedicalInfo = asyncHandler(async (req, res) => {
+    const donar = await Donar.findOne({ user: req.user._id });
+    if (!donar?.medicalInformation) {
+        return res.status(StatusCodes.NOT_FOUND).send(new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND));
+    }
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, donar.medicalInformation));
+});
 
+
+// ─── DONATION REQUESTS ────────────────────────────────────────────────────────
+
+// @desc    Create / update donation request
+// @route   POST /api/v1/user/donarRequest
+// @access  Private
 export const donationRequest = asyncHandler(async (req, res) => {
     const userId = req.user._id;
-    if (!userId) {
-        throw new ApiError(StatusCodes.BAD_REQUEST, "No user found");
-    }
 
-    const requiredFields = [ "donarName", "bloodGroup", "amount", "age","date", "hospitalName", "location", "contactPersonName", "mobileNumber", "city", "startTime", "endTime", "reason",  ];
-    validateFields(req.body, requiredFields);
+    const requiredFields = ["donarName", "bloodGroup", "amount", "age", "date", "hospitalName", "location", "contactPersonName", "mobileNumber", "city", "startTime", "endTime", "reason"];
+    const missing = requiredFields.filter((f) => req.body[f] === undefined || req.body[f] === "");
+    if (missing.length) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, `Missing fields: ${missing.join(", ")}`);
+    }
 
     const { donarName, bloodGroup, amount, age, date, hospitalName, location, contactPersonName, mobileNumber, city, startTime, endTime, reason, donateTo } = req.body;
 
-    const donar = await Donar.findOne({ _id: userId });
-    if (!donar) {
-        throw new ApiError(StatusCodes.BAD_REQUEST, "Donor not found");
+    const donar = await Donar.findOneAndUpdate(
+        { user: userId },
+        {
+            $set: {
+                requests: { donarName, bloodGroup, amount, age, date, hospitalName, location, contactPersonName, mobileNumber, city, startTime, endTime, reason, donateTo },
+            },
+        },
+        { new: true, upsert: true }
+    );
+
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, ADD_SUCCESS_MESSAGES, donar.requests));
+});
+
+
+// @desc    Get all donation requests (for home feed)
+// @route   GET /api/v1/user/requests
+// @access  Private
+export const getAllRequests = asyncHandler(async (req, res) => {
+    const { bloodGroup, city, page = 1, limit = 20 } = req.query;
+
+    const filter = { "requests.donarName": { $exists: true, $ne: "" } };
+    if (bloodGroup) filter["requests.bloodGroup"] = bloodGroup;
+    if (city) filter["requests.city"] = { $regex: city, $options: "i" };
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const donars = await Donar.find(filter)
+        .populate({ path: "user", select: "userName email" })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .sort({ updatedAt: -1 });
+
+    const requests = donars.map((d) => ({
+        _id: d._id,
+        userId: d.user,
+        ...d.requests.toObject(),
+    }));
+
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, requests));
+});
+
+
+// @desc    Get single donation request by donor id
+// @route   GET /api/v1/user/requests/:id
+// @access  Private
+export const getRequestById = asyncHandler(async (req, res) => {
+    const donar = await Donar.findById(req.params.id).populate({ path: "user", select: "userName email" });
+    if (!donar?.requests?.donarName) {
+        return res.status(StatusCodes.NOT_FOUND).send(new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND));
     }
 
-    donar.requests = { donarName, bloodGroup, amount, age, date, hospitalName, location, contactPersonName, mobileNumber, city, startTime, endTime, reason, donateTo };
-    
-    await donar.save();
+    const result = {
+        _id: donar._id,
+        userId: donar.user,
+        ...donar.requests.toObject(),
+        medicalInformation: donar.medicalInformation,
+    };
 
-    res.status(StatusCodes.OK).send( new ApiResponse(StatusCodes.OK, ADD_SUCCESS_MESSAGES));
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, result));
+});
+
+
+// ─── DONORS LIST ─────────────────────────────────────────────────────────────
+
+// @desc    Get donors list with optional filters
+// @route   GET /api/v1/user/donors
+// @access  Private
+export const getDonors = asyncHandler(async (req, res) => {
+    const { bloodGroup, city, page = 1, limit = 20 } = req.query;
+
+    const infoFilter = { canDonateBlood: "yes" };
+    if (bloodGroup) infoFilter.bloodGroup = bloodGroup;
+    if (city) infoFilter.city = { $regex: city, $options: "i" };
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const donors = await UserInfo.find(infoFilter)
+        .populate({ path: "user", select: "userName email" })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .sort({ createdAt: -1 });
+
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, donors));
+});
+
+
+// ─── POSTS ───────────────────────────────────────────────────────────────────
+
+// @desc    Get all posts (for users)
+// @route   GET /api/v1/user/posts
+// @access  Private
+export const getPosts = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const posts = await Post.find()
+        .populate({ path: "author", select: "userName" })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit));
+
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, posts));
 });

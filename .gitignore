@@ -1,0 +1,8 @@
+# Environment files (never commit secrets)
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Local tooling/config
+.claude/settings.local.json

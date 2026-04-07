@@ -50,11 +50,21 @@ export const forgotPassword = async (data: { email: string }) => {
 };
 
 
-export const updatePassword = async (data: { newPassowrd: string, otp: string }) => {
+export const updatePassword = async (data: { newPassword: string; otp: string }) => {
   try {
     const res = await api.post("auth/update-password", data);
     return res.data;
   } catch (error: any) {
-    throw error?.response?.data || { message: "forgot Password failed" };
+    throw error?.response?.data || { message: "Password update failed" };
+  }
+};
+
+
+export const logoutUser = async () => {
+  try {
+    const res = await api.post("auth/logout");
+    return res.data;
+  } catch {
+    // fire-and-forget — local session is cleared regardless
   }
 };

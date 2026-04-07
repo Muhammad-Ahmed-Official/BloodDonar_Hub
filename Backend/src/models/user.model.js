@@ -37,9 +37,10 @@ const userSchema = new mongoose.Schema({
     expiresIn: {
         type: Date
     },
-    userInfo: {
-        
-    }
+    suspended: {
+        type: Boolean,
+        default: false
+    },
 }, {timestamps: true}
 )
 

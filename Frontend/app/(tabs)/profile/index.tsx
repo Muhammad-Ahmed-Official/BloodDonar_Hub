@@ -7,11 +7,13 @@ import {
   Switch,
   Modal,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { COLORS, SIZES, SHADOW } from "../../../constants/theme";
+import { useAuth } from "@/context/AuthContext";
 
 const MENU_ITEMS = [
   { id: "create", label: "Create Request Blood", icon: "water" as const },
@@ -25,18 +27,23 @@ const MENU_ITEMS = [
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { logout, user } = useAuth();
+
   const [isAvailable, setIsAvailable] = useState(true);
   const [isNotif, setIsNotif] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
-  const handleLogout = () => {
-    setShowLogoutModal(true);
-  };
+  const handleLogout = () => setShowLogoutModal(true);
 
-  const confirmLogout = () => {
+  const confirmLogout = async () => {
     setShowLogoutModal(false);
-    router.push("/(auth)/login")
-    console.log("User logged out");
+    setLoggingOut(true);
+    try {
+      await logout(); // clears storage + state → route guard redirects to login
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   const handleMenuPress = (itemId: string) => {
@@ -74,8 +81,8 @@ export default function ProfileScreen() {
               <Ionicons name="person" size={28} color={COLORS.white} />
             </View>
             <View style={{ marginLeft: 12 }}>
-              <Text style={styles.profileName}>Hello Adin</Text>
-              <Text style={styles.profileSub}>Blood Group B+</Text>
+              <Text style={styles.profileName}>Hello {user?.userName ?? "User"}</Text>
+              <Text style={styles.profileSub}>{user?.email}</Text>
             </View>
           </View>
           <Switch
@@ -170,8 +177,12 @@ export default function ProfileScreen() {
                 <TouchableOpacity
                   style={[styles.modalButton, styles.logoutButton]}
                   onPress={confirmLogout}
+                  disabled={loggingOut}
                 >
-                  <Text style={styles.logoutButtonText}>Logout</Text>
+                  {loggingOut
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Text style={styles.logoutButtonText}>Logout</Text>
+                  }
                 </TouchableOpacity>
               </View>
             </View>

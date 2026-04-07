@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView } from "react-native";
+import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Alert, Linking } from "react-native";
 import { useRouter } from "expo-router";
 import { COLORS } from "../../../constants/theme";
 import Input from "@/components/common/Input";
@@ -7,23 +7,35 @@ import Label from "@/components/common/Label";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import * as ImagePicker from "expo-image-picker";
+import { createProfile } from "@/services/user.service";
+import { useAuth } from "@/context/AuthContext";
 
 const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
 export default function ProfileSetup1() {
   const router = useRouter();
+  const { user } = useAuth();
+
   const [selectedCity, setSelectedCity] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
   const [showGroup, setShowGroup] = useState(false);
   const [cities, setCities] = useState<string[]>([]);
   const [showCity, setShowCity] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loadingCities, setLoadingCities] = useState(false);
   const [showDonate, setShowDonate] = useState(false);
   const [selectGender, setSelectGender] = useState("");
   const [isYes, setIsYes] = useState("");
   const [show, setShow] = useState(false);
   const [date, setDate] = useState(new Date());
   const [showGender, setShowGender] = useState(false);
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+
+  // fields not covered by dropdowns
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [about, setAbout] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const calculateAge = (dob: Date) => {
     const today = new Date();
@@ -43,7 +55,7 @@ export default function ProfileSetup1() {
   }, []);
 
   const fetchCities = async () => {
-    setLoading(true);
+    setLoadingCities(true);
     try {
       const response = await fetch("https://countriesnow.space/api/v0.1/countries/cities", {
         method: "POST",
@@ -71,24 +83,100 @@ export default function ProfileSetup1() {
         "Multan", "Peshawar", "Quetta", "Sialkot", "Gujranwala",
       ]);
     } finally {
+      setLoadingCities(false);
+    }
+  };
+
+  const handlePickImage = async () => {
+    try {
+      const existing = await ImagePicker.getMediaLibraryPermissionsAsync();
+      let granted = existing.granted;
+
+      if (!granted) {
+        const requested = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        granted = requested.granted;
+
+        if (!granted) {
+          const message =
+            "Photo access is needed to set your profile picture. You can enable it in Settings.";
+          setError(message);
+          Alert.alert("Photos permission", message, [
+            { text: "Cancel", style: "cancel" },
+            ...(requested.canAskAgain === false
+              ? [{ text: "Open Settings", onPress: () => Linking.openSettings() }]
+              : []),
+          ]);
+          return;
+        }
+      }
+
+      // Android: allowsEditing + crop UI often returns canceled or fails on many devices / gallery apps.
+      // iOS: square crop is fine with allowsEditing.
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: Platform.OS === "ios",
+        ...(Platform.OS === "ios" ? { aspect: [1, 1] as [number, number] } : {}),
+        quality: 0.85,
+      });
+
+      if (result.canceled) return;
+
+      const uri = result.assets?.[0]?.uri;
+      if (uri) {
+        setAvatarUri(uri);
+        setError("");
+      } else {
+        Alert.alert("Could not load photo", "Please try another image.");
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Something went wrong opening the gallery.";
+      console.warn("ImagePicker:", e);
+      Alert.alert("Image picker", msg);
+      setError(msg);
+    }
+  };
+
+  // ── Submit ──────────────────────────────────────────────────────────────────
+  const handleSubmit = async () => {
+    setError("");
+
+    if (!mobileNumber.trim()) { setError("Mobile number is required"); return; }
+    if (!/^03\d{9}$/.test(mobileNumber.trim())) { setError("Mobile number must be in format 03XXXXXXXXX"); return; }
+    if (!selectedGroup)       { setError("Blood group is required"); return; }
+    if (!selectedCity)        { setError("City is required"); return; }
+    if (!selectGender)        { setError("Gender is required"); return; }
+    if (!isYes)               { setError("Please specify if you want to donate blood"); return; }
+
+    setLoading(true);
+    try {
+      await createProfile({
+        mobileNumber: mobileNumber.trim(),
+        bloodGroup: selectedGroup,
+        city: selectedCity,
+        dateOfBirth: date.toISOString(),
+        gender: selectGender.toLowerCase() as "male" | "female" | "other",
+        canDonateBlood: isYes.toLowerCase() as "yes" | "no",
+        about: about.trim(),
+      }, avatarUri ?? undefined);
+      router.replace("/(tabs)");
+    } catch (err: any) {
+      setError(err?.message || "Profile setup failed. Please try again.");
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = () => {
-    
-  }
-
   return (
     <KeyboardAvoidingView
       style={styles.keyboardView}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={0}
     >
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
       >
         {/* Back Button */}
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -101,20 +189,42 @@ export default function ProfileSetup1() {
           Almost done :) For set your profile, fill up the below information
         </Text>
 
-        {/* Icon */}
-        <View style={styles.iconContainer}>
-          <Ionicons name="person-outline" size={32} color={COLORS.primary} />
-        </View>
+        {/* Avatar Picker */}
+        <TouchableOpacity
+          style={styles.iconContainer}
+          onPress={handlePickImage}
+          activeOpacity={0.85}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          {avatarUri ? (
+            <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+          ) : (
+            <Ionicons name="person-outline" size={32} color={COLORS.primary} />
+          )}
+          <View style={styles.cameraBadge} pointerEvents="none">
+            <Ionicons name="camera" size={14} color={COLORS.white} />
+          </View>
+        </TouchableOpacity>
 
         <Text style={styles.section}>Personal Information</Text>
 
-        {/* Name */}
+        {/* Name — display only, taken from signup */}
         <Label title="Your Name" />
-        <Input placeholder="Enter your full name" />
+        <Input placeholder="Enter your full name" value={user?.userName ?? ""} editable={false} />
 
         {/* Phone */}
         <Label title="Mobile Number" />
-        <Input placeholder="Enter mobile number" keyboardType="phone-pad" />
+        <Input
+          placeholder="Enter Mobile Number"
+          keyboardType="phone-pad"
+          value={mobileNumber}
+          maxLength={11}
+          onChangeText={(t: string) => {
+            const cleaned = t.replace(/\D/g, "").slice(0, 11);
+            setMobileNumber(cleaned);
+            setError("");
+          }}
+        />
 
         {/* Blood Group */}
         <Label title="Select Group" />
@@ -168,7 +278,7 @@ export default function ProfileSetup1() {
 
         {showCity && (
           <View style={[styles.listContainer, { maxHeight: 250 }]}>
-            {loading ? (
+            {loadingCities ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
                 <Text style={styles.loadingText}>Loading cities...</Text>
@@ -305,17 +415,24 @@ export default function ProfileSetup1() {
 
         {/* About */}
         <Label title="About yourself" />
-        <Input 
-          placeholder="Tell us something about yourself" 
-          multiline 
+        <Input
+          placeholder="Tell us something about yourself"
+          multiline
           numberOfLines={4}
           textAlignVertical="top"
+          value={about}
+          onChangeText={(t: string) => setAbout(t)}
         />
+
+        {!!error && (
+          <Text style={{ color: "#E53935", fontSize: 13, marginBottom: 8 }}>{error}</Text>
+        )}
 
         <View style={styles.buttonContainer}>
           <Button
-            title="Next"
+            title={loading ? "Saving..." : "Complete Setup"}
             onPress={handleSubmit}
+            disabled={loading}
           />
         </View>
         
@@ -330,7 +447,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.white,
   },
+  scrollView: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+  },
   container: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 20,
@@ -370,10 +492,32 @@ const styles = StyleSheet.create({
   iconContainer: {
     alignSelf: "center",
     backgroundColor: "#FFE5E5",
-    padding: 18,
-    borderRadius: 50,
+    width: 86,
+    height: 86,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 43,
     marginBottom: 20,
     marginTop: 10,
+    position: "relative",
+  },
+  avatarImage: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+  },
+  cameraBadge: {
+    position: "absolute",
+    right: -2,
+    bottom: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: COLORS.white,
   },
   section: {
     textAlign: "center",

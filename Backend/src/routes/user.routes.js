@@ -1,10 +1,42 @@
 import { Router } from "express";
-import { verifyAdmin, verifyJwt } from "../middlewares/auth.middleware.js";
-import { donationRequest, medicalInfo, profileSetUp } from "../controllers/user.controller.js";
+import { verifyJwt } from "../middlewares/auth.middleware.js";
+import { upload } from "../middlewares/multer.middleware.js";
+import {
+    profileSetUp,
+    getProfile,
+    updateProfile,
+    medicalInfo,
+    getMedicalInfo,
+    donationRequest,
+    getAllRequests,
+    getRequestById,
+    getDonors,
+    getPosts,
+} from "../controllers/user.controller.js";
 
 const userRouter = Router();
-userRouter.route("/createProfile").post(verifyJwt, profileSetUp);
-userRouter.route("/medicalInfo").post(verifyJwt, medicalInfo);
-userRouter.route("/donarRequest").post(verifyJwt, donationRequest);
+
+// All routes require JWT
+userRouter.use(verifyJwt);
+
+// Profile
+userRouter.route("/createProfile").post(upload.single("avatar"), profileSetUp);
+userRouter.route("/profile").get(getProfile);
+userRouter.route("/profile").put(upload.single("avatar"), updateProfile);
+
+// Medical Info
+userRouter.route("/medicalInfo").post(medicalInfo);
+userRouter.route("/medicalInfo").get(getMedicalInfo);
+
+// Donation Requests
+userRouter.route("/donarRequest").post(donationRequest);
+userRouter.route("/requests").get(getAllRequests);
+userRouter.route("/requests/:id").get(getRequestById);
+
+// Donors
+userRouter.route("/donors").get(getDonors);
+
+// Posts (user view only)
+userRouter.route("/posts").get(getPosts);
 
 export default userRouter;

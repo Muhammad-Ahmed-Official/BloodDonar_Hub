@@ -60,4 +60,5 @@ export const responseMessages = {
     UN_AUTHORIZED: 'Email or Password is not valid',
     UPDATE_REQUEST_SUCCESS: 'Invitation request is updated',
     UNAUTHORIZED_REQUEST: "Unauthorized request",
+    MISSING_FIELD_EMAIL: 'Email is required',
 }
