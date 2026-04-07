@@ -8,21 +8,27 @@ const emailConfig = {
     },
 };
 
-async function sendEmailLink(mail, code) { 
+// console.log(process.env.PORTAL_EMAIL, process.env.PORTAL_PASSWORD, "Ali")
+
+async function sendEmailOTP(mail, otp) { 
     const transporter = nodemailer.createTransport(emailConfig);
     const mailOptions = {
         from: process.env.PORTAL_EMAIL,
         to: mail, 
-        subject: "CHANGE PASSWORD",
-        html: SEND_EMAIL_CODE(code), // html body 
+        subject: "OTP ",
+        html: SEND_EMAIL_CODE(otp),
     };
 
     try {
         await transporter.sendMail(mailOptions);
-        return `Code sent to ${mail} via email`;
+        return `OTP sent to ${mail} via email`;
     } catch (error) {
-        throw `Error sending OTP to ${mail} via email: ${error}`;
+        throw new Error(
+            `Error sending OTP to ${mail} via email: ${error?.message || error}`,
+        );
     }
 }
 
-export { sendEmailLink }
+
+
+export { sendEmailOTP }

@@ -85,41 +85,34 @@ hr{
 <div class="container">
 
 <div class="header">
-<h2>MedRemind</h2>
-<p>Password Reset Verification</p>
+<h2>Blood Donar Hub</h2>
+<p>OTP Code</p>
 </div>
 
 <div class="body">
 
 <p>Hello,</p>
 
-<p>
-We received a request to reset your password for your <strong>MedRemind</strong> account.
-To continue the password reset process, please use the verification code below.
-</p>
+<p>Thanks for registering at <strong>Blood Donar Hub</strong>. Use the code below to verify your email address and continue.</p>
 
 <div class="code-box">
 <span class="code">${code}</span>
 </div>
 
-<p class="note">
-This code will expire in <strong>30 minutes</strong>.
-If you did not request a password reset, you can safely ignore this email.
-</p>
-
-<p>
-Stay healthy and never miss your medication with <strong>MedRemind</strong>.
-</p>
 
 </div>
-
 <hr>
 
 <div class="footer">
-<p>© ${new Date().getFullYear()} MedRemind</p>
+<p>© ${new Date().getFullYear()} Blood Donar Hub</p>
 <p>Your smart medication reminder</p>
 </div>
 </div>
 </body>
 </html>
 `;
+
+{/* <p class="note">
+This code will expire in <strong>30 minutes</strong>.
+If you did not request a password reset, you can safely ignore this email.
+</p> */}

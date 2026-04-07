@@ -1,10 +1,4 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SIZES, SHADOW } from "@/constants/theme";
 import { useState } from "react";
@@ -41,11 +35,14 @@ export default function BecomeDonor() {
     setAnswers((prev) => ({ ...prev, [id]: val }));
   };
 
-  const allAnswered =
-    Object.values(answers).every((v) => v !== null) && agreedToTerms;
+  const allAnswered = Object.values(answers).every((v) => v !== null) && agreedToTerms;
 
   // Extra bottom padding: tab bar (~60px) + safe area inset + breathing room
   const bottomPadding = insets.bottom + 80;
+
+  const handleNext = () => {
+    router.push("/(tabs)/search/create")
+  }
 
   return (
     <View style={styles.container}>
@@ -107,6 +104,7 @@ export default function BecomeDonor() {
 
         {/* CTA BUTTON */}
         <TouchableOpacity
+          onPress={handleNext}
           style={[styles.ctaBtn, !allAnswered && styles.ctaBtnDisabled]}
           disabled={!allAnswered}
           activeOpacity={0.85}

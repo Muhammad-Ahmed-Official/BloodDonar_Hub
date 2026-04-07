@@ -1,14 +1,4 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  ScrollView,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
 import { COLORS } from "../../../constants/theme";
 import Input from "@/components/common/Input";
@@ -16,6 +6,7 @@ import Button from "@/components/common/Button";
 import Label from "@/components/common/Label";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
@@ -27,6 +18,25 @@ export default function ProfileSetup1() {
   const [cities, setCities] = useState<string[]>([]);
   const [showCity, setShowCity] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showDonate, setShowDonate] = useState(false);
+  const [selectGender, setSelectGender] = useState("");
+  const [isYes, setIsYes] = useState("");
+  const [show, setShow] = useState(false);
+  const [date, setDate] = useState(new Date());
+  const [showGender, setShowGender] = useState(false);
+
+  const calculateAge = (dob: Date) => {
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+
+    return age;
+  };
+
 
   useEffect(() => {
     fetchCities();
@@ -64,6 +74,10 @@ export default function ProfileSetup1() {
       setLoading(false);
     }
   };
+
+  const handleSubmit = () => {
+    
+  }
 
   return (
     <KeyboardAvoidingView
@@ -181,10 +195,127 @@ export default function ProfileSetup1() {
           </View>
         )}
 
+      <Label title="Date of Birth" />
+      <TouchableOpacity
+        style={styles.dropdown}
+        onPress={() => setShow(true)}
+      >
+        <Text style={[styles.dropdownText, !date && styles.placeholderText]}>
+          {date ? date.toDateString() : "Select date"}
+        </Text>
+        <Ionicons name="calendar-outline" size={18} color="#888" />
+      </TouchableOpacity>
+
+      {show && (
+        <DateTimePicker
+          value={date || new Date()}
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={(event, selectedDate) => {
+            if (Platform.OS === "android") {
+              setShow(false);
+            }
+            if (selectedDate) {
+              setDate(selectedDate);
+            }
+          }}
+        />
+      )}
+
+
+        <View style={styles.ageContainer}>
+          <Text style={styles.ageText}>
+            Your age: <Text style={styles.ageValue}>{date ? calculateAge(date) : ""} years</Text>
+          </Text>
+        </View>
+
+        {/* Gender Dropdown */}
+        <Label title="Gender" />
+        <TouchableOpacity
+          style={styles.dropdown}
+          onPress={() => setShowGender(!showGender)}
+        >
+          <Text style={[styles.dropdownText, !selectGender && styles.placeholderText]}>
+            {selectGender || "Select gender"}
+          </Text>
+          <Ionicons name="chevron-down" size={18} color="#888" />
+        </TouchableOpacity>
+
+        {showGender && (
+          <View style={styles.listContainer}>
+            <FlatList
+              data={["Male", "Female", "Other"]}
+              keyExtractor={(item) => item}
+              scrollEnabled={false}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.option}
+                  onPress={() => {
+                    setSelectGender(item);
+                    setShowGender(false);
+                  }}
+                >
+                  <Text style={styles.optionText}>{item}</Text>
+                  {selectGender === item && (
+                    <Ionicons name="checkmark" size={18} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        )}
+        
+
+        {/* Donate Dropdown */}
+        <Label title="I want to donate blood" />
+        <TouchableOpacity
+          style={styles.dropdown}
+          onPress={() => setShowDonate(!showDonate)}
+        >
+          <Text style={[styles.dropdownText, !isYes && styles.placeholderText]}>
+            {isYes || "Select option"}
+          </Text>
+          <Ionicons name="chevron-down" size={18} color="#888" />
+        </TouchableOpacity>
+
+        {showDonate && (
+          <View style={styles.listContainer}>
+            <FlatList
+              data={["Yes", "No"]}
+              keyExtractor={(item) => item}
+              scrollEnabled={false}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.option}
+                  onPress={() => {
+                    setIsYes(item);
+                    setShowDonate(false);
+                  }}
+                >
+                  <Text style={styles.optionText}>{item}</Text>
+                  {isYes === item && (
+                    <Ionicons name="checkmark" size={18} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        )}
+        
+
+        {/* About */}
+        <Label title="About yourself" />
+        <Input 
+          placeholder="Tell us something about yourself" 
+          multiline 
+          numberOfLines={4}
+          textAlignVertical="top"
+        />
+
         <View style={styles.buttonContainer}>
           <Button
             title="Next"
-            onPress={() => router.push("/(auth)/profile-setup/step2")}
+            onPress={handleSubmit}
           />
         </View>
         
@@ -211,6 +342,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "flex-start",
     marginBottom: 10,
+  },
+    ageContainer: {
+    marginBottom: 16,
+    marginTop: -8,
+  },
+  ageText: {
+    fontSize: 14,
+    color: "#666",
+  },
+  ageValue: {
+    fontWeight: "600",
+    color: COLORS.primary,
   },
   title: {
     fontSize: 28,

@@ -1,20 +1,25 @@
 import { connectDB } from "./db/index.js";
+import http from "http";
+import app from "./app.js";
+import SocketService from "./socket/index.js";
 import dotenv from "dotenv";
-import app from './app.js';
 
-// Load environment variables
 dotenv.config({ path: "./.env" });
 
 const PORT = process.env.PORT || 3000;
+const server = http.createServer(app);
 
-// Database Connection and Server Start
+const socketService = new SocketService();
+socketService.io.attach(server);
+socketService.initListener();
+
 connectDB()
   .then(() => {
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`🚀 Server is running on http://localhost:${PORT}`);
     });
   })
-  .catch(err => {
+  .catch((err) => {
     console.error("❌ MongoDB connection failed:", err.message);
-    process.exit(1); // Exit the process if the DB connection fails
+    process.exit(1);
   });

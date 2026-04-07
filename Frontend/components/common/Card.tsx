@@ -52,7 +52,7 @@ export default function Card({
           </View>
 
           {isShow && <View style={styles.btnRow}>
-            <TouchableOpacity style={styles.donateBtn} onPress={() => router.push("/(tabs)/search/create")}>
+            <TouchableOpacity style={styles.donateBtn} onPress={() => router.push("/(tabs)/profile/medicalInfo")}>
               <Text style={styles.donateText}>Donate</Text>
             </TouchableOpacity>
 

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
+    "@imagekit/react": "^5.0.2",
     "@react-native-community/datetimepicker": "8.6.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
@@ -22,6 +23,7 @@
     "expo-font": "~55.0.4",
     "expo-haptics": "~55.0.11",
     "expo-image": "~55.0.8",
+    "expo-image-picker": "^55.0.16",
     "expo-linking": "~55.0.11",
     "expo-router": "~55.0.10",
     "expo-splash-screen": "~55.0.15",

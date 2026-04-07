@@ -4,14 +4,18 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
+  Linking,
 } from "react-native";
-import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SIZES, SHADOW } from "@/constants/theme";
 import { useRouter } from "expo-router";
 
 export default function ProfileDetails() {
   const router = useRouter();
+
+  const handleCall = () => {
+    Linking.openURL('tel:+1234567890');
+  };
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -41,11 +45,11 @@ export default function ProfileDetails() {
 
         {/* ACTION BUTTONS */}
         <View style={styles.actionRow}>
-          <TouchableOpacity style={styles.chatBtn}>
+          <TouchableOpacity onPress={() => router.push("/(tabs)/inbox")} style={styles.chatBtn}>
             <Ionicons name="chatbubble-outline" size={16} color={COLORS.primary} />
             <Text style={styles.chatBtnText}>Chat Now</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.callBtn}>
+          <TouchableOpacity style={styles.callBtn} onPress={handleCall}>
             <Ionicons name="call-outline" size={16} color="#fff" />
             <Text style={styles.callBtnText}>Call</Text>
           </TouchableOpacity>

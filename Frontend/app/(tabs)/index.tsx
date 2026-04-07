@@ -14,6 +14,7 @@ import { COLORS, SIZES, SHADOW } from "../../constants/theme";
 import Button from "@/components/common/Button";
 import Card from "@/components/common/Card";
 import { useState } from "react";
+import Input from "@/components/common/Input";
 
 const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
@@ -44,10 +45,19 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.contentInner}>
-          <View style={styles.searchBox}>
-            <Text style={styles.searchPlaceholder}>Search Location</Text>
-            <Ionicons name="location-outline" size={18} color={COLORS.primary} />
-          </View>
+        <View style={styles.containerSearch}>
+          <Input
+            style={styles.input}
+            placeholder="Search Location"
+            placeholderTextColor="#B0B0B0"
+          />
+          <Ionicons
+            name="location-outline"
+            size={18}
+            color={COLORS.primary}
+            style={styles.icon}
+          />
+        </View>
 
           <TouchableOpacity
             style={styles.dropdown}
@@ -196,6 +206,7 @@ const styles = StyleSheet.create({
   },
   contentInner: {
     padding: SIZES.padding,
+    gap: 10
   },
 
   imageContainer: {
@@ -204,6 +215,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     marginTop: 20,
+  },
+
+   containerSearch: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFE8E8", // replace with your given background color
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    height: 40,
+  },
+  input: {
+    flex: 1,
+    fontSize: 14,
+    color: "#000",
+    borderWidth: 0,
+  },
+  icon: {
+    marginLeft: 8,
   },
 
   bannerContainer: {
