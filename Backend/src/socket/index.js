@@ -45,36 +45,12 @@ export default class SocketService {
         console.log(`Socket ${socket.id} left room ${chatId}`);
       });
 
-      //  Send Message
-      socket.on("message", async (data) => {
-        const { sender, receiver, message, customId, userName, profilePic } = data;
-
-        if (!receiver) return;
-
-        const receiverSockets = await io.in(receiver).fetchSockets();
-        const isReceiverInRoom = receiverSockets.length > 0;
-
-        const payload = {
-          sender,
-          receiver,
-          message,
-          customId,
-          userName,
-          profilePic,
-        };
-
-        const payloadWithStatus = {
-          ...payload,
-          isReceiverInRoom,
-        };
-
-        io.to(receiver).emit("newMessage", payloadWithStatus);
-
-        try {
-          await Chat.create(payload);
-        } catch (error) {
-          console.error("Message DB save failed:", error.message);
-        }
+      //  Send Message (legacy socket path disabled)
+      // NOTE: Message persistence + realtime fan-out is handled by REST
+      // POST /api/v1/chat/messages in chat.controller.js.
+      // Keeping this handler to avoid client crashes from old emits.
+      socket.on("message", () => {
+        // no-op intentionally to prevent duplicate delivery
       });
 
       //  Delete Message

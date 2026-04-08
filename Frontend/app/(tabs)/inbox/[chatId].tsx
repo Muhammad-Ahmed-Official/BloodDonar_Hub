@@ -1,9 +1,4 @@
-import { View, Text, StyleSheet,
-FlatList, TextInput, TouchableOpacity,
-KeyboardAvoidingView, Platform, StatusBar, Linking,
-ActivityIndicator,
-Image,
-} from "react-native";
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, StatusBar, Linking, ActivityIndicator, Image } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -12,7 +7,7 @@ import { COLORS, SHADOW } from "../../../constants/theme";
 import { getMessages, sendMessage as sendMessageApi } from "@/services/chat.service";
 import { useAuth } from "@/context/AuthContext";
 import { getPublicUserProfile } from "@/services/user.service";
-import { connectRealtime } from "@/services/realtime";
+import { getRealtimeSocket } from "@/services/realtime";
 import { useFocusEffect } from "@react-navigation/native";
 
 type ApiUser = { _id?: string; userName?: string };
@@ -69,8 +64,7 @@ export default function ChatScreen() {
   const [loadingPartner, setLoadingPartner] = useState(false);
 
   const emitSeen = useCallback(() => {
-    if (!user?._id) return;
-    const s = connectRealtime(String(user._id));
+    const s = getRealtimeSocket();
     if (!s || !receiverId || !user?._id) return;
     // Mark partner -> me messages as seen
     s.emit("seenMsg", { sender: String(receiverId), receiver: String(user._id) });
@@ -162,9 +156,8 @@ export default function ChatScreen() {
 
   // Real-time receive
   useEffect(() => {
-    if (!receiverId || !user?._id) return;
-    const s = connectRealtime(String(user._id));
-    if (!s) return;
+    const s = getRealtimeSocket();
+    if (!s || !receiverId || !user?._id) return;
 
     const onNewMessage = (payload: any) => {
       const p = payload as SocketPayload;
@@ -174,17 +167,28 @@ export default function ChatScreen() {
       if (!fromPartner) return;
 
       const createdAt = p.createdAt ?? new Date().toISOString();
-      setMessages((prev) => [
-        {
-          id: `rt-${p.customId ?? createdAt}`,
-          customId: p.customId,
-          text: p.message,
-          sender: "them",
-          time: formatTime(createdAt),
-          createdAt,
-        },
-        ...prev,
-      ]);
+      setMessages((prev) => {
+        const exists = prev.some((m) => {
+          if (p.customId && m.customId) return m.customId === p.customId;
+          return (
+            m.sender === "them" &&
+            m.text === p.message &&
+            Math.abs(new Date(m.createdAt ?? 0).getTime() - new Date(createdAt).getTime()) < 1500
+          );
+        });
+        if (exists) return prev;
+        return [
+          {
+            id: `rt-${p.customId ?? createdAt}`,
+            customId: p.customId,
+            text: p.message,
+            sender: "them",
+            time: formatTime(createdAt),
+            createdAt,
+          },
+          ...prev,
+        ];
+      });
 
       // instantly mark as seen if I'm currently in this chat
       emitSeen();
@@ -201,6 +205,7 @@ export default function ChatScreen() {
     if (!inputText.trim()) return;
     const text = inputText.trim();
     const optimisticId = `local-${Date.now()}`;
+    const customId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     setMessages((prev) => [
       {
         id: optimisticId,
