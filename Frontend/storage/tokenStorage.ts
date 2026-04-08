@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const TOKEN_KEY = "accessToken";
 const USER_KEY = "user";
+const LANGUAGE_KEY = "appLanguage";
 
 // ─── Token ───────────────────────────────────────────────────────────────────
 
@@ -36,4 +37,18 @@ export const removeUser = async (): Promise<void> => {
 
 export const clearSession = async (): Promise<void> => {
   await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+};
+
+// ─── Language ─────────────────────────────────────────────────────────────────
+
+export type AppLanguage = "en" | "ur";
+
+export const saveLanguage = async (language: AppLanguage): Promise<void> => {
+  await AsyncStorage.setItem(LANGUAGE_KEY, language);
+};
+
+export const getSavedLanguage = async (): Promise<AppLanguage | null> => {
+  const raw = await AsyncStorage.getItem(LANGUAGE_KEY);
+  if (raw === "en" || raw === "ur") return raw;
+  return null;
 };

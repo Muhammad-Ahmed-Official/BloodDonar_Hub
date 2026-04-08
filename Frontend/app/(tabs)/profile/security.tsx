@@ -13,15 +13,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { COLORS } from "@/constants/theme";
 import { changeNumber } from "@/services/user.service";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function AccountSecurityScreen() {
   const router = useRouter();
   const [phoneModal, setPhoneModal] = useState(false);
   const [langModal, setLangModal] = useState(false);
   const [phone, setPhone] = useState("");
-  const [language, setLanguage] = useState("English");
   const [savingPhone, setSavingPhone] = useState(false);
   const [phoneError, setPhoneError] = useState("");
+  const { language, setLanguage, t } = useLanguage();
 
   const handleSavePhone = async () => {
     const cleaned = phone.replace(/\D/g, "").slice(0, 11);
@@ -37,7 +38,7 @@ export default function AccountSecurityScreen() {
     try {
       await changeNumber(cleaned);
       setPhoneModal(false);
-      Alert.alert("Success", "Mobile number updated");
+      Alert.alert("Success", t("security.phoneUpdated"));
     } catch (e: unknown) {
       const msg =
         typeof e === "object" && e !== null && "message" in e
@@ -55,7 +56,7 @@ export default function AccountSecurityScreen() {
         <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
           <Ionicons name="chevron-back" size={22} color="#222" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Account And Security</Text>
+        <Text style={styles.headerTitle}>{t("security.title")}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -68,7 +69,7 @@ export default function AccountSecurityScreen() {
             <View style={styles.iconCircle}>
               <Ionicons name="person" size={16} color={COLORS.primary} />
             </View>
-            <Text style={styles.text}>Account Info</Text>
+            <Text style={styles.text}>{t("security.accountInfo")}</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#999" />
         </TouchableOpacity>
@@ -85,7 +86,7 @@ export default function AccountSecurityScreen() {
             <View style={styles.iconCircle}>
               <Ionicons name="call" size={16} color={COLORS.primary} />
             </View>
-            <Text style={styles.text}>Change Phone Number</Text>
+            <Text style={styles.text}>{t("security.changePhone")}</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#999" />
         </TouchableOpacity>
@@ -101,10 +102,10 @@ export default function AccountSecurityScreen() {
             <View style={styles.iconCircle}>
               <Ionicons name="globe" size={16} color={COLORS.primary} />
             </View>
-            <Text style={styles.text}>Language</Text>
+            <Text style={styles.text}>{t("security.language")}</Text>
           </View>
           <View style={styles.rightValue}>
-            <Text style={styles.languageValue}>{language}</Text>
+            <Text style={styles.languageValue}>{language === "en" ? "English" : "Urdu"}</Text>
             <Ionicons name="chevron-forward" size={18} color="#999" />
           </View>
         </TouchableOpacity>
@@ -114,10 +115,10 @@ export default function AccountSecurityScreen() {
       <Modal visible={phoneModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Change Phone Number</Text>
+            <Text style={styles.modalTitle}>{t("security.phoneModalTitle")}</Text>
 
             <TextInput
-              placeholder="Enter new phone number"
+              placeholder={t("security.phonePlaceholder")}
               style={styles.input}
               value={phone}
               onChangeText={(t) => {
@@ -137,12 +138,12 @@ export default function AccountSecurityScreen() {
               {savingPhone ? (
                 <ActivityIndicator color={COLORS.white} />
               ) : (
-                <Text style={styles.saveText}>Save</Text>
+                <Text style={styles.saveText}>{t("common.save")}</Text>
               )}
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => setPhoneModal(false)}>
-              <Text style={styles.cancel}>Cancel</Text>
+              <Text style={styles.cancel}>{t("common.cancel")}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -151,19 +152,19 @@ export default function AccountSecurityScreen() {
       <Modal visible={langModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Select Language</Text>
+            <Text style={styles.modalTitle}>{t("security.selectLanguage")}</Text>
 
             {/* English Option */}
             <TouchableOpacity
               style={styles.langOption}
               onPress={() => {
-                setLanguage("English");
+                setLanguage("en");
                 setLangModal(false);
               }}
             >
               <View style={styles.radioContainer}>
-                <View style={[styles.radioCircle, language === "English" && styles.radioSelected]}>
-                  {language === "English" && <View style={styles.radioInner} />}
+                <View style={[styles.radioCircle, language === "en" && styles.radioSelected]}>
+                  {language === "en" && <View style={styles.radioInner} />}
                 </View>
                 <Text style={styles.langText}>English</Text>
               </View>
@@ -173,13 +174,13 @@ export default function AccountSecurityScreen() {
             <TouchableOpacity
               style={styles.langOption}
               onPress={() => {
-                setLanguage("Urdu");
+                setLanguage("ur");
                 setLangModal(false);
               }}
             >
               <View style={styles.radioContainer}>
-                <View style={[styles.radioCircle, language === "Urdu" && styles.radioSelected]}>
-                  {language === "Urdu" && <View style={styles.radioInner} />}
+                <View style={[styles.radioCircle, language === "ur" && styles.radioSelected]}>
+                  {language === "ur" && <View style={styles.radioInner} />}
                 </View>
                 <Text style={styles.langText}>Urdu</Text>
               </View>
@@ -190,7 +191,7 @@ export default function AccountSecurityScreen() {
               style={styles.cancelBtn}
               onPress={() => setLangModal(false)}
             >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+              <Text style={styles.cancelBtnText}>{t("common.cancel")}</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -3,6 +3,7 @@ import { View, StyleSheet, Platform } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { COLORS } from "../../constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useLanguage } from "@/context/LanguageContext";
 
 function TabIcon({ name, focused, type = "ionicons" }: { name: any; focused: boolean; type?: "ionicons" | "material" }) {
   return (
@@ -27,6 +28,7 @@ function TabIcon({ name, focused, type = "ionicons" }: { name: any; focused: boo
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
+  const { t } = useLanguage();
   
   // Hide tab bar on dynamic chat route (pathname is e.g. /inbox/hassnan, not /inbox/[chatId])
   const isChatScreen = /^\/inbox\/.+/.test(pathname);
@@ -50,7 +52,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: t("tabs.home"),
+          tabBarAccessibilityLabel: t("tabs.home"),
           tabBarIcon: ({ focused }) => (
             <TabIcon name="home" focused={focused} type="ionicons" />
           ),
@@ -61,7 +64,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="inbox/index"
         options={{
-          title: "Messages",
+          title: t("tabs.messages"),
+          tabBarAccessibilityLabel: t("tabs.messages"),
           tabBarIcon: ({ focused }) => (
             <TabIcon name="chat" focused={focused} type="material" />
           ),
@@ -72,7 +76,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="search/index"
         options={{
-          title: "Search",
+          title: t("tabs.search"),
+          tabBarAccessibilityLabel: t("tabs.search"),
           tabBarIcon: ({ focused }) => (
             <TabIcon name="search" focused={focused} type="ionicons" />
           ),
@@ -83,7 +88,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile/index"
         options={{
-          title: "Profile",
+          title: t("tabs.profile"),
+          tabBarAccessibilityLabel: t("tabs.profile"),
           tabBarIcon: ({ focused }) => (
             <TabIcon name="person" focused={focused} type="ionicons" />
           ),

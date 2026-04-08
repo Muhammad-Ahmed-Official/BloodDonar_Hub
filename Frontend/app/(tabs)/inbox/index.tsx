@@ -16,6 +16,7 @@ import { getConversations, searchUsers } from "@/services/chat.service";
 import { useFocusEffect } from "@react-navigation/native";
 import { connectRealtime } from "@/services/realtime";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 type Partner = { _id: string; userName?: string; pic?: string };
 type SearchUser = { _id: string; userName?: string; email?: string; pic?: string; city?: string };
@@ -41,6 +42,7 @@ function formatTime(iso?: string) {
 export default function InboxScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [query, setQuery] = useState("");
   const [list, setList] = useState<ConversationRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -177,13 +179,13 @@ export default function InboxScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Inbox</Text>
+        <Text style={styles.headerTitle}>{t("inbox.title")}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <View style={styles.searchWrap}>
         <TextInput
-          placeholder="Search name or message"
+          placeholder={t("inbox.searchPlaceholder")}
           placeholderTextColor="#aaa"
           style={styles.searchInput}
           value={query}
@@ -210,7 +212,7 @@ export default function InboxScreen() {
             contentContainerStyle={{ paddingHorizontal: SIZES.padding, paddingTop: 8 }}
             ListEmptyComponent={
               searching ? null : (
-                <Text style={styles.emptyText}>No users found.</Text>
+                <Text style={styles.emptyText}>{t("inbox.noUsers")}</Text>
               )
             }
             renderItem={({ item }) => (
@@ -244,7 +246,7 @@ export default function InboxScreen() {
           keyExtractor={(item) => String(item._id)}
           contentContainerStyle={{ paddingHorizontal: SIZES.padding, paddingTop: 8 }}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No conversations yet.</Text>
+            <Text style={styles.emptyText}>{t("inbox.noConversations")}</Text>
           }
           renderItem={({ item }) => {
             const partnerId = item.partner!._id;

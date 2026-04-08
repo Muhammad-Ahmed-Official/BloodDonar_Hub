@@ -12,6 +12,7 @@ import { COLORS, SIZES, SHADOW } from "@/constants/theme";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { getRequestById } from "@/services/user.service";
+import { useLanguage } from "@/context/LanguageContext";
 
 type PosterProfile = {
   pic?: string;
@@ -52,6 +53,7 @@ function getOwnerId(userId: RequestDetail["userId"]): string {
 
 export default function RequestDetails() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { id } = useLocalSearchParams<{ id: string }>();
   const requestId = Array.isArray(id) ? id[0] : id;
 
@@ -111,7 +113,7 @@ export default function RequestDetails() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={22} color="#222" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Request Details</Text>
+        <Text style={styles.headerTitle}>{t("requestDetails.title")}</Text>
       </View>
 
       {loading ? (
@@ -119,7 +121,7 @@ export default function RequestDetails() {
       ) : err ? (
         <Text style={styles.errorText}>{err}</Text>
       ) : !data ? (
-        <Text style={styles.errorText}>No data</Text>
+        <Text style={styles.errorText}>{t("requestDetails.noData")}</Text>
       ) : (
         <>
           <View style={styles.profileCard}>
@@ -142,33 +144,33 @@ export default function RequestDetails() {
             </View>
             {!!ownerId && (
               <TouchableOpacity style={styles.viewProfileBtn} onPress={openPosterProfile}>
-                <Text style={styles.viewProfileText}>View profile</Text>
+                <Text style={styles.viewProfileText}>{t("requestDetails.viewProfile")}</Text>
               </TouchableOpacity>
             )}
           </View>
 
-          <Text style={styles.sectionTitle}>Patient details</Text>
+          <Text style={styles.sectionTitle}>{t("requestDetails.patientDetails")}</Text>
           <View style={styles.detailsCard}>
-            <DetailRow label="Patient name" value={data.donarName ?? "—"} />
-            <DetailRow label="Age" value={data.age != null ? String(data.age) : "—"} />
-            <DetailRow label="Blood group" value={data.bloodGroup ?? "—"} highlight />
-            <DetailRow label="Units" value={data.amount ?? "—"} />
-            <DetailRow label="Hospital" value={data.hospitalName ?? "—"} />
-            <DetailRow label="City" value={data.city ?? "—"} isLast />
+            <DetailRow label={t("requestDetails.patientName")} value={data.donarName ?? "—"} />
+            <DetailRow label={t("requestDetails.age")} value={data.age != null ? String(data.age) : "—"} />
+            <DetailRow label={t("requestDetails.bloodGroup")} value={data.bloodGroup ?? "—"} highlight />
+            <DetailRow label={t("requestDetails.units")} value={data.amount ?? "—"} />
+            <DetailRow label={t("requestDetails.hospital")} value={data.hospitalName ?? "—"} />
+            <DetailRow label={t("requestDetails.city")} value={data.city ?? "—"} isLast />
           </View>
 
-          <Text style={styles.sectionTitle}>Case</Text>
+          <Text style={styles.sectionTitle}>{t("requestDetails.case")}</Text>
           <View style={styles.detailsCard}>
-            <DetailRow label="Date needed" value={data.date ?? "—"} />
-            <DetailRow label="Timing" value={`${data.startTime ?? "—"} – ${data.endTime ?? "—"}`} />
-            <DetailRow label="Contact" value={data.contactPersonName ?? "—"} />
-            <DetailRow label="Mobile" value={data.mobileNumber ?? "—"} />
-            <DetailRow label="Address" value={data.location ?? "—"} isLast />
+            <DetailRow label={t("requestDetails.dateNeeded")} value={data.date ?? "—"} />
+            <DetailRow label={t("requestDetails.timing")} value={`${data.startTime ?? "—"} – ${data.endTime ?? "—"}`} />
+            <DetailRow label={t("requestDetails.contact")} value={data.contactPersonName ?? "—"} />
+            <DetailRow label={t("requestDetails.mobile")} value={data.mobileNumber ?? "—"} />
+            <DetailRow label={t("requestDetails.address")} value={data.location ?? "—"} isLast />
           </View>
 
           {!!data.reason && (
             <>
-              <Text style={styles.sectionTitle}>Reason</Text>
+              <Text style={styles.sectionTitle}>{t("requestDetails.reason")}</Text>
               <View style={[styles.detailsCard, { paddingVertical: 12 }]}>
                 <Text style={styles.reasonText}>{data.reason}</Text>
               </View>

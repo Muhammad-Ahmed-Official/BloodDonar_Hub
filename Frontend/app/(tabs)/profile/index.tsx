@@ -16,20 +16,21 @@ import { useEffect, useState } from "react";
 import { COLORS, SIZES, SHADOW } from "../../../constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { getProfile, updateProfile } from "@/services/user.service";
-
-const MENU_ITEMS = [
-  { id: "create", label: "Create Request Blood", icon: "water" as const },
-  { id: "security", label: "Account And Security", icon: "shield-checkmark-outline" as const },
-  { id: "medical", label: "Medical Info", icon: "medkit-outline" as const },
-  { id: "activity", label: "Activity", icon: "pulse-outline" as const },
-  { id: "privacy", label: "Privacy Policy", icon: "lock-closed-outline" as const },
-  { id: "compatibility", label: "Compatibility", icon: "heart-outline" as const },
-  { id: "logout", label: "Logout", icon: "log-out-outline" as const, danger: true },
-];
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { logout, user } = useAuth();
+  const { t } = useLanguage();
+  const MENU_ITEMS = [
+    { id: "create", label: t("profile.menuCreateRequestBlood"), icon: "water" as const },
+    { id: "security", label: t("security.title"), icon: "shield-checkmark-outline" as const },
+    { id: "medical", label: t("profile.menuMedicalInfo"), icon: "medkit-outline" as const },
+    { id: "activity", label: t("profile.menuActivity"), icon: "pulse-outline" as const },
+    { id: "privacy", label: t("profile.menuPrivacyPolicy"), icon: "lock-closed-outline" as const },
+    { id: "compatibility", label: t("profile.menuCompatibility"), icon: "heart-outline" as const },
+    { id: "logout", label: t("common.logout"), icon: "log-out-outline" as const, danger: true },
+  ];
 
   const [isAvailable, setIsAvailable] = useState(true);
   const [isNotif, setIsNotif] = useState(true);
@@ -120,7 +121,7 @@ export default function ProfileScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile</Text>
+        <Text style={styles.headerTitle}>{t("profile.title")}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -138,13 +139,13 @@ export default function ProfileScreen() {
               )}
             </View>
             <View style={{ marginLeft: 12 }}>
-              <Text style={styles.profileName}>Hello {user?.userName ?? "User"}</Text>
+              <Text style={styles.profileName}>{t("profile.hello")} {user?.userName ?? t("common.user")}</Text>
               <Text style={styles.profileSub}>{user?.email}</Text>
               {!!userInfo?.city && (
                 <Text style={styles.profileMeta}>{userInfo.city}</Text>
               )}
               {!!userInfo?.bloodGroup && (
-                <Text style={styles.profileMeta}>Blood: {userInfo.bloodGroup}</Text>
+                <Text style={styles.profileMeta}>{t("profile.blood")}: {userInfo.bloodGroup}</Text>
               )}
             </View>
           </View>
@@ -160,20 +161,20 @@ export default function ProfileScreen() {
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>
-              {userInfo?.canDonateBlood === "yes" ? "Yes" : "No"}
+              {userInfo?.canDonateBlood === "yes" ? t("common.yes") : t("common.no")}
             </Text>
-            <Text style={styles.statLabel}>Can donate</Text>
+            <Text style={styles.statLabel}>{t("profile.canDonate")}</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>
               {donationRequest?.donarName ? "1" : "0"}
             </Text>
-            <Text style={styles.statLabel}>Requested</Text>
+            <Text style={styles.statLabel}>{t("profile.requested")}</Text>
           </View>
         </View>
 
         <View style={styles.availRow}>
-          <Text style={styles.availLabel}>I am available to donate</Text>
+          <Text style={styles.availLabel}>{t("profile.availableToggle")}</Text>
           <Switch
             value={isAvailable}
             onValueChange={onAvailChange}
@@ -226,11 +227,11 @@ export default function ProfileScreen() {
             <View style={styles.modalContent}>
               
               {/* Title */}
-              <Text style={styles.modalTitle}>Logout</Text>
+              <Text style={styles.modalTitle}>{t("common.logout")}</Text>
               
               {/* Message */}
               <Text style={styles.modalMessage}>
-                Are you sure, you want to logout?
+                {t("profile.logoutConfirm")}
               </Text>
               
               {/* Buttons */}
@@ -239,7 +240,7 @@ export default function ProfileScreen() {
                   style={[styles.modalButton, styles.cancelButton]}
                   onPress={() => setShowLogoutModal(false)}
                 >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                  <Text style={styles.cancelButtonText}>{t("common.cancel")}</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
@@ -249,7 +250,7 @@ export default function ProfileScreen() {
                 >
                   {loggingOut
                     ? <ActivityIndicator size="small" color="#fff" />
-                    : <Text style={styles.logoutButtonText}>Logout</Text>
+                    : <Text style={styles.logoutButtonText}>{t("common.logout")}</Text>
                   }
                 </TouchableOpacity>
               </View>

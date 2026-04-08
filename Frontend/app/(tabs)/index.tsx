@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Input from "@/components/common/Input";
 import { getAllRequests, getPosts, getProfile } from "@/services/user.service";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
@@ -50,6 +51,7 @@ function requestLooksEmergency(reason?: string) {
 
 export default function HomeScreen() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [selectedGroup, setSelectedGroup] = useState("");
   const [showGroup, setShowGroup] = useState(false);
   const [cityInput, setCityInput] = useState("");
@@ -171,7 +173,7 @@ export default function HomeScreen() {
           <View style={styles.containerSearch}>
             <Input
               style={styles.input}
-              placeholder="Search Location"
+              placeholder={t("home.searchLocation")}
               placeholderTextColor="#B0B0B0"
               value={cityInput}
               onChangeText={setCityInput}
@@ -185,7 +187,7 @@ export default function HomeScreen() {
           </View>
 
           <TouchableOpacity style={styles.dropdown} onPress={() => setShowGroup(!showGroup)}>
-            <Text style={styles.dropdownText}>{selectedGroup || "Select group"}</Text>
+            <Text style={styles.dropdownText}>{selectedGroup || t("home.selectGroup")}</Text>
             <Ionicons name="water-outline" size={18} color={COLORS.primary} />
           </TouchableOpacity>
 
@@ -210,7 +212,7 @@ export default function HomeScreen() {
             </View>
           )}
 
-          <Button title={refreshing ? "Refreshing…" : "Submit"} onPress={onSubmit} disabled={refreshing} />
+          <Button title={refreshing ? t("home.refreshing") : t("common.submit")} onPress={onSubmit} disabled={refreshing} />
 
           {!!error && <Text style={styles.errorText}>{error}</Text>}
 
@@ -222,7 +224,7 @@ export default function HomeScreen() {
             />
           </View>
 
-          <Text style={styles.sectionTitle}>Activity As</Text>
+          <Text style={styles.sectionTitle}>{t("home.activityAs")}</Text>
 
           <View style={styles.activityRow}>
             <View style={styles.activityCard}>
@@ -232,7 +234,7 @@ export default function HomeScreen() {
                 resizeMode="contain"
               />
               <View style={styles.activityContent}>
-                <Text style={styles.activityLabel}>Blood Donor</Text>
+                <Text style={styles.activityLabel}>{t("home.bloodDonor")}</Text>
                 <Text style={styles.activityCount}>{allPosts.length} posts</Text>
               </View>
             </View>
@@ -244,7 +246,7 @@ export default function HomeScreen() {
                 resizeMode="contain"
               />
               <View style={styles.activityContent}>
-                <Text style={styles.activityLabel}>Blood Recepent</Text>
+                <Text style={styles.activityLabel}>{t("home.bloodRecipient")}</Text>
                 <Text style={styles.activityCount}>{allRequests.length} requests</Text>
               </View>
             </View>
@@ -256,7 +258,7 @@ export default function HomeScreen() {
                 resizeMode="contain"
               />
               <View style={styles.activityContent}>
-                <Text style={styles.activityLabel}>Create Post</Text>
+                <Text style={styles.activityLabel}>{t("home.createPost")}</Text>
                 <Text style={styles.activityCount}>It&apos;s Easy! 3 Step</Text>
               </View>
             </View>
@@ -268,13 +270,13 @@ export default function HomeScreen() {
                 resizeMode="contain"
               />
               <View style={styles.activityContent}>
-                <Text style={styles.activityLabel}>Blood Given</Text>
+                <Text style={styles.activityLabel}>{t("home.bloodGiven")}</Text>
                 <Text style={styles.activityCount}>It&apos;s Easy! 1 Step</Text>
               </View>
             </View>
           </View>
 
-          <Text style={styles.sectionTitle}>Donation Request</Text>
+          <Text style={styles.sectionTitle}>{t("home.donationRequest")}</Text>
 
           {loading ? (
             <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} />
@@ -306,7 +308,7 @@ export default function HomeScreen() {
                 />
               ))}
               {filteredPosts.length === 0 && filteredRequests.length === 0 && (
-                <Text style={styles.emptyFeed}>No posts or requests match your filters.</Text>
+                <Text style={styles.emptyFeed}>{t("home.noCards")}</Text>
               )}
             </>
           )}

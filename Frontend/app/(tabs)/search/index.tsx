@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import Button from "@/components/common/Button";
 import { getAllRequests, getPosts } from "@/services/user.service";
 import Card from "@/components/common/Card";
+import { useLanguage } from "@/context/LanguageContext";
 
 const BLOOD_GROUPS = ["A+", "B+", "O+", "AB+", "A-", "B-", "O-", "AB-"];
 
@@ -47,6 +48,7 @@ function requestLooksEmergency(reason?: string) {
 
 export default function SearchScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [posts, setPosts] = useState<PostRow[]>([]);
@@ -117,14 +119,14 @@ export default function SearchScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Search</Text>
+        <Text style={styles.headerTitle}>{t("search.title")}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.searchWrap}>
           <TextInput
-            placeholder="Search by city, name, hospital"
+            placeholder={t("search.placeholder")}
             placeholderTextColor="#aaa"
             style={styles.searchInput}
             value={searchQuery}
@@ -133,9 +135,9 @@ export default function SearchScreen() {
           <Ionicons name="search-outline" size={18} color="#aaa" />
         </View>
 
-        <Button title="Create request" onPress={() => router.push("/(tabs)/search/create")} />
+        <Button title={t("search.createRequest")} onPress={() => router.push("/(tabs)/search/create")} />
 
-        <Text style={styles.sectionTitle}>Blood group</Text>
+        <Text style={styles.sectionTitle}>{t("search.bloodGroup")}</Text>
         <View style={styles.groupGrid}>
           {BLOOD_GROUPS.map((g) => (
             <TouchableOpacity
@@ -155,14 +157,14 @@ export default function SearchScreen() {
           ))}
         </View>
 
-        <Text style={styles.sectionTitle}>Results ({filteredPosts.length + filteredRequests.length})</Text>
+        <Text style={styles.sectionTitle}>{t("search.results")} ({filteredPosts.length + filteredRequests.length})</Text>
 
         {loading ? (
           <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 24 }} />
         ) : listError ? (
           <Text style={styles.errorText}>{listError}</Text>
         ) : filteredPosts.length === 0 && filteredRequests.length === 0 ? (
-          <Text style={styles.emptyText}>No cards match your filters.</Text>
+          <Text style={styles.emptyText}>{t("search.noCards")}</Text>
         ) : (
           <>
           {filteredPosts.map((p) => (

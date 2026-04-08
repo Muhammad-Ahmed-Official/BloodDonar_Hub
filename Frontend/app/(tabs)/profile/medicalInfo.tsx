@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { medicalInfo as submitMedicalInfo } from "@/services/user.service";
+import { useLanguage } from "@/context/LanguageContext";
 
 const QUESTIONS = [
   { id: "q1", text: "Do you have diabetes?" },
@@ -26,6 +27,7 @@ type Answers = Record<string, "yes" | "no" | null>;
 export default function BecomeDonor() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
 
   const [answers, setAnswers] = useState<Answers>(
     Object.fromEntries(QUESTIONS.map((q) => [q.id, null]))
@@ -60,7 +62,7 @@ export default function BecomeDonor() {
         typeof e === "object" && e !== null && "message" in e
           ? String((e as { message: string }).message)
           : "Could not save medical info";
-      Alert.alert("Error", msg);
+      Alert.alert("Error", msg || t("medical.saveError"));
     } finally {
       setSubmitting(false);
     }
@@ -73,7 +75,7 @@ export default function BecomeDonor() {
         <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
           <Ionicons name="chevron-back" size={22} color="#222" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Medical Info</Text>
+        <Text style={styles.headerTitle}>{t("medical.title")}</Text>
       </View>
 
       <ScrollView
@@ -83,9 +85,9 @@ export default function BecomeDonor() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.pageTitle}>Questions</Text>
+        <Text style={styles.pageTitle}>{t("medical.questions")}</Text>
         <Text style={styles.pageSubtitle}>
-          Fill up the following questionnaire and become a donor
+          {t("medical.subtitle")}
         </Text>
 
         {/* QUESTIONS */}
@@ -94,12 +96,12 @@ export default function BecomeDonor() {
             <Text style={styles.questionText}>{q.text}</Text>
             <View style={styles.radioRow}>
               <RadioOption
-                label="Yes"
+                label={t("common.yes")}
                 selected={answers[q.id] === "yes"}
                 onPress={() => setAnswer(q.id, "yes")}
               />
               <RadioOption
-                label="No"
+                label={t("common.no")}
                 selected={answers[q.id] === "no"}
                 onPress={() => setAnswer(q.id, "no")}
               />
@@ -119,8 +121,8 @@ export default function BecomeDonor() {
             )}
           </View>
           <Text style={styles.termsText}>
-            By clicking, you agree to our{" "}
-            <Text style={styles.termsLink}>terms and condition</Text>
+            {t("medical.agreeText")}{" "}
+            <Text style={styles.termsLink}>{t("medical.terms")}</Text>
           </Text>
         </TouchableOpacity>
 
@@ -134,7 +136,7 @@ export default function BecomeDonor() {
           {submitting ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.ctaBtnText}>Become a donor</Text>
+            <Text style={styles.ctaBtnText}>{t("medical.becomeDonor")}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

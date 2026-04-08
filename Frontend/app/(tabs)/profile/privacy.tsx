@@ -9,9 +9,11 @@ import {
 import { AntDesign, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { COLORS, SIZES } from "../../../constants/theme";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function PrivacyPolicyScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const privacyData = [
     {
@@ -36,7 +38,7 @@ export default function PrivacyPolicyScreen() {
         <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
           <Ionicons name="chevron-back" size={22} color="#222" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Privacy Policy</Text>
+        <Text style={styles.headerTitle}>{t("privacy.title")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -49,7 +51,7 @@ export default function PrivacyPolicyScreen() {
 
           <View style={styles.updateInfo}>
             <AntDesign name="clock-circle" size={18} color={COLORS.primary} />
-            <Text style={styles.updateText}>Last update - </Text>
+            <Text style={styles.updateText}>{t("privacy.lastUpdate")} </Text>
             <Text style={styles.updateTextBold}>20 june 2025</Text>
           </View>
           
