@@ -26,6 +26,8 @@ export default class SocketService {
 
       if (userId) {
         this.userSocketMap.add(userId);
+        // Join a personal room so io.to(userId) works
+        socket.join(String(userId));
       }
 
       console.log("Online users:", Array.from(this.userSocketMap));

@@ -8,12 +8,14 @@ import {
   Modal,
   Pressable,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { COLORS, SIZES, SHADOW } from "../../../constants/theme";
 import { useAuth } from "@/context/AuthContext";
+import { getProfile, updateProfile } from "@/services/user.service";
 
 const MENU_ITEMS = [
   { id: "create", label: "Create Request Blood", icon: "water" as const },
@@ -33,6 +35,54 @@ export default function ProfileScreen() {
   const [isNotif, setIsNotif] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profilePic, setProfilePic] = useState<string | null>(null);
+  const [userInfo, setUserInfo] = useState<{
+    bloodGroup?: string;
+    canDonateBlood?: string;
+    city?: string;
+  } | null>(null);
+  const [donationRequest, setDonationRequest] = useState<{ donarName?: string } | null>(null);
+  const [savingAvail, setSavingAvail] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setProfileLoading(true);
+      try {
+        const res = await getProfile();
+        const d = res?.data;
+        if (cancelled) return;
+        setUserInfo(d?.userInfo ?? null);
+        setDonationRequest(d?.donationRequest ?? null);
+        setProfilePic(d?.userInfo?.pic || null);
+        setIsAvailable(d?.userInfo?.canDonateBlood === "yes");
+      } catch {
+        if (!cancelled) {
+          setUserInfo(null);
+          setDonationRequest(null);
+        }
+      } finally {
+        if (!cancelled) setProfileLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const onAvailChange = async (val: boolean) => {
+    setIsAvailable(val);
+    setSavingAvail(true);
+    try {
+      await updateProfile({ canDonateBlood: val ? "yes" : "no" });
+      setUserInfo((prev) => (prev ? { ...prev, canDonateBlood: val ? "yes" : "no" } : prev));
+    } catch {
+      setIsAvailable(!val);
+    } finally {
+      setSavingAvail(false);
+    }
+  };
 
   const handleLogout = () => setShowLogoutModal(true);
 
@@ -75,14 +125,27 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {profileLoading ? (
+          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 24 }} />
+        ) : null}
         <View style={styles.profileCard}>
           <View style={styles.profileLeft}>
             <View style={styles.profileAvatar}>
-              <Ionicons name="person" size={28} color={COLORS.white} />
+              {profilePic ? (
+                <Image source={{ uri: profilePic }} style={styles.profileAvatarImg} />
+              ) : (
+                <Ionicons name="person" size={28} color={COLORS.white} />
+              )}
             </View>
             <View style={{ marginLeft: 12 }}>
               <Text style={styles.profileName}>Hello {user?.userName ?? "User"}</Text>
               <Text style={styles.profileSub}>{user?.email}</Text>
+              {!!userInfo?.city && (
+                <Text style={styles.profileMeta}>{userInfo.city}</Text>
+              )}
+              {!!userInfo?.bloodGroup && (
+                <Text style={styles.profileMeta}>Blood: {userInfo.bloodGroup}</Text>
+              )}
             </View>
           </View>
           <Switch
@@ -96,11 +159,15 @@ export default function ProfileScreen() {
 
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>05</Text>
-            <Text style={styles.statLabel}>Blood Donate</Text>
+            <Text style={styles.statNumber}>
+              {userInfo?.canDonateBlood === "yes" ? "Yes" : "No"}
+            </Text>
+            <Text style={styles.statLabel}>Can donate</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>02</Text>
+            <Text style={styles.statNumber}>
+              {donationRequest?.donarName ? "1" : "0"}
+            </Text>
             <Text style={styles.statLabel}>Requested</Text>
           </View>
         </View>
@@ -109,7 +176,8 @@ export default function ProfileScreen() {
           <Text style={styles.availLabel}>I am available to donate</Text>
           <Switch
             value={isAvailable}
-            onValueChange={setIsAvailable}
+            onValueChange={onAvailChange}
+            disabled={savingAvail || profileLoading}
             trackColor={{ true: COLORS.primary, false: "#E0E0E0" }}
             thumbColor={COLORS.white}
             ios_backgroundColor="#E0E0E0"
@@ -242,6 +310,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.3)",
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
+  },
+  profileAvatarImg: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+  },
+  profileMeta: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 11,
+    marginTop: 2,
   },
   profileName: { 
     color: COLORS.white, 

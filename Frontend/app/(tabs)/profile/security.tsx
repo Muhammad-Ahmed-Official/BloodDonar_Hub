@@ -6,10 +6,13 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { COLORS } from "@/constants/theme";
+import { changeNumber } from "@/services/user.service";
 
 export default function AccountSecurityScreen() {
   const router = useRouter();
@@ -17,6 +20,34 @@ export default function AccountSecurityScreen() {
   const [langModal, setLangModal] = useState(false);
   const [phone, setPhone] = useState("");
   const [language, setLanguage] = useState("English");
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [phoneError, setPhoneError] = useState("");
+
+  const handleSavePhone = async () => {
+    const cleaned = phone.replace(/\D/g, "").slice(0, 11);
+    setPhone(cleaned);
+    setPhoneError("");
+
+    if (!/^03\d{9}$/.test(cleaned)) {
+      setPhoneError("Mobile number must be in format 03XXXXXXXXX");
+      return;
+    }
+
+    setSavingPhone(true);
+    try {
+      await changeNumber(cleaned);
+      setPhoneModal(false);
+      Alert.alert("Success", "Mobile number updated");
+    } catch (e: unknown) {
+      const msg =
+        typeof e === "object" && e !== null && "message" in e
+          ? String((e as { message: string }).message)
+          : "Could not update mobile number";
+      setPhoneError(msg);
+    } finally {
+      setSavingPhone(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -89,15 +120,25 @@ export default function AccountSecurityScreen() {
               placeholder="Enter new phone number"
               style={styles.input}
               value={phone}
-              onChangeText={setPhone}
+              onChangeText={(t) => {
+                setPhone(t.replace(/\D/g, "").slice(0, 11));
+                setPhoneError("");
+              }}
               keyboardType="phone-pad"
             />
 
-            <TouchableOpacity
-              style={styles.saveBtn}
-              onPress={() => setPhoneModal(false)}
-            >
-              <Text style={styles.saveText}>Save</Text>
+            {!!phoneError && (
+              <Text style={{ color: "#E53935", fontSize: 13, marginBottom: 10 }}>
+                {phoneError}
+              </Text>
+            )}
+
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSavePhone} disabled={savingPhone}>
+              {savingPhone ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <Text style={styles.saveText}>Save</Text>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => setPhoneModal(false)}>

@@ -8,11 +8,13 @@ import {
   Modal,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SIZES, SHADOW } from "@/constants/theme";
 import Card from "@/components/common/Card";
 import { router } from "expo-router";
+import { useAuth } from "@/context/AuthContext";
 
 interface User {
   id: number;
@@ -40,6 +42,9 @@ interface Post {
 }
 
 export default function AdminDashboard() {
+  const { logout } = useAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
+
   const [users, setUsers] = useState<User[]>([
     {
       id: 1,
@@ -255,19 +260,25 @@ export default function AdminDashboard() {
   };
 
   const handleLogout = () => {
-  Alert.alert(
-    "Logout",
-    "Are you sure you want to logout?",
-    [
+    Alert.alert("Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Logout",
         style: "destructive",
-        onPress: () => {router.push("/(auth)/login")},
+        onPress: async () => {
+          setLoggingOut(true);
+          try {
+            await logout(); // clears token + user in storage; RouteGuard sends unauthenticated users to login
+            router.replace("/(auth)/login");
+          } catch {
+            Alert.alert("Error", "Could not log out. Please try again.");
+          } finally {
+            setLoggingOut(false);
+          }
+        },
       },
-    ]
-  );
-};
+    ]);
+  };
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -280,8 +291,17 @@ export default function AdminDashboard() {
           <Text style={styles.addBtnText}>Add User</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={18} color="#fff" />
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          onPress={handleLogout}
+          disabled={loggingOut}
+          accessibilityLabel="Log out"
+        >
+          {loggingOut ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Ionicons name="log-out-outline" size={18} color="#fff" />
+          )}
         </TouchableOpacity>
       </View>
     </View>

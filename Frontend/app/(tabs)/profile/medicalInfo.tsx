@@ -1,9 +1,10 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SIZES, SHADOW } from "@/constants/theme";
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { medicalInfo as submitMedicalInfo } from "@/services/user.service";
 
 const QUESTIONS = [
   { id: "q1", text: "Do you have diabetes?" },
@@ -30,6 +31,7 @@ export default function BecomeDonor() {
     Object.fromEntries(QUESTIONS.map((q) => [q.id, null]))
   );
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const setAnswer = (id: string, val: "yes" | "no") => {
     setAnswers((prev) => ({ ...prev, [id]: val }));
@@ -40,9 +42,29 @@ export default function BecomeDonor() {
   // Extra bottom padding: tab bar (~60px) + safe area inset + breathing room
   const bottomPadding = insets.bottom + 80;
 
-  const handleNext = () => {
-    router.push("/(tabs)/search/create")
-  }
+  const handleNext = async () => {
+    if (!allAnswered) return;
+    setSubmitting(true);
+    try {
+      await submitMedicalInfo({
+        diabetes: answers.q1!,
+        headOrLungsProblem: answers.q2!,
+        recentCovid: answers.q3!,
+        cancerHistory: answers.q4!,
+        hivAidsTest: answers.q5!,
+        recentVaccination: answers.q6!,
+      });
+      router.push("/(tabs)/search/create");
+    } catch (e: unknown) {
+      const msg =
+        typeof e === "object" && e !== null && "message" in e
+          ? String((e as { message: string }).message)
+          : "Could not save medical info";
+      Alert.alert("Error", msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -105,11 +127,15 @@ export default function BecomeDonor() {
         {/* CTA BUTTON */}
         <TouchableOpacity
           onPress={handleNext}
-          style={[styles.ctaBtn, !allAnswered && styles.ctaBtnDisabled]}
-          disabled={!allAnswered}
+          style={[styles.ctaBtn, (!allAnswered || submitting) && styles.ctaBtnDisabled]}
+          disabled={!allAnswered || submitting}
           activeOpacity={0.85}
         >
-          <Text style={styles.ctaBtnText}>Become a donor</Text>
+          {submitting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.ctaBtnText}>Become a donor</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </View>

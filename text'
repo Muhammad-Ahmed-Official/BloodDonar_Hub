@@ -1,0 +1,42 @@
+  ├────────────────────┴──────────────┴──────────────────────────────┤
+  │  GROUP 2 — Main Tabs (6)                                         │
+  ├────────────────────┬──────────────┬──────────────────────────────┤
+  │ (tabs)/index.tsx   │ GET /user/requests + /user/posts │ replace hardcoded Cards with real data │
+  │ search/index.tsx   │ GET /user/donors?bloodGroup&city │ filter sends query params │
+  │ search/create.tsx  │ POST /user/donarRequest │ router.back() on success │
+  │ profile/index.tsx  │ GET /user/profile + logout │ read from AuthContext, call logout() │
+  │ profile/medicalInfo│ POST /user/medicalInfo │ navigate to /search/create │
+  │ inbox/index.tsx    │ GET /chat/conversations │ replace hardcoded CHATS array │
+  ├────────────────────┴──────────────┴──────────────────────────────┤
+  │  GROUP 3 — Stack Screens (3)                                     │
+  ├────────────────────┬──────────────┬──────────────────────────────┤
+  │ request/index.tsx  │ GET /user/requests │ list with filters      │
+  │ request/[id].tsx   │ GET /user/requests/:id │ full detail view   │
+  │ activity/index.tsx │ GET /user/requests (own only) │ my requests │
+  ├────────────────────┴──────────────┴──────────────────────────────┤
+  │  GROUP 4 — Admin (1)                                             │
+  ├────────────────────┬──────────────┬──────────────────────────────┤
+  │ admin.tsx          │ GET /admin/stats + /admin/users + /admin/posts │ replace mock data │
+  │                    │ POST/PUT/DELETE /admin/users + /admin/posts │ wire modals  │
+
+    New shared utility needed: useApi hook
+
+  Every data-fetching screen follows the same 3-state pattern: loading → data → error. Instead of duplicating that in every screen, one hook handles it:
+
+  useApi(fn, deps) → { data, loading, error, refetch }
+
+  ---
+  Execution order (dependency-safe)
+
+  Step 1 → Extend AuthContext  (signup, verifyEmail, isVerified)
+  Step 2 → Extend Route Guard  (add isVerified check)
+  Step 3 → Auth screens        (signup → verification → profile-setup → forgot → update-password)
+  Step 4 → useApi hook         (shared before any tab screen)
+  Step 5 → Tab screens         (home, search, create, profile, medical, inbox)
+  Step 6 → Stack screens       (request list, request detail, activity)
+  Step 7 → Admin screen        (replace all mock data + wire CRUD modals)
+
+  ---
+  Shall I implement all of this now in order, or do you want me to go group by group so you can review each before moving to the next?
+
+✻ Crunched for 1m 7s

@@ -4,6 +4,8 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -12,8 +14,26 @@ import { COLORS, SIZES } from "../../../constants/theme";
 import Input from "@/components/common/Input";
 import Button from "@/components/common/Button";
 import Label from "@/components/common/Label";
+import { donarRequest } from "@/services/user.service";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 
 const BLOOD_GROUPS = ["A+", "B+", "O+", "AB+", "A-", "B-", "O-", "AB-"];
+
+type ActivePicker = null | "date" | "start" | "end";
+
+function makeTime(hours: number, minutes: number) {
+  const d = new Date();
+  d.setHours(hours, minutes, 0, 0);
+  return d;
+}
+
+function formatDateForApi(d: Date) {
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function formatTimeForApi(d: Date) {
+  return d.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true });
+}
 
 export default function CreateRequestScreen() {
   const router = useRouter();
@@ -23,18 +43,21 @@ export default function CreateRequestScreen() {
   const [showCity, setShowCity] = useState(false);
   const [cities, setCities] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [activePicker, setActivePicker] = useState<ActivePicker>(null);
 
   // Form fields state
   const [patientName, setPatientName] = useState("");
   const [amountOfBlood, setAmountOfBlood] = useState("");
   const [age, setAge] = useState("");
-  const [date, setDate] = useState("");
+  const [neededDate, setNeededDate] = useState<Date | null>(null);
+  const [startTimeDate, setStartTimeDate] = useState(() => makeTime(9, 0));
+  const [endTimeDate, setEndTimeDate] = useState(() => makeTime(17, 0));
   const [hospitalName, setHospitalName] = useState("");
   const [location, setLocation] = useState("");
   const [contactPerson, setContactPerson] = useState("");
   const [contactName, setContactName] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
   const [reason, setReason] = useState("");
 
   useEffect(() => {
@@ -76,24 +99,93 @@ export default function CreateRequestScreen() {
     }
   };
 
-  const handleSubmit = () => {
-    console.log({
-      patientName,
-      selectedGroup,
-      amountOfBlood,
-      age,
-      date,
-      hospitalName,
-      selectedCity,
-      location,
-      contactPerson,
-      contactName,
-      startTime,
-      endTime,
-      reason,
-    });
-    router.back();
+  const handleSubmit = async () => {
+    setFormError("");
+    if (!patientName.trim()) {
+      setFormError("Patient name is required");
+      return;
+    }
+    if (!selectedGroup) {
+      setFormError("Blood group is required");
+      return;
+    }
+    if (!amountOfBlood.trim() || !age.trim() || !neededDate) {
+      setFormError("Amount, age, and date are required");
+      return;
+    }
+    const ageNum = parseInt(age.trim(), 10);
+    if (Number.isNaN(ageNum) || ageNum < 1) {
+      setFormError("Enter a valid age");
+      return;
+    }
+    if (!hospitalName.trim() || !selectedCity || !location.trim()) {
+      setFormError("Hospital, city, and location are required");
+      return;
+    }
+    if (!contactPerson.trim() || !contactName.trim()) {
+      setFormError("Contact person and mobile number are required");
+      return;
+    }
+    if (!reason.trim()) {
+      setFormError("Reason is required");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await donarRequest({
+        donarName: patientName.trim(),
+        bloodGroup: selectedGroup,
+        amount: amountOfBlood.trim(),
+        age: ageNum,
+        date: formatDateForApi(neededDate),
+        hospitalName: hospitalName.trim(),
+        location: location.trim(),
+        contactPersonName: contactPerson.trim(),
+        mobileNumber: contactName.trim(),
+        city: selectedCity,
+        startTime: formatTimeForApi(startTimeDate),
+        endTime: formatTimeForApi(endTimeDate),
+        reason: reason.trim(),
+      });
+      router.back();
+    } catch (e: unknown) {
+      const msg =
+        typeof e === "object" && e !== null && "message" in e
+          ? String((e as { message: string }).message)
+          : "Could not submit request";
+      setFormError(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  const onPickerChange = (event: DateTimePickerEvent, selected?: Date) => {
+    if (event.type === "dismissed") {
+      setActivePicker(null);
+      return;
+    }
+    if (!selected) return;
+
+    if (activePicker === "date") setNeededDate(selected);
+    else if (activePicker === "start") setStartTimeDate(selected);
+    else if (activePicker === "end") setEndTimeDate(selected);
+
+    if (Platform.OS === "android") {
+      setActivePicker(null);
+    }
+  };
+
+  const pickerValue =
+    activePicker === "date"
+      ? neededDate ?? new Date()
+      : activePicker === "start"
+        ? startTimeDate
+        : activePicker === "end"
+          ? endTimeDate
+          : new Date();
+
+  const pickerMode = activePicker === "date" ? "date" : "time";
 
   return (
     <View style={styles.container}>
@@ -184,15 +276,18 @@ export default function CreateRequestScreen() {
           />
         </View>
 
-        {/* Date */}
+        {/* Date needed */}
         <View style={styles.fieldGroup}>
-          <Label title="Date" />
-          <Input 
-            placeholder="Enter required date (e.g., 15 Dec 2025)" 
-            placeholderTextColor="#B0B0B0"
-            value={date}
-            onChangeText={setDate}
-          />
+          <Label title="Date blood is needed" />
+          <TouchableOpacity
+            style={styles.dropdown}
+            onPress={() => setActivePicker(activePicker === "date" ? null : "date")}
+          >
+            <Text style={[styles.dropdownText, !neededDate && styles.placeholderText]}>
+              {neededDate ? formatDateForApi(neededDate) : "Select date"}
+            </Text>
+            <Ionicons name="calendar-outline" size={18} color="#888" />
+          </TouchableOpacity>
         </View>
 
         {/* Hospital Name */}
@@ -277,27 +372,31 @@ export default function CreateRequestScreen() {
           />
         </View>
 
-        {/* Timing */}
+        {/* Timing — native time pickers */}
         <View style={styles.fieldGroup}>
           <Label title="Timing" />
           <View style={styles.timingRow}>
-            <View style={styles.timingInput}>
-              <Input 
-                placeholder="Start Time" 
-                placeholderTextColor="#B0B0B0"
-                value={startTime}
-                onChangeText={setStartTime}
-              />
-            </View>
+            <TouchableOpacity
+              style={styles.timeBox}
+              onPress={() => setActivePicker(activePicker === "start" ? null : "start")}
+            >
+              <View style={styles.timeBoxText}>
+                <Text style={styles.timeLabel}>Start</Text>
+                <Text style={styles.timeValue}>{formatTimeForApi(startTimeDate)}</Text>
+              </View>
+              <Ionicons name="time-outline" size={18} color="#888" />
+            </TouchableOpacity>
             <Text style={styles.timingSeparator}>to</Text>
-            <View style={styles.timingInput}>
-              <Input 
-                placeholder="End Time" 
-                placeholderTextColor="#B0B0B0"
-                value={endTime}
-                onChangeText={setEndTime}
-              />
-            </View>
+            <TouchableOpacity
+              style={styles.timeBox}
+              onPress={() => setActivePicker(activePicker === "end" ? null : "end")}
+            >
+              <View style={styles.timeBoxText}>
+                <Text style={styles.timeLabel}>End</Text>
+                <Text style={styles.timeValue}>{formatTimeForApi(endTimeDate)}</Text>
+              </View>
+              <Ionicons name="time-outline" size={18} color="#888" />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -315,8 +414,32 @@ export default function CreateRequestScreen() {
           />
         </View>
 
+        {!!formError && (
+          <Text style={{ color: "#E53935", fontSize: 13, marginBottom: 8 }}>{formError}</Text>
+        )}
+
+        {activePicker && (
+          <View style={styles.pickerWrap}>
+            {Platform.OS === "ios" && (
+              <TouchableOpacity style={styles.pickerDone} onPress={() => setActivePicker(null)}>
+                <Text style={styles.pickerDoneText}>Done</Text>
+              </TouchableOpacity>
+            )}
+            <DateTimePicker
+              value={pickerValue}
+              mode={pickerMode}
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={onPickerChange}
+            />
+          </View>
+        )}
+
         <View style={{ marginTop: 20 }}>
-          <Button title="Submit Request" onPress={handleSubmit} />
+          {submitting ? (
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          ) : (
+            <Button title="Submit Request" onPress={handleSubmit} />
+          )}
         </View>
 
         <View style={{ height: 90 }} />
@@ -356,7 +479,7 @@ const styles = StyleSheet.create({
   fieldGroup: {
     marginBottom: 20,
   },
-  
+
   dropdown: {
     backgroundColor: COLORS.white,
     borderWidth: 1,
@@ -410,14 +533,49 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-  
-  timingInput: {
+  timeBox: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  timeBoxText: {
     flex: 1,
   },
-  
+  timeLabel: {
+    fontSize: 11,
+    color: "#888",
+    marginBottom: 2,
+  },
+  timeValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.text,
+  },
   timingSeparator: {
     fontSize: 14,
     color: COLORS.text,
     fontWeight: "500",
+  },
+  pickerWrap: {
+    marginBottom: 8,
+    alignItems: "stretch",
+  },
+  pickerDone: {
+    alignSelf: "flex-end",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  pickerDoneText: {
+    color: COLORS.primary,
+    fontWeight: "600",
+    fontSize: 16,
   },
 });

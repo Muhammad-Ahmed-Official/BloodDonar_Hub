@@ -138,6 +138,18 @@ export const sendMessage = asyncHandler(async (req, res) => {
         .populate({ path: "sender", select: "userName" })
         .populate({ path: "receiver", select: "userName" });
 
+    // Realtime fan-out to receiver room (room id = receiver userId)
+    const io = req.app.get("io");
+    if (io) {
+        io.to(String(receiverId)).emit("newMessage", {
+            sender: String(senderId),
+            receiver: String(receiverId),
+            message: newMessage.message,
+            customId: newMessage.customId,
+            createdAt: newMessage.createdAt,
+        });
+    }
+
     return res.status(StatusCodes.CREATED).send(
         new ApiResponse(StatusCodes.CREATED, ADD_SUCCESS_MESSAGES, populated)
     );
@@ -196,4 +208,51 @@ export const editMessage = asyncHandler(async (req, res) => {
     return res.status(StatusCodes.OK).send(
         new ApiResponse(StatusCodes.OK, UPDATE_SUCCESS_MESSAGES, updated)
     );
+});
+
+
+// @desc    Search users to start a new chat (WhatsApp-like)
+// @route   GET /api/v1/chat/users/search?q=hamza
+// @access  Private
+export const searchUsers = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const q = String(req.query.q ?? "").trim();
+
+    if (!q) {
+        return res
+            .status(StatusCodes.OK)
+            .send(new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, []));
+    }
+
+    // Basic safe search: username/email (case-insensitive). Exclude self + suspended.
+    const users = await User.find({
+        _id: { $ne: userId },
+        suspended: { $ne: true },
+        $or: [
+            { userName: { $regex: q, $options: "i" } },
+            { email: { $regex: q, $options: "i" } },
+        ],
+    })
+        .select("userName email")
+        .limit(20);
+
+    const infos = await UserInfo.find({ user: { $in: users.map((u) => u._id) } })
+        .select("user pic city")
+        .lean();
+    const infoMap = new Map(infos.map((i) => [String(i.user), i]));
+
+    const result = users.map((u) => {
+        const info = infoMap.get(String(u._id));
+        return {
+            _id: u._id,
+            userName: u.userName,
+            email: u.email,
+            pic: info?.pic || "",
+            city: info?.city || "",
+        };
+    });
+
+    return res
+        .status(StatusCodes.OK)
+        .send(new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, result));
 });

@@ -12,7 +12,9 @@ export default function Card({
   date = "12 Dec 2025",
   address = "National Stadium Rd, Karachi",
   isEmergency = true,
-  isShow = true
+  isShow = true,
+  /** When set, "View Details" opens donation request `GET /user/requests/:id` screen */
+  donationRequestId,
 }: any) {
   return (
     <View style={styles.wrapper}>
@@ -34,7 +36,7 @@ export default function Card({
             {/* <Text style={styles.unit}>Unit  : {units}</Text> */}
           </View>
 
-          <Text style={styles.city}>{city.toUpperCase()}</Text>
+          <Text style={styles.city}>{String(city ?? "").toUpperCase()}</Text>
 
           <View style={styles.infoRow}>
             <Ionicons name="business-outline" size={14} color={COLORS.primary} />
@@ -51,15 +53,25 @@ export default function Card({
             <Text style={styles.infoText}>{address}</Text>
           </View>
 
-          {isShow && <View style={styles.btnRow}>
-            <TouchableOpacity style={styles.donateBtn} onPress={() => router.push("/(tabs)/profile/medicalInfo")}>
-              <Text style={styles.donateText}>Donate</Text>
-            </TouchableOpacity>
+          {isShow && (
+            <View style={[styles.btnRow, !donationRequestId && styles.btnRowSingle]}>
+              <TouchableOpacity
+                style={[styles.donateBtn, !donationRequestId && styles.donateBtnFull]}
+                onPress={() => router.push("/(tabs)/profile/medicalInfo")}
+              >
+                <Text style={styles.donateText}>Donate</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity style={styles.viewBtn} onPress={() => router.push("/(stack)/request/123")}>
-              <Text style={styles.viewText}>View Details</Text>
-            </TouchableOpacity>
-          </View>}
+              {!!donationRequestId && (
+                <TouchableOpacity
+                  style={styles.viewBtn}
+                  onPress={() => router.push(`/(stack)/request/${donationRequestId}`)}
+                >
+                  <Text style={styles.viewText}>View Details</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
 
         {/* RIGHT (Emergency) */}
@@ -149,7 +161,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
     gap: 10,
   },
+  btnRowSingle: {
+    justifyContent: "center",
+  },
 
+  donateBtnFull: {
+    flex: 1,
+    maxWidth: "100%",
+  },
   donateBtn: {
     flex: 1,
     backgroundColor: COLORS.primary,

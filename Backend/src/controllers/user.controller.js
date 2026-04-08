@@ -9,6 +9,7 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { Donar } from "../models/donar.models.js";
 import { Post } from "../models/post.model.js";
 import fs from "fs";
+import mongoose from "mongoose";
 
 const {
     NO_USER,
@@ -82,6 +83,33 @@ export const getProfile = asyncHandler(async (req, res) => {
             donationRequest: donarData?.requests || null,
         })
     );
+});
+
+
+// @desc    Change mobile number
+// @route   PUT /api/v1/user/changeNumber
+// @access  Private
+export const changeNumber = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const { mobileNumber } = req.body;
+
+    if (!mobileNumber) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, MISSING_FIELDS);
+    }
+
+    const profile = await UserInfo.findOneAndUpdate(
+        { user: userId },
+        { $set: { mobileNumber } },
+        { returnDocument: "after", runValidators: true }
+    );
+
+    if (!profile) {
+        throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
+    }
+
+    return res
+        .status(StatusCodes.OK)
+        .send(new ApiResponse(StatusCodes.OK, UPDATE_SUCCESS_MESSAGES, profile));
 });
 
 
@@ -225,14 +253,81 @@ export const getRequestById = asyncHandler(async (req, res) => {
         return res.status(StatusCodes.NOT_FOUND).send(new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND));
     }
 
+    const ownerId = donar.user?._id ?? donar.user;
+    const posterUserInfo = await UserInfo.findOne({ user: ownerId }).select(
+        "pic mobileNumber city bloodGroup gender dateOfBirth about country"
+    );
+
     const result = {
         _id: donar._id,
         userId: donar.user,
+        posterProfile: posterUserInfo
+            ? {
+                  pic: posterUserInfo.pic || "",
+                  mobileNumber: posterUserInfo.mobileNumber,
+                  city: posterUserInfo.city,
+                  bloodGroup: posterUserInfo.bloodGroup,
+                  gender: posterUserInfo.gender,
+                  dateOfBirth: posterUserInfo.dateOfBirth,
+                  about: posterUserInfo.about,
+                  country: posterUserInfo.country,
+              }
+            : null,
         ...donar.requests.toObject(),
         medicalInformation: donar.medicalInformation,
     };
 
     return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, result));
+});
+
+
+// @desc    Public profile of another user (for request poster / donor view)
+// @route   GET /api/v1/user/public/:userId
+// @access  Private
+export const getPublicUserProfile = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    if (!mongoose.isValidObjectId(userId)) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid user id");
+    }
+
+    const user = await User.findById(userId).select("userName email suspended");
+    if (!user || user.suspended) {
+        throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
+    }
+
+    const userInfo = await UserInfo.findOne({ user: userId }).select(
+        "pic mobileNumber city bloodGroup gender dateOfBirth about country"
+    );
+
+    let ageStr = "—";
+    if (userInfo?.dateOfBirth) {
+        const dob = new Date(userInfo.dateOfBirth);
+        const today = new Date();
+        let age = today.getFullYear() - dob.getFullYear();
+        const m = today.getMonth() - dob.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+            age--;
+        }
+        ageStr = String(age);
+    }
+
+    return res.status(StatusCodes.OK).send(
+        new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, {
+            user: { userName: user.userName, email: user.email },
+            userInfo: userInfo
+                ? {
+                      pic: userInfo.pic || "",
+                      mobileNumber: userInfo.mobileNumber,
+                      city: userInfo.city,
+                      bloodGroup: userInfo.bloodGroup,
+                      gender: userInfo.gender,
+                      about: userInfo.about,
+                      country: userInfo.country,
+                      age: ageStr,
+                  }
+                : null,
+        })
+    );
 });
 
 

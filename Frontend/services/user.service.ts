@@ -69,6 +69,15 @@ export const updateProfile = async (data: Partial<{
   }
 };
 
+export const changeNumber = async (mobileNumber: string) => {
+  try {
+    const res = await api.put("user/changeNumber", { mobileNumber });
+    return res.data;
+  } catch (error: any) {
+    throw error?.response?.data || { message: "Mobile number update failed" };
+  }
+};
+
 
 export const medicalInfo = async (data: {
   diabetes: "yes" | "no";
@@ -112,7 +121,12 @@ export const donarRequest = async (data: {
 };
 
 
-export const getAllRequests = async (params?: { bloodGroup?: string; city?: string; page?: number }) => {
+export const getAllRequests = async (params?: {
+  bloodGroup?: string;
+  city?: string;
+  page?: number;
+  limit?: number;
+}) => {
   try {
     const res = await api.get("user/requests", { params });
     return res.data;
@@ -121,8 +135,31 @@ export const getAllRequests = async (params?: { bloodGroup?: string; city?: stri
   }
 };
 
+export const getRequestById = async (id: string) => {
+  try {
+    const res = await api.get(`user/requests/${id}`);
+    return res.data;
+  } catch (error: any) {
+    throw error?.response?.data || { message: "Failed to fetch request" };
+  }
+};
 
-export const getDonors = async (params?: { bloodGroup?: string; city?: string; page?: number }) => {
+export const getPublicUserProfile = async (userId: string) => {
+  try {
+    const res = await api.get(`user/public/${userId}`);
+    return res.data;
+  } catch (error: any) {
+    throw error?.response?.data || { message: "Failed to load profile" };
+  }
+};
+
+
+export const getDonors = async (params?: {
+  bloodGroup?: string;
+  city?: string;
+  page?: number;
+  limit?: number;
+}) => {
   try {
     const res = await api.get("user/donors", { params });
     return res.data;
@@ -132,7 +169,7 @@ export const getDonors = async (params?: { bloodGroup?: string; city?: string; p
 };
 
 
-export const getPosts = async (params?: { page?: number }) => {
+export const getPosts = async (params?: { page?: number; limit?: number }) => {
   try {
     const res = await api.get("user/posts", { params });
     return res.data;

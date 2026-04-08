@@ -1,49 +1,257 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TextInput,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  StatusBar,
-  Linking,
+import { View, Text, StyleSheet,
+FlatList, TextInput, TouchableOpacity,
+KeyboardAvoidingView, Platform, StatusBar, Linking,
+ActivityIndicator,
+Image,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { COLORS, SHADOW } from "../../../constants/theme";
+import { getMessages, sendMessage as sendMessageApi } from "@/services/chat.service";
+import { useAuth } from "@/context/AuthContext";
+import { getPublicUserProfile } from "@/services/user.service";
+import { connectRealtime } from "@/services/realtime";
+import { useFocusEffect } from "@react-navigation/native";
 
-const INITIAL_MESSAGES = [
-  { id: "1", text: "Is this possible you can come?", sender: "them", time: "11:01 AM" },
-  { id: "2", text: "Hi yes for sure where are you right now?", sender: "me", time: "9:30 AM" },
-  { id: "3", text: "Yes see you there, be ready", sender: "me", time: "2:15 PM" },
-];
+type ApiUser = { _id?: string; userName?: string };
+type ApiMessage = {
+  _id: string;
+  customId: string;
+  sender: ApiUser | string;
+  receiver: ApiUser | string;
+  message: string;
+  createdAt: string;
+};
+
+type UiMessage = {
+  id: string;
+  customId?: string;
+  text: string;
+  sender: "me" | "them";
+  time: string;
+  createdAt?: string;
+  pending?: boolean;
+};
+
+type SocketPayload = {
+  sender: string;
+  receiver: string;
+  message: string;
+  customId?: string;
+  createdAt?: string;
+};
+
+function formatTime(iso?: string) {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
 
 export default function ChatScreen() {
   const router = useRouter();
   const { chatId } = useLocalSearchParams();
-  const [messages, setMessages] = useState(INITIAL_MESSAGES.reverse());
+  const { user } = useAuth();
+  const receiverId = useMemo(() => (Array.isArray(chatId) ? chatId[0] : (chatId as string)), [chatId]);
+
+  const [messages, setMessages] = useState<UiMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const flatListRef = useRef(null);
   const insets = useSafeAreaInsets();
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+  const [partner, setPartner] = useState<{ name: string; pic?: string; mobile?: string } | null>(null);
+  const [loadingPartner, setLoadingPartner] = useState(false);
 
-  const sendMessage = () => {
-    if (!inputText.trim()) return;
-    const newMessage = {
-      id: Date.now().toString(),
-      text: inputText.trim(),
-      sender: "me",
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  const emitSeen = useCallback(() => {
+    if (!user?._id) return;
+    const s = connectRealtime(String(user._id));
+    if (!s || !receiverId || !user?._id) return;
+    // Mark partner -> me messages as seen
+    s.emit("seenMsg", { sender: String(receiverId), receiver: String(user._id) });
+  }, [receiverId, user?._id]);
+
+  useEffect(() => {
+    if (!receiverId) {
+      setError("Missing chat id");
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await getMessages(receiverId, { page: 1, limit: 100 });
+        const raw = res?.data;
+        const list: ApiMessage[] = Array.isArray(raw) ? raw : [];
+        const myId = user?._id ? String(user._id) : "";
+        const ui = list
+          .map((m) => {
+            const senderId =
+              m.sender && typeof m.sender === "object" ? String(m.sender._id ?? "") : String(m.sender ?? "");
+            const isMe = myId && senderId === myId;
+            return {
+              id: m._id,
+              customId: m.customId,
+              text: m.message,
+              sender: isMe ? "me" : "them",
+              time: formatTime(m.createdAt),
+              createdAt: m.createdAt,
+            } satisfies UiMessage;
+          })
+          .sort((a, b) => {
+            const aa = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const bb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return bb - aa;
+          });
+        if (!cancelled) setMessages(ui);
+      } catch (e: unknown) {
+        const msg =
+          typeof e === "object" && e !== null && "message" in e
+            ? String((e as { message: string }).message)
+            : "Could not load messages";
+        if (!cancelled) setError(msg);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
     };
-    setMessages((prev) => [newMessage, ...prev]);
+  }, [receiverId, user?._id]);
+
+  // When screen is focused, mark messages as seen
+  useFocusEffect(
+    useMemo(
+      () => () => {
+        emitSeen();
+        return undefined;
+      },
+      [emitSeen]
+    )
+  );
+
+  useEffect(() => {
+    if (!receiverId) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingPartner(true);
+      try {
+        const res = await getPublicUserProfile(receiverId);
+        const d = res?.data;
+        const name = d?.user?.userName ?? "User";
+        const pic = d?.userInfo?.pic ?? "";
+        const mobile = d?.userInfo?.mobileNumber ?? "";
+        if (!cancelled) setPartner({ name, pic, mobile });
+      } catch {
+        if (!cancelled) setPartner({ name: "User" });
+      } finally {
+        if (!cancelled) setLoadingPartner(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [receiverId]);
+
+  // Real-time receive
+  useEffect(() => {
+    if (!receiverId || !user?._id) return;
+    const s = connectRealtime(String(user._id));
+    if (!s) return;
+
+    const onNewMessage = (payload: any) => {
+      const p = payload as SocketPayload;
+      // Only apply messages belonging to this open chat
+      const me = String(user._id);
+      const fromPartner = String(p.sender) === String(receiverId) && String(p.receiver) === me;
+      if (!fromPartner) return;
+
+      const createdAt = p.createdAt ?? new Date().toISOString();
+      setMessages((prev) => [
+        {
+          id: `rt-${p.customId ?? createdAt}`,
+          customId: p.customId,
+          text: p.message,
+          sender: "them",
+          time: formatTime(createdAt),
+          createdAt,
+        },
+        ...prev,
+      ]);
+
+      // instantly mark as seen if I'm currently in this chat
+      emitSeen();
+    };
+
+    s.on("newMessage", onNewMessage);
+    return () => {
+      s.off("newMessage", onNewMessage);
+    };
+  }, [receiverId, user?._id]);
+
+  const sendMessage = async () => {
+    if (!receiverId) return;
+    if (!inputText.trim()) return;
+    const text = inputText.trim();
+    const optimisticId = `local-${Date.now()}`;
+    setMessages((prev) => [
+      {
+        id: optimisticId,
+        text,
+        sender: "me",
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        pending: true,
+      },
+      ...prev,
+    ]);
     setInputText("");
+    setSending(true);
+    try {
+      // REST send persists message; backend emits realtime event to receiver
+      const res = await sendMessageApi({ receiverId, message: text });
+      const m = res?.data as ApiMessage | undefined;
+      if (m?._id) {
+        setMessages((prev) =>
+          prev.map((x) =>
+            x.id === optimisticId
+              ? {
+                  id: m._id,
+                  customId: m.customId,
+                  text: m.message,
+                  sender: "me",
+                  time: formatTime(m.createdAt),
+                  createdAt: m.createdAt,
+                  pending: false,
+                }
+              : x
+          )
+        );
+      } else {
+        setMessages((prev) => prev.filter((x) => x.id !== optimisticId));
+      }
+    } catch (e: unknown) {
+      setMessages((prev) => prev.filter((x) => x.id !== optimisticId));
+      const msg =
+        typeof e === "object" && e !== null && "message" in e
+          ? String((e as { message: string }).message)
+          : "Could not send message";
+      setError(msg);
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleCall = () => {
-    Linking.openURL('tel:+1234567890');
+    const raw = partner?.mobile?.replace(/\s/g, "") ?? "";
+    if (!raw) return;
+    Linking.openURL(`tel:${raw}`);
   };
 
   const renderMessage = ({ item } : any) => {
@@ -83,34 +291,50 @@ export default function ChatScreen() {
       
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.push("/(tabs)/inbox")} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
 
         <View style={styles.headerInfo}>
           <View style={styles.avatar}>
-            <Ionicons name="person" size={22} color={COLORS.white} />
+            {partner?.pic ? (
+              <Image source={{ uri: partner.pic }} style={styles.avatarImg} />
+            ) : (
+              <Ionicons name="person" size={22} color={COLORS.white} />
+            )}
           </View>
           <View style={styles.headerText}>
-            <Text style={styles.headerName}>Hassnain Ali</Text>
-            <Text style={styles.headerStatus}>Online</Text>
+            <Text style={styles.headerName} numberOfLines={1}>
+              {partner?.name ?? "Chat"}
+            </Text>
+            <Text style={styles.headerStatus}>
+              {loadingPartner ? "Loading…" : " "}
+            </Text>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.callBtn} onPress={handleCall}>
-          <Ionicons name="call-outline" size={22} color={COLORS.primary} />
+        <TouchableOpacity style={styles.callBtn} onPress={handleCall} disabled={!partner?.mobile}>
+          <Ionicons name="call-outline" size={22} color={partner?.mobile ? COLORS.primary : "#bbb"} />
         </TouchableOpacity>
       </View>
 
       {/* Messages */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.messagesList}
-        showsVerticalScrollIndicator={false}
-        renderItem={renderMessage}
-      />
+      {loading ? (
+        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 24 }} />
+      ) : (
+        <>
+          {!!error && <Text style={styles.errorText}>{error}</Text>}
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.messagesList}
+            showsVerticalScrollIndicator={false}
+            renderItem={renderMessage}
+            inverted
+          />
+        </>
+      )}
 
       {/* Input Area - Only Send Icon */}
       <KeyboardAvoidingView
@@ -128,7 +352,7 @@ export default function ChatScreen() {
               multiline
             />
             
-            <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
+            <TouchableOpacity style={styles.sendBtn} onPress={sendMessage} disabled={sending}>
               <Ionicons name="send" size={20} color={COLORS.white} />
             </TouchableOpacity>
           </View>
@@ -177,6 +401,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
+    overflow: "hidden",
+  },
+  avatarImg: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
 
   headerText: {
@@ -206,6 +436,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     paddingBottom: 20,
+  },
+  errorText: {
+    color: "#E53935",
+    paddingHorizontal: 16,
+    marginTop: 10,
   },
 
   messageContainer: {

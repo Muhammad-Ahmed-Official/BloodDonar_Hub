@@ -5,22 +5,88 @@ import {
   ScrollView,
   TouchableOpacity,
   Linking,
+  Image,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SIZES, SHADOW } from "@/constants/theme";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useEffect, useState, type ComponentProps } from "react";
+import { getPublicUserProfile } from "@/services/user.service";
 
-export default function ProfileDetails() {
+type PublicPayload = {
+  user?: { userName?: string; email?: string };
+  userInfo?: {
+    pic?: string;
+    mobileNumber?: string;
+    city?: string;
+    bloodGroup?: string;
+    gender?: string;
+    about?: string;
+    country?: string;
+    age?: string;
+  } | null;
+};
+
+export default function PosterProfileScreen() {
   const router = useRouter();
+  const { userId } = useLocalSearchParams<{ userId: string }>();
+  const id = Array.isArray(userId) ? userId[0] : userId;
+
+  const [data, setData] = useState<PublicPayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    if (!id) {
+      setErr("Missing user");
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setErr("");
+      try {
+        const res = await getPublicUserProfile(id);
+        const d = res?.data as PublicPayload | undefined;
+        if (!cancelled) setData(d ?? null);
+      } catch (e: unknown) {
+        const msg =
+          typeof e === "object" && e !== null && "message" in e
+            ? String((e as { message: string }).message)
+            : "Could not load profile";
+        if (!cancelled) setErr(msg);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   const handleCall = () => {
-    Linking.openURL('tel:+1234567890');
+    const raw = data?.userInfo?.mobileNumber?.replace(/\s/g, "") ?? "";
+    if (!raw) {
+      Alert.alert("Call", "No phone number on file.");
+      return;
+    }
+    Linking.openURL(`tel:${raw}`);
   };
+
+  const openChat = () => {
+    if (!id) return;
+    router.push(`/(tabs)/inbox/${id}`);
+  };
+
+  const pic = data?.userInfo?.pic?.trim();
+  const name = data?.user?.userName ?? "User";
+  const blood = data?.userInfo?.bloodGroup;
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-
-      {/* RED HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={22} color="black" />
@@ -28,48 +94,75 @@ export default function ProfileDetails() {
         <Text style={styles.headerTitle}>Profile Details</Text>
       </View>
 
-      {/* PROFILE SECTION */}
-      <View style={styles.profileSection}>
-        {/* Avatar */}
-        <View style={styles.avatarWrapper}>
-          {/* Replace with <Image source={...} style={styles.avatar} /> */}
-          <View style={styles.avatarPlaceholder}>
-            <Ionicons name="person" size={42} color="#ccc" />
+      {loading ? (
+        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+      ) : err ? (
+        <Text style={styles.errorText}>{err}</Text>
+      ) : !data ? (
+        <Text style={styles.errorText}>No profile data</Text>
+      ) : (
+        <>
+          <View style={styles.profileSection}>
+            <View style={styles.avatarWrapper}>
+              {pic ? (
+                <Image source={{ uri: pic }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Ionicons name="person" size={42} color="#ccc" />
+                </View>
+              )}
+            </View>
+
+            <Text style={styles.name}>{name}</Text>
+            {blood ? (
+              <View style={styles.bloodBadge}>
+                <Text style={styles.bloodText}>{blood} Blood</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.actionRow}>
+              <TouchableOpacity onPress={openChat} style={styles.chatBtn}>
+                <Ionicons name="chatbubble-outline" size={16} color={COLORS.primary} />
+                <Text style={styles.chatBtnText}>Chat Now</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.callBtn} onPress={handleCall}>
+                <Ionicons name="call-outline" size={16} color="#fff" />
+                <Text style={styles.callBtnText}>Call</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
 
-        <Text style={styles.name}>Adin Ahmed</Text>
-        <View style={styles.bloodBadge}>
-          <Text style={styles.bloodText}>A+ Blood</Text>
-        </View>
+          <View style={styles.aboutCard}>
+            <Text style={styles.aboutTitle}>ABOUT</Text>
 
-        {/* ACTION BUTTONS */}
-        <View style={styles.actionRow}>
-          <TouchableOpacity onPress={() => router.push("/(tabs)/inbox")} style={styles.chatBtn}>
-            <Ionicons name="chatbubble-outline" size={16} color={COLORS.primary} />
-            <Text style={styles.chatBtnText}>Chat Now</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.callBtn} onPress={handleCall}>
-            <Ionicons name="call-outline" size={16} color="#fff" />
-            <Text style={styles.callBtnText}>Call</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+            <AboutRow icon="person-outline" label="Age" value={data.userInfo?.age ?? "—"} />
+            <AboutRow
+              icon="male-outline"
+              label="Gender"
+              value={data.userInfo?.gender ? capitalize(data.userInfo.gender) : "—"}
+            />
+            <AboutRow icon="location-outline" label="City" value={data.userInfo?.city ?? "—"} />
+            <AboutRow icon="globe-outline" label="Country" value={data.userInfo?.country ?? "—"} />
+            <AboutRow icon="call-outline" label="Mobile" value={data.userInfo?.mobileNumber ?? "—"} />
+            <AboutRow icon="mail-outline" label="Email" value={data.user?.email ?? "—"} isLast />
+          </View>
 
-      {/* ABOUT CARD */}
-      <View style={styles.aboutCard}>
-        <Text style={styles.aboutTitle}>ABOUT</Text>
-
-        <AboutRow icon="person-outline" label="Age" value="30" />
-        <AboutRow icon="male-outline" label="Gender" value="Male" />
-        <AboutRow icon="location-outline" label="City" value="Karachi" />
-        <AboutRow icon="call-outline" label="Mobile" value="+92 3343921210" />
-        <AboutRow icon="mail-outline" label="Email" value="adin@gmail.com" isLast />
-      </View>
+          {!!data.userInfo?.about && (
+            <View style={[styles.aboutCard, { marginTop: 12 }]}>
+              <Text style={styles.aboutTitle}>BIO</Text>
+              <Text style={styles.bioText}>{data.userInfo.about}</Text>
+            </View>
+          )}
+        </>
+      )}
 
       <View style={{ height: 30 }} />
     </ScrollView>
   );
+}
+
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 }
 
 function AboutRow({
@@ -78,7 +171,7 @@ function AboutRow({
   value,
   isLast,
 }: {
-  icon: any;
+  icon: ComponentProps<typeof Ionicons>["name"];
   label: string;
   value: string;
   isLast?: boolean;
@@ -91,7 +184,9 @@ function AboutRow({
         </View>
         <Text style={styles.aboutLabel}>{label}</Text>
       </View>
-      <Text style={styles.aboutValue}>{value}</Text>
+      <Text style={styles.aboutValue} numberOfLines={2}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -101,8 +196,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.white,
   },
+  errorText: {
+    color: "#E53935",
+    padding: SIZES.padding,
+    marginTop: 16,
+  },
+  bioText: {
+    fontSize: 14,
+    color: "#333",
+    lineHeight: 20,
+  },
 
-  /* HEADER */
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -120,14 +224,12 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
 
-  /* PROFILE SECTION */
   profileSection: {
     backgroundColor: "#fff",
     alignItems: "center",
     paddingVertical: 24,
     paddingHorizontal: SIZES.padding,
     marginBottom: 16,
-    // ...SHADOW,
   },
   avatarWrapper: {
     marginBottom: 12,
@@ -168,7 +270,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  /* BUTTONS */
   actionRow: {
     flexDirection: "row",
     gap: 12,
@@ -203,7 +304,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  /* ABOUT CARD */
   aboutCard: {
     backgroundColor: "#fff",
     marginHorizontal: SIZES.padding,
@@ -223,6 +323,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 11,
+    gap: 8,
   },
   aboutRowBorder: {
     borderBottomWidth: 1,
@@ -249,5 +350,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: "#1A1A1A",
+    flex: 1,
+    textAlign: "right",
   },
 });

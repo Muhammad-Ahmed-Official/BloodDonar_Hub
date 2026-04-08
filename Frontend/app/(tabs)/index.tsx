@@ -7,21 +7,139 @@ import {
   Image,
   FlatList,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SIZES, SHADOW } from "../../constants/theme";
 import Button from "@/components/common/Button";
 import Card from "@/components/common/Card";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Input from "@/components/common/Input";
+import { getAllRequests, getPosts, getProfile } from "@/services/user.service";
+import { useAuth } from "@/context/AuthContext";
 
 const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
+type PostRow = {
+  _id: string;
+  bloodGroup: string;
+  patientName: string;
+  city: string;
+  hospital: string;
+  date: string;
+  address: string;
+  isEmergency?: boolean;
+};
+
+type RequestRow = {
+  _id: string;
+  donarName?: string;
+  bloodGroup?: string;
+  city?: string;
+  hospitalName?: string;
+  date?: string;
+  location?: string;
+  reason?: string;
+};
+
+function requestLooksEmergency(reason?: string) {
+  if (!reason) return false;
+  return /emergency|urgent|critical/i.test(reason);
+}
+
 export default function HomeScreen() {
+  const { user } = useAuth();
   const [selectedGroup, setSelectedGroup] = useState("");
   const [showGroup, setShowGroup] = useState(false);
+  const [cityInput, setCityInput] = useState("");
+  const [profilePic, setProfilePic] = useState<string | null>(null);
+  const [allPosts, setAllPosts] = useState<PostRow[]>([]);
+  const [allRequests, setAllRequests] = useState<RequestRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
   const insets = useSafeAreaInsets();
+
+  const loadFeed = useCallback(async () => {
+    setError("");
+    const [postsRes, reqRes] = await Promise.all([
+      getPosts({ page: 1, limit: 100 }),
+      getAllRequests({ page: 1, limit: 100 }),
+    ]);
+    const posts = Array.isArray(postsRes?.data) ? postsRes.data : [];
+    const reqs = Array.isArray(reqRes?.data) ? reqRes.data : [];
+    setAllPosts(posts);
+    setAllRequests(reqs);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const [prof] = await Promise.all([
+          getProfile().catch(() => null),
+          loadFeed(),
+        ]);
+        if (!cancelled && prof?.data?.userInfo?.pic) {
+          setProfilePic(prof.data.userInfo.pic);
+        }
+      } catch (e: unknown) {
+        const msg =
+          typeof e === "object" && e !== null && "message" in e
+            ? String((e as { message: string }).message)
+            : "Failed to load";
+        if (!cancelled) setError(msg);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadFeed]);
+
+  const filteredPosts = useMemo(() => {
+    const c = cityInput.trim().toLowerCase();
+    const g = selectedGroup;
+    return allPosts.filter(
+      (p) =>
+        (!g || p.bloodGroup === g) &&
+        (!c || String(p.city ?? "")
+          .toLowerCase()
+          .includes(c))
+    );
+  }, [allPosts, selectedGroup, cityInput]);
+
+  const filteredRequests = useMemo(() => {
+    const c = cityInput.trim().toLowerCase();
+    const g = selectedGroup;
+    return allRequests.filter(
+      (r) =>
+        (!g || r.bloodGroup === g) &&
+        (!c ||
+          String(r.city ?? "")
+            .toLowerCase()
+            .includes(c))
+    );
+  }, [allRequests, selectedGroup, cityInput]);
+
+  const onSubmit = async () => {
+    setRefreshing(true);
+    setError("");
+    try {
+      await loadFeed();
+    } catch (e: unknown) {
+      const msg =
+        typeof e === "object" && e !== null && "message" in e
+          ? String((e as { message: string }).message)
+          : "Refresh failed";
+      setError(msg);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -31,41 +149,43 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header - Full width with bottom rounded corners */}
         <View style={[styles.header, { paddingTop: 30 + insets.top }]}>
           <View style={styles.headerLeft}>
             <View style={styles.avatar}>
-              <Ionicons name="person" size={22} color={COLORS.white} />
+              {profilePic ? (
+                <Image source={{ uri: profilePic }} style={styles.avatarImg} />
+              ) : (
+                <Ionicons name="person" size={22} color={COLORS.white} />
+              )}
             </View>
             <View style={{ marginLeft: 10 }}>
-              <Text style={styles.headerName}>User Name</Text>
-              <Text style={styles.headerSub}>Donate Blood | also good for the donor's body</Text>
+              <Text style={styles.headerName}>{user?.userName ?? "User"}</Text>
+              <Text style={styles.headerSub} numberOfLines={2}>
+                Donate Blood | also good for the donor&apos;s body
+              </Text>
             </View>
           </View>
         </View>
 
         <View style={styles.contentInner}>
-        <View style={styles.containerSearch}>
-          <Input
-            style={styles.input}
-            placeholder="Search Location"
-            placeholderTextColor="#B0B0B0"
-          />
-          <Ionicons
-            name="location-outline"
-            size={18}
-            color={COLORS.primary}
-            style={styles.icon}
-          />
-        </View>
+          <View style={styles.containerSearch}>
+            <Input
+              style={styles.input}
+              placeholder="Search Location"
+              placeholderTextColor="#B0B0B0"
+              value={cityInput}
+              onChangeText={setCityInput}
+            />
+            <Ionicons
+              name="location-outline"
+              size={18}
+              color={COLORS.primary}
+              style={styles.icon}
+            />
+          </View>
 
-          <TouchableOpacity
-            style={styles.dropdown}
-            onPress={() => setShowGroup(!showGroup)}
-          >
-            <Text style={styles.dropdownText}>
-              {selectedGroup || "Select group"}
-            </Text>
+          <TouchableOpacity style={styles.dropdown} onPress={() => setShowGroup(!showGroup)}>
+            <Text style={styles.dropdownText}>{selectedGroup || "Select group"}</Text>
             <Ionicons name="water-outline" size={18} color={COLORS.primary} />
           </TouchableOpacity>
 
@@ -90,7 +210,9 @@ export default function HomeScreen() {
             </View>
           )}
 
-          <Button title="Submit" onPress={() => {}} />
+          <Button title={refreshing ? "Refreshing…" : "Submit"} onPress={onSubmit} disabled={refreshing} />
+
+          {!!error && <Text style={styles.errorText}>{error}</Text>}
 
           <View style={styles.bannerContainer}>
             <Image
@@ -100,9 +222,8 @@ export default function HomeScreen() {
             />
           </View>
 
-          {/* Activity As */}
           <Text style={styles.sectionTitle}>Activity As</Text>
-          
+
           <View style={styles.activityRow}>
             <View style={styles.activityCard}>
               <Image
@@ -112,7 +233,7 @@ export default function HomeScreen() {
               />
               <View style={styles.activityContent}>
                 <Text style={styles.activityLabel}>Blood Donor</Text>
-                <Text style={styles.activityCount}>120 Post</Text>
+                <Text style={styles.activityCount}>{allPosts.length} posts</Text>
               </View>
             </View>
 
@@ -124,7 +245,7 @@ export default function HomeScreen() {
               />
               <View style={styles.activityContent}>
                 <Text style={styles.activityLabel}>Blood Recepent</Text>
-                <Text style={styles.activityCount}>120 Post</Text>
+                <Text style={styles.activityCount}>{allRequests.length} requests</Text>
               </View>
             </View>
 
@@ -136,7 +257,7 @@ export default function HomeScreen() {
               />
               <View style={styles.activityContent}>
                 <Text style={styles.activityLabel}>Create Post</Text>
-                <Text style={styles.activityCount}>It's Easy! 3 Step</Text>
+                <Text style={styles.activityCount}>It&apos;s Easy! 3 Step</Text>
               </View>
             </View>
 
@@ -148,42 +269,47 @@ export default function HomeScreen() {
               />
               <View style={styles.activityContent}>
                 <Text style={styles.activityLabel}>Blood Given</Text>
-                <Text style={styles.activityCount}>It's Easy! 1 Step</Text>
+                <Text style={styles.activityCount}>It&apos;s Easy! 1 Step</Text>
               </View>
             </View>
           </View>
 
           <Text style={styles.sectionTitle}>Donation Request</Text>
 
-          <Card
-            bloodGroup="A+"
-            patientName="Ali Khan"
-            city="Karachi"
-            hospital="Aga Khan Hospital"
-            date="15 Dec 2025"
-            address="National Stadium Rd, Karachi"
-            isEmergency={true}
-          />
-
-          <Card
-            bloodGroup="O-"
-            patientName="Ahmed Raza"
-            city="Lahore"
-            hospital="Shaukat Khanum"
-            date="20 Dec 2025"
-            address="Johar Town, Lahore"
-            isEmergency={false}
-          />
-
-          <Card
-            bloodGroup="B+"
-            patientName="Hamza"
-            city="Islamabad"
-            hospital="Shaukat Khanum"
-            date="25 Jan 2025"
-            address="Johar Town, Lahore"
-            isEmergency={false}
-          />
+          {loading ? (
+            <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} />
+          ) : (
+            <>
+              {filteredPosts.map((p) => (
+                <Card
+                  key={`post-${p._id}`}
+                  bloodGroup={p.bloodGroup}
+                  patientName={p.patientName}
+                  city={p.city}
+                  hospital={p.hospital}
+                  date={p.date}
+                  address={p.address}
+                  isEmergency={!!p.isEmergency}
+                />
+              ))}
+              {filteredRequests.map((r) => (
+                <Card
+                  key={`req-${r._id}`}
+                  bloodGroup={r.bloodGroup ?? "—"}
+                  patientName={r.donarName ?? "Patient"}
+                  city={r.city ?? "—"}
+                  hospital={r.hospitalName ?? "—"}
+                  date={r.date ?? "—"}
+                  address={r.location ?? "—"}
+                  isEmergency={requestLooksEmergency(r.reason)}
+                  donationRequestId={r._id}
+                />
+              ))}
+              {filteredPosts.length === 0 && filteredRequests.length === 0 && (
+                <Text style={styles.emptyFeed}>No posts or requests match your filters.</Text>
+              )}
+            </>
+          )}
 
           <View style={{ height: 90 }} />
         </View>
@@ -206,21 +332,29 @@ const styles = StyleSheet.create({
   },
   contentInner: {
     padding: SIZES.padding,
-    gap: 10
+    gap: 10,
+  },
+  avatarImg: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  errorText: {
+    color: "#E53935",
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  emptyFeed: {
+    color: "#777",
+    fontSize: 14,
+    textAlign: "center",
+    marginVertical: 16,
   },
 
-  imageContainer: {
-    flex: 1.1,              
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    marginTop: 20,
-  },
-
-   containerSearch: {
+  containerSearch: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFE8E8", // replace with your given background color
+    backgroundColor: "#FFE8E8",
     borderRadius: 8,
     paddingHorizontal: 10,
     height: 40,
@@ -286,10 +420,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIZES.padding,
     width: "100%",
   },
-  headerLeft: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    flex: 1 
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
   },
   avatar: {
     width: 50,
@@ -298,102 +432,35 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.3)",
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
   },
-  headerName: { 
-    color: COLORS.white, 
-    fontWeight: "bold", 
-    fontSize: 16 
+  headerName: {
+    color: COLORS.white,
+    fontWeight: "bold",
+    fontSize: 16,
   },
-  headerSub: { 
-    color: "rgba(255,255,255,0.8)", 
-    fontSize: 11, 
+  headerSub: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 11,
     marginTop: 3,
     maxWidth: 260,
   },
 
-  searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFE8E8",
-    borderRadius: SIZES.radius,
-    padding: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#eee",
-  },
-  searchPlaceholder: { 
-    flex: 1, 
-    marginLeft: 8, 
-    color: "#aaa", 
-    fontSize: 14 
-  },
-  selectBlood: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFE8E8",
-    borderRadius: SIZES.radius,
-    padding: 12,
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: COLORS.text,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#eee",
+    textAlign: "center",
   },
-  selectBloodText: { 
-    flex: 1, 
-    color: "#aaa", 
-    fontSize: 14  
-  },
-
-  // Banner
-  banner: {
-    backgroundColor: "#FFF5F5",
-    borderRadius: SIZES.radius,
-    padding: 16,
-    marginTop: 14,
-    marginBottom: 18,
+  activityRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  bannerTitle: { 
-    fontSize: 18, 
-    fontWeight: "bold", 
-    color: COLORS.text 
-  },
-  bannerIllustration: { 
-    opacity: 0.7 
-  },
-  dots: { 
-    flexDirection: "row", 
-    marginTop: 8 
-  },
-  dot: { 
-    width: 6, 
-    height: 6, 
-    borderRadius: 3, 
-    backgroundColor: "#ddd", 
-    marginRight: 4 
-  },
-  dotActive: { 
-    backgroundColor: COLORS.primary, 
-    width: 16 
-  },
-
-  // Activity
-  sectionTitle: { 
-    fontSize: 16, 
-    fontWeight: "bold", 
-    color: COLORS.text, 
-    marginBottom: 12, 
-    textAlign: 'center' 
-  },
-  activityRow: { 
-    flexDirection: "row", 
-    flexWrap: "wrap", 
-    gap: 10, 
-    marginBottom: 18 
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 18,
   },
   activityCard: {
-    flexDirection: "row",  
+    flexDirection: "row",
     alignItems: "center",
     backgroundColor: COLORS.white,
     borderRadius: SIZES.radius,

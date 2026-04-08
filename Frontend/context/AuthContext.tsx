@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { loginUser, signUpUser, verifyEmail as verifyEmailService, logoutUser } from "../services/auth.service";
 import { saveToken, saveUser, getToken, getSavedUser, clearSession } from "../storage/tokenStorage";
+import { connectRealtime, disconnectRealtime } from "@/services/realtime";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,6 +54,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     restoreSession();
   }, []);
 
+  // ── Realtime socket lifecycle ──────────────────────────────────────────────
+  useEffect(() => {
+    if (user?._id && token) {
+      connectRealtime(String(user._id));
+    } else {
+      disconnectRealtime();
+    }
+  }, [user?._id, token]);
+
+  // Ensure cleanup only on provider unmount (avoid dev-mode reconnect loops)
+  useEffect(() => {
+    return () => {
+      disconnectRealtime();
+    };
+  }, []);
+
   // ── Login ──────────────────────────────────────────────────────────────────
   const login = useCallback(async (email: string, password: string) => {
     const response = await loginUser({ email, password });
@@ -90,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Logout ─────────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
     logoutUser(); // notify server (fire-and-forget)
+    disconnectRealtime();
     await clearSession();
     setToken(null);
     setUser(null);

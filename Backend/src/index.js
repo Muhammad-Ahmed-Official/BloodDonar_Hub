@@ -12,6 +12,7 @@ const server = http.createServer(app);
 const socketService = new SocketService();
 socketService.io.attach(server);
 socketService.initListener();
+app.set("io", socketService.io);
 
 connectDB()
   .then(() => {
