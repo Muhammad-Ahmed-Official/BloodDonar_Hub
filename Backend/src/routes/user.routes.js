@@ -1,20 +1,7 @@
 import { Router } from "express";
 import { verifyJwt } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
-import {
-    profileSetUp,
-    getProfile,
-    changeNumber,
-    updateProfile,
-    medicalInfo,
-    getMedicalInfo,
-    donationRequest,
-    getAllRequests,
-    getRequestById,
-    getPublicUserProfile,
-    getDonors,
-    getPosts,
-} from "../controllers/user.controller.js";
+import { profileSetUp, getProfile, changeNumber, updateProfile, medicalInfo, getMedicalInfo, donationRequest, getAllRequests, getRequestById, getPublicUserProfile, getDonors, getPosts } from "../controllers/user.controller.js";
 
 const userRouter = Router();
 

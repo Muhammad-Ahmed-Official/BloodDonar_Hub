@@ -7,11 +7,12 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Keyboard,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { COLORS, SIZES } from "../../../constants/theme";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Button from "@/components/common/Button";
 import { getAllRequests, getPosts } from "@/services/user.service";
 import Card from "@/components/common/Card";
@@ -54,38 +55,53 @@ export default function SearchScreen() {
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [listError, setListError] = useState("");
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setListError("");
-      try {
-        const [postsRes, reqRes] = await Promise.all([
-          getPosts({ page: 1, limit: 200 }),
-          getAllRequests({ page: 1, limit: 200 }),
-        ]);
-        const postsRaw = postsRes?.data;
-        const reqRaw = reqRes?.data;
-        if (!cancelled) {
-          setPosts(Array.isArray(postsRaw) ? (postsRaw as PostRow[]) : []);
-          setRequests(Array.isArray(reqRaw) ? (reqRaw as RequestRow[]) : []);
-        }
-      } catch (e: unknown) {
-        const msg =
-          typeof e === "object" && e !== null && "message" in e
-            ? String((e as { message: string }).message)
-            : "Could not load cards.";
-        if (!cancelled) setListError(msg);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
+    mountedRef.current = true;
     return () => {
-      cancelled = true;
+      mountedRef.current = false;
     };
   }, []);
+
+  const loadLists = useCallback(async (mode: "initial" | "submit") => {
+    if (mode === "initial") setLoading(true);
+    else setSubmitting(true);
+    setListError("");
+    try {
+      const [postsRes, reqRes] = await Promise.all([
+        getPosts({ page: 1, limit: 200 }),
+        getAllRequests({ page: 1, limit: 200 }),
+      ]);
+      if (!mountedRef.current) return;
+      const postsRaw = postsRes?.data;
+      const reqRaw = reqRes?.data;
+      setPosts(Array.isArray(postsRaw) ? (postsRaw as PostRow[]) : []);
+      setRequests(Array.isArray(reqRaw) ? (reqRaw as RequestRow[]) : []);
+    } catch (e: unknown) {
+      if (!mountedRef.current) return;
+      const msg =
+        typeof e === "object" && e !== null && "message" in e
+          ? String((e as { message: string }).message)
+          : "Could not load cards.";
+      setListError(msg);
+    } finally {
+      if (!mountedRef.current) return;
+      if (mode === "initial") setLoading(false);
+      else setSubmitting(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLists("initial");
+  }, [loadLists]);
+
+  const handleSearchSubmit = () => {
+    Keyboard.dismiss();
+    loadLists("submit");
+  };
 
   const filteredPosts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -119,7 +135,7 @@ export default function SearchScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t("search.title")}</Text>
+        <Text style={styles.headerTitle}>{t("search.createRequest")}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -135,7 +151,7 @@ export default function SearchScreen() {
           <Ionicons name="search-outline" size={18} color="#aaa" />
         </View>
 
-        <Button title={t("search.createRequest")} onPress={() => router.push("/(tabs)/search/create")} />
+        <Button title={t("common.submit")} onPress={handleSearchSubmit} disabled={submitting} />
 
         <Text style={styles.sectionTitle}>{t("search.bloodGroup")}</Text>
         <View style={styles.groupGrid}>

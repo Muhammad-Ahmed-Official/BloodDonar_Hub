@@ -3,6 +3,7 @@ import { User } from "../models/user.model.js";
 import { UserInfo } from "../models/userInfo.model.js";
 import { Donar } from "../models/donar.models.js";
 import { Post } from "../models/post.model.js";
+import { BloodRequest } from "../models/bloodRequest.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -70,7 +71,20 @@ export const getAllUsers = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/admin/users
 // @access  Admin
 export const createUser = asyncHandler(async (req, res) => {
-    const { userName, email, password, role = "user" } = req.body;
+    const {
+        userName,
+        email,
+        password,
+        role = "user",
+        mobileNumber,
+        bloodGroup,
+        city,
+        dateOfBirth,
+        gender,
+        canDonateBlood,
+        country,
+        about,
+    } = req.body;
 
     if (!userName || !email || !password) {
         throw new ApiError(StatusCodes.BAD_REQUEST, MISSING_FIELDS);
@@ -89,8 +103,38 @@ export const createUser = asyncHandler(async (req, res) => {
         isVerified: true, // admin-created accounts skip verification
     });
 
+    // If profile fields are provided, create userInfo as well.
+    const hasProfilePayload = mobileNumber || bloodGroup || city || dateOfBirth || gender || canDonateBlood || about;
+    if (hasProfilePayload) {
+        try {
+            if (!mobileNumber || !bloodGroup || !city || !dateOfBirth || !gender || !canDonateBlood) {
+                throw new ApiError(
+                    StatusCodes.BAD_REQUEST,
+                    "To create user profile, required fields are: mobileNumber, bloodGroup, city, dateOfBirth, gender, canDonateBlood"
+                );
+            }
+
+            await UserInfo.create({
+                user: user._id,
+                mobileNumber: String(mobileNumber).trim(),
+                bloodGroup: String(bloodGroup).trim(),
+                city: String(city).trim(),
+                dateOfBirth: new Date(dateOfBirth),
+                gender: String(gender).trim().toLowerCase(),
+                canDonateBlood: String(canDonateBlood).trim().toLowerCase(),
+                country: country ? String(country).trim() : "Pakistan",
+                about: about ? String(about).trim() : "",
+            });
+        } catch (error) {
+            // keep DB consistent if profile create fails
+            await User.findByIdAndDelete(user._id);
+            throw error;
+        }
+    }
+
     const created = await User.findById(user._id).select("-password -otp -expiresIn");
-    return res.status(StatusCodes.CREATED).send(new ApiResponse(StatusCodes.CREATED, ADD_SUCCESS_MESSAGES, created));
+    const userInfo = await UserInfo.findOne({ user: user._id });
+    return res.status(StatusCodes.CREATED).send(new ApiResponse(StatusCodes.CREATED, ADD_SUCCESS_MESSAGES, { ...created.toObject(), userInfo }));
 });
 
 
@@ -116,6 +160,31 @@ export const toggleSuspendUser = asyncHandler(async (req, res) => {
     );
 });
 
+// @desc    Block / unblock a user
+// @route   PATCH /api/v1/admin/user/:id/block
+// @access  Admin
+export const toggleBlockUser = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+        throw new ApiError(StatusCodes.NOT_FOUND, NO_USER);
+    }
+
+    if (user.role === "admin") {
+        throw new ApiError(StatusCodes.FORBIDDEN, "Cannot block another admin");
+    }
+
+    user.suspended = !user.suspended;
+    await user.save({ validateBeforeSave: false });
+
+    return res.status(StatusCodes.OK).send(
+        new ApiResponse(
+            StatusCodes.OK,
+            user.suspended ? "User blocked successfully" : "User unblocked successfully",
+            { blocked: user.suspended }
+        )
+    );
+});
+
 
 // @desc    Delete a user
 // @route   DELETE /api/v1/admin/users/:id
@@ -138,6 +207,67 @@ export const deleteUser = asyncHandler(async (req, res) => {
     ]);
 
     return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, DELETED_SUCCESS_MESSAGES, {}));
+});
+
+// @desc    Update user basic/profile fields
+// @route   PATCH /api/v1/admin/users/:id
+// @access  Admin
+export const updateUserByAdmin = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const user = await User.findById(id);
+    if (!user) {
+        throw new ApiError(StatusCodes.NOT_FOUND, NO_USER);
+    }
+
+    if (user.role === "admin") {
+        throw new ApiError(StatusCodes.FORBIDDEN, "Cannot update another admin");
+    }
+
+    const userUpdates = {};
+    if (req.body.userName !== undefined) userUpdates.userName = String(req.body.userName).trim().toLowerCase();
+    if (req.body.email !== undefined) userUpdates.email = String(req.body.email).trim().toLowerCase();
+
+    if (Object.keys(userUpdates).length > 0) {
+        await User.findByIdAndUpdate(id, { $set: userUpdates }, { new: true, runValidators: true });
+    }
+
+    const profileFields = ["mobileNumber", "bloodGroup", "city", "country", "about"];
+    const profileUpdates = {};
+    for (const field of profileFields) {
+        if (req.body[field] !== undefined) profileUpdates[field] = req.body[field];
+    }
+
+    if (req.body.gender !== undefined) {
+        profileUpdates.gender = String(req.body.gender).trim().toLowerCase();
+    }
+
+    if (req.body.canDonateBlood !== undefined) {
+        profileUpdates.canDonateBlood = String(req.body.canDonateBlood).trim().toLowerCase();
+    }
+
+    if (req.body.dateOfBirth !== undefined && req.body.dateOfBirth !== "") {
+        profileUpdates.dateOfBirth = new Date(req.body.dateOfBirth);
+    }
+
+    if (req.body.age !== undefined && req.body.age !== "") {
+        const numericAge = Number(req.body.age);
+        if (Number.isFinite(numericAge) && numericAge > 0) {
+            const dob = new Date();
+            dob.setFullYear(dob.getFullYear() - numericAge);
+            profileUpdates.dateOfBirth = dob;
+        }
+    }
+
+    if (Object.keys(profileUpdates).length > 0) {
+        await UserInfo.findOneAndUpdate({ user: id }, { $set: profileUpdates }, { upsert: true, new: true });
+    }
+
+    const updatedUser = await User.findById(id).select("-password -otp -expiresIn");
+    const userInfo = await UserInfo.findOne({ user: id });
+
+    return res
+        .status(StatusCodes.OK)
+        .send(new ApiResponse(StatusCodes.OK, UPDATE_SUCCESS_MESSAGES, { ...updatedUser.toObject(), userInfo }));
 });
 
 
@@ -172,6 +302,163 @@ export const getAllDonationRequests = asyncHandler(async (req, res) => {
     return res.status(StatusCodes.OK).send(
         new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, { requests, total, page: parseInt(page), limit: parseInt(limit) })
     );
+});
+
+// @desc    Update a donor's embedded donation request (Donar.requests)
+// @route   PATCH /api/v1/admin/requests/:id
+// @access  Admin
+export const updateDonationRequest = asyncHandler(async (req, res) => {
+    const donar = await Donar.findById(req.params.id);
+    if (!donar) {
+        throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
+    }
+    if (!donar.requests?.donarName) {
+        throw new ApiError(StatusCodes.NOT_FOUND, "No donation request on this record");
+    }
+
+    const allowed = [
+        "donarName",
+        "bloodGroup",
+        "amount",
+        "age",
+        "date",
+        "hospitalName",
+        "location",
+        "contactPersonName",
+        "mobileNumber",
+        "city",
+        "startTime",
+        "endTime",
+        "reason",
+    ];
+    const current = donar.requests.toObject ? donar.requests.toObject() : { ...donar.requests };
+    const next = { ...current };
+    for (const f of allowed) {
+        if (!(f in req.body)) continue;
+        const v = req.body[f];
+        if (v === null) continue;
+        if (f === "age") {
+            const n = Number(v);
+            next.age = Number.isFinite(n) && n > 0 ? n : next.age;
+        } else {
+            next[f] = v;
+        }
+    }
+
+    const requiredFields = [
+        "donarName",
+        "bloodGroup",
+        "amount",
+        "date",
+        "hospitalName",
+        "location",
+        "contactPersonName",
+        "mobileNumber",
+        "city",
+        "startTime",
+        "endTime",
+        "reason",
+    ];
+    for (const f of requiredFields) {
+        const val = next[f];
+        if (val === undefined || val === null || String(val).trim() === "") {
+            throw new ApiError(StatusCodes.BAD_REQUEST, `${f} is required`);
+        }
+    }
+    if (!next.age || next.age <= 0) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "age is required");
+    }
+
+    donar.requests = next;
+    await donar.save();
+
+    const refreshed = await Donar.findById(donar._id).populate({ path: "user", select: "userName email" });
+    const rdoc = refreshed.requests;
+    const reqObj = rdoc && typeof rdoc.toObject === "function" ? rdoc.toObject() : rdoc && { ...rdoc };
+    const payload = {
+        _id: refreshed._id,
+        user: refreshed.user,
+        ...(reqObj || {}),
+    };
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, UPDATE_SUCCESS_MESSAGES, payload));
+});
+
+// @desc    Remove donor donation request (clears Donar.requests)
+// @route   DELETE /api/v1/admin/requests/:id
+// @access  Admin
+export const deleteDonationRequest = asyncHandler(async (req, res) => {
+    const donar = await Donar.findById(req.params.id);
+    if (!donar) {
+        throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
+    }
+    await Donar.findByIdAndUpdate(req.params.id, { $set: { requests: {} } });
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, DELETED_SUCCESS_MESSAGES, {}));
+});
+
+// @desc    Get all blood donors
+// @route   GET /api/v1/admin/donors
+// @access  Admin
+export const getAllDonors = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 20, bloodGroup, city } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const filter = { canDonateBlood: "yes" };
+    if (bloodGroup) filter.bloodGroup = bloodGroup;
+    if (city) filter.city = { $regex: city, $options: "i" };
+
+    const [donors, total] = await Promise.all([
+        UserInfo.find(filter)
+            .populate({ path: "user", select: "userName email suspended role" })
+            .skip(skip)
+            .limit(parseInt(limit))
+            .sort({ createdAt: -1 }),
+        UserInfo.countDocuments(filter),
+    ]);
+
+    return res.status(StatusCodes.OK).send(
+        new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, {
+            donors,
+            total,
+            page: parseInt(page),
+            limit: parseInt(limit),
+        })
+    );
+});
+
+// @desc    Create blood request (admin)
+// @route   POST /api/v1/admin/blood-request
+// @access  Admin
+export const createBloodRequest = asyncHandler(async (req, res) => {
+    const { patientName, bloodGroup, location, urgencyLevel, requiredUnits, contactInfo } = req.body;
+
+    if (!patientName || !bloodGroup || !location || !urgencyLevel || !requiredUnits || !contactInfo) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, MISSING_FIELDS);
+    }
+
+    const normalizedUrgency = String(urgencyLevel).toLowerCase().trim();
+    const allowedUrgency = ["low", "medium", "high", "critical"];
+    if (!allowedUrgency.includes(normalizedUrgency)) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "urgencyLevel must be one of: low, medium, high, critical");
+    }
+
+    const units = Number(requiredUnits);
+    if (!Number.isFinite(units) || units <= 0) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "requiredUnits must be a number greater than 0");
+    }
+
+    const request = await BloodRequest.create({
+        patientName: String(patientName).trim(),
+        bloodGroup: String(bloodGroup).trim(),
+        location: String(location).trim(),
+        urgencyLevel: normalizedUrgency,
+        requiredUnits: units,
+        contactInfo: String(contactInfo).trim(),
+        createdBy: req.user._id,
+    });
+
+    return res
+        .status(StatusCodes.CREATED)
+        .send(new ApiResponse(StatusCodes.CREATED, ADD_SUCCESS_MESSAGES, request));
 });
 
 
@@ -276,12 +563,13 @@ export const deletePost = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/admin/stats
 // @access  Admin
 export const getStats = asyncHandler(async (req, res) => {
-    const [totalUsers, totalDonors, totalRequests, totalPosts, suspendedUsers] = await Promise.all([
+    const [totalUsers, totalDonors, totalRequests, totalPosts, suspendedUsers, totalAdminBloodRequests] = await Promise.all([
         User.countDocuments({ role: "user" }),
         UserInfo.countDocuments({ canDonateBlood: "yes" }),
         Donar.countDocuments({ "requests.donarName": { $exists: true, $ne: "" } }),
         Post.countDocuments(),
         User.countDocuments({ suspended: true }),
+        BloodRequest.countDocuments(),
     ]);
 
     return res.status(StatusCodes.OK).send(
@@ -291,6 +579,7 @@ export const getStats = asyncHandler(async (req, res) => {
             totalRequests,
             totalPosts,
             suspendedUsers,
+            totalAdminBloodRequests,
         })
     );
 });

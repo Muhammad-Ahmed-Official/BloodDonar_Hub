@@ -18,15 +18,35 @@ export default function PrivacyPolicyScreen() {
   const privacyData = [
     {
       id: 1,
-      text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim adminim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in"
+      text: t("privacy.dataCollection.1")
     },
     {
       id: 2,
-      text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim adminim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in"
+      text: t("privacy.dataCollection.2")
     },
     {
       id: 3,
-      text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim adminim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in"
+      text: t("privacy.dataCollection.3")
+    },
+    {
+      id: 4,
+      text: t("privacy.dataCollection.4")
+    },
+    {
+      id: 5,
+      text: t("privacy.dataCollection.5")
+    },
+    {
+      id: 6,
+      text: t("privacy.dataCollection.6")
+    },
+    {
+      id: 7,
+      text: t("privacy.dataCollection.7")
+    },
+    {
+      id: 8,
+      text: t("privacy.dataCollection.8")
     }
   ];
 

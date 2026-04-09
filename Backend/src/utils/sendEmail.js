@@ -8,8 +8,6 @@ const emailConfig = {
     },
 };
 
-// console.log(process.env.PORTAL_EMAIL, process.env.PORTAL_PASSWORD, "Ali")
-
 async function sendEmailOTP(mail, otp) { 
     const transporter = nodemailer.createTransport(emailConfig);
     const mailOptions = {

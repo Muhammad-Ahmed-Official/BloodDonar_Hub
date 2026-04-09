@@ -87,6 +87,22 @@ export const translations: Record<AppLanguage, Record<string, string>> = {
     "medical.saveError": "Could not save medical info",
     "privacy.title": "Privacy Policy",
     "privacy.lastUpdate": "Last update -",
+    "privacy.dataCollection.1":
+      "We collect personal information such as your name, phone number, email address, blood group, and location to provide better services and connect donors with recipients efficiently.",
+    "privacy.dataCollection.2":
+      "Your information is used to match blood donors with patients in need, improve app functionality, and ensure a smooth and secure user experience.",
+    "privacy.dataCollection.3":
+      "We do not sell, trade, or share your personal information with third parties except when required to fulfill a blood request or comply with legal obligations.",
+    "privacy.dataCollection.4":
+      "We take appropriate security measures to protect your data from unauthorized access, misuse, or disclosure.",
+    "privacy.dataCollection.5":
+      "You have the right to update, modify, or delete your personal information at any time through your profile settings.",
+    "privacy.dataCollection.6":
+      "Location data may be used to show nearby blood donors or requests, but it is only used within the app to improve matching accuracy.",
+    "privacy.dataCollection.7":
+      "We may update this privacy policy from time to time. Any changes will be communicated through the app.",
+    "privacy.dataCollection.8":
+      "By using this application, you agree to the terms outlined in this privacy policy.",
   },
   ur: {
     "common.cancel": "منسوخ",
@@ -174,6 +190,22 @@ export const translations: Record<AppLanguage, Record<string, string>> = {
     "medical.saveError": "طبی معلومات محفوظ نہیں ہو سکیں",
     "privacy.title": "پرائیویسی پالیسی",
     "privacy.lastUpdate": "آخری اپڈیٹ -",
+    "privacy.dataCollection.1":
+      "ہم بہتر سروس فراہم کرنے اور ڈونرز کو مستحق افراد سے موثر طریقے سے ملانے کے لیے آپ کی ذاتی معلومات جیسے نام، فون نمبر، ای میل، بلڈ گروپ اور لوکیشن جمع کرتے ہیں۔",
+    "privacy.dataCollection.2":
+      "آپ کی معلومات ضرورت مند مریضوں کے ساتھ بلڈ ڈونرز کو میچ کرنے، ایپ کی کارکردگی بہتر بنانے اور محفوظ و آسان تجربہ یقینی بنانے کے لیے استعمال ہوتی ہیں۔",
+    "privacy.dataCollection.3":
+      "ہم آپ کی ذاتی معلومات کسی تیسرے فریق کو فروخت، تجارت یا شیئر نہیں کرتے، سوائے اس کے جب خون کی درخواست پوری کرنے یا قانونی تقاضے پورے کرنے کے لیے ضروری ہو۔",
+    "privacy.dataCollection.4":
+      "ہم آپ کے ڈیٹا کو غیر مجاز رسائی، غلط استعمال یا افشاء سے بچانے کے لیے مناسب سیکیورٹی اقدامات کرتے ہیں۔",
+    "privacy.dataCollection.5":
+      "آپ کو یہ حق حاصل ہے کہ آپ کسی بھی وقت اپنی پروفائل سیٹنگز کے ذریعے ذاتی معلومات کو اپڈیٹ، ترمیم یا حذف کر سکیں۔",
+    "privacy.dataCollection.6":
+      "لوکیشن ڈیٹا قریبی بلڈ ڈونرز یا درخواستیں دکھانے کے لیے استعمال ہو سکتا ہے، لیکن یہ صرف ایپ کے اندر میچنگ بہتر بنانے کے لیے استعمال ہوتا ہے۔",
+    "privacy.dataCollection.7":
+      "ہم وقتاً فوقتاً اس پرائیویسی پالیسی کو اپڈیٹ کر سکتے ہیں۔ کسی بھی تبدیلی کی اطلاع ایپ کے ذریعے دی جائے گی۔",
+    "privacy.dataCollection.8":
+      "اس ایپلیکیشن کے استعمال سے آپ اس پرائیویسی پالیسی میں درج شرائط سے اتفاق کرتے ہیں۔",
   },
 };
 

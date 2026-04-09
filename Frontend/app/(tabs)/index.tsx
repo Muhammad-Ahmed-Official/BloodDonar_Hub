@@ -15,6 +15,7 @@ import { COLORS, SIZES, SHADOW } from "../../constants/theme";
 import Button from "@/components/common/Button";
 import Card from "@/components/common/Card";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
 import Input from "@/components/common/Input";
 import { getAllRequests, getPosts, getProfile } from "@/services/user.service";
 import { useAuth } from "@/context/AuthContext";
@@ -50,6 +51,7 @@ function requestLooksEmergency(reason?: string) {
 }
 
 export default function HomeScreen() {
+  const router = useRouter();
   const { user } = useAuth();
   const { t } = useLanguage();
   const [selectedGroup, setSelectedGroup] = useState("");
@@ -61,6 +63,8 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [canDonateBlood, setCanDonateBlood] = useState<"yes" | "no" | "">("");
+  const [hasOwnDonationRequest, setHasOwnDonationRequest] = useState(false);
   const insets = useSafeAreaInsets();
 
   const loadFeed = useCallback(async () => {
@@ -75,32 +79,40 @@ export default function HomeScreen() {
     setAllRequests(reqs);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const [prof] = await Promise.all([
-          getProfile().catch(() => null),
-          loadFeed(),
-        ]);
-        if (!cancelled && prof?.data?.userInfo?.pic) {
-          setProfilePic(prof.data.userInfo.pic);
-        }
-      } catch (e: unknown) {
-        const msg =
-          typeof e === "object" && e !== null && "message" in e
-            ? String((e as { message: string }).message)
-            : "Failed to load";
-        if (!cancelled) setError(msg);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  const loadHomeData = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [prof] = await Promise.all([getProfile().catch(() => null), loadFeed()]);
+      const info = prof?.data?.userInfo;
+      const ownReq = prof?.data?.donationRequest;
+
+      if (info?.pic) setProfilePic(info.pic);
+      setCanDonateBlood(info?.canDonateBlood === "yes" ? "yes" : "no");
+      setHasOwnDonationRequest(!!ownReq?.donarName);
+    } catch (e: unknown) {
+      const msg =
+        typeof e === "object" && e !== null && "message" in e
+          ? String((e as { message: string }).message)
+          : "Failed to load";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   }, [loadFeed]);
+
+  useEffect(() => {
+    loadHomeData();
+  }, [loadHomeData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Reload when returning from create-request screen
+      loadHomeData();
+    }, [loadHomeData])
+  );
+
+  const showCreateRequestCTA = canDonateBlood === "yes" && !hasOwnDonationRequest;
 
   const filteredPosts = useMemo(() => {
     const c = cityInput.trim().toLowerCase();
@@ -282,33 +294,45 @@ export default function HomeScreen() {
             <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} />
           ) : (
             <>
-              {filteredPosts.map((p) => (
-                <Card
-                  key={`post-${p._id}`}
-                  bloodGroup={p.bloodGroup}
-                  patientName={p.patientName}
-                  city={p.city}
-                  hospital={p.hospital}
-                  date={p.date}
-                  address={p.address}
-                  isEmergency={!!p.isEmergency}
-                />
-              ))}
-              {filteredRequests.map((r) => (
-                <Card
-                  key={`req-${r._id}`}
-                  bloodGroup={r.bloodGroup ?? "—"}
-                  patientName={r.donarName ?? "Patient"}
-                  city={r.city ?? "—"}
-                  hospital={r.hospitalName ?? "—"}
-                  date={r.date ?? "—"}
-                  address={r.location ?? "—"}
-                  isEmergency={requestLooksEmergency(r.reason)}
-                  donationRequestId={r._id}
-                />
-              ))}
-              {filteredPosts.length === 0 && filteredRequests.length === 0 && (
-                <Text style={styles.emptyFeed}>{t("home.noCards")}</Text>
+              {showCreateRequestCTA ? (
+                <View style={styles.createRequestCard}>
+                  <Text style={styles.createRequestTitle}>{t("search.createRequest")}</Text>
+                  <Text style={styles.createRequestSubText}>
+                    You are available as donor. Create your first donation request.
+                  </Text>
+                  <Button title={t("search.createRequest")} onPress={() => router.push("/(tabs)/profile/medicalInfo")} />
+                </View>
+              ) : (
+                <>
+                  {filteredPosts.map((p) => (
+                    <Card
+                      key={`post-${p._id}`}
+                      bloodGroup={p.bloodGroup}
+                      patientName={p.patientName}
+                      city={p.city}
+                      hospital={p.hospital}
+                      date={p.date}
+                      address={p.address}
+                      isEmergency={!!p.isEmergency}
+                    />
+                  ))}
+                  {filteredRequests.map((r) => (
+                    <Card
+                      key={`req-${r._id}`}
+                      bloodGroup={r.bloodGroup ?? "—"}
+                      patientName={r.donarName ?? "Patient"}
+                      city={r.city ?? "—"}
+                      hospital={r.hospitalName ?? "—"}
+                      date={r.date ?? "—"}
+                      address={r.location ?? "—"}
+                      isEmergency={requestLooksEmergency(r.reason)}
+                      donationRequestId={r._id}
+                    />
+                  ))}
+                  {filteredPosts.length === 0 && filteredRequests.length === 0 && (
+                    <Text style={styles.emptyFeed}>{t("home.noCards")}</Text>
+                  )}
+                </>
               )}
             </>
           )}
@@ -351,6 +375,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
     marginVertical: 16,
+  },
+  createRequestCard: {
+    backgroundColor: "#FFF5F5",
+    borderColor: "#F6D5D5",
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    gap: 10,
+  },
+  createRequestTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: COLORS.text,
+    textAlign: "center",
+  },
+  createRequestSubText: {
+    fontSize: 13,
+    color: "#666",
+    textAlign: "center",
   },
 
   containerSearch: {
