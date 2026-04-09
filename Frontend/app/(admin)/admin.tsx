@@ -1,36 +1,11 @@
 import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Modal,
-  TextInput,
-  Alert,
-  ActivityIndicator,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, ActivityIndicator, type StyleProp, type ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SIZES, SHADOW } from "@/constants/theme";
 import Card from "@/components/common/Card";
 import { router } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
-import {
-  createAdminPost,
-  createAdminUser,
-  deleteAdminDonationRequest,
-  deleteAdminPost,
-  getAdminPosts,
-  getAdminRequests,
-  getAdminStats,
-  getAdminUsers,
-  toggleSuspendAdminUser,
-  updateAdminDonationRequest,
-  updateAdminPost,
-  updateAdminUser,
-} from "@/services/admin.service";
+import { createAdminPost, createAdminUser, deleteAdminDonationRequest, deleteAdminPost, getAdminPosts, getAdminRequests, getAdminStats, getAdminUsers, toggleSuspendAdminUser, updateAdminDonationRequest, updateAdminPost, updateAdminUser } from "@/services/admin.service";
 
 interface User {
   id: string;
@@ -86,13 +61,89 @@ function donorRequestLooksEmergency(reason?: string) {
   return /emergency|urgent|critical/i.test(reason);
 }
 
-function AdminActionBtn({
-  activeKey,
-  thisKey,
-  style,
-  onPress,
-  children,
-}: {
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const BLOOD_GROUPS = new Set(["A+", "B+", "O+", "AB+", "A-", "B-", "O-", "AB-"]);
+
+function isValidEmail(s: string): boolean {
+  return EMAIL_RE.test(String(s).trim());
+}
+
+function trimVal(s: string | undefined): string {
+  return String(s ?? "").trim();
+}
+
+function isPlaceholderDash(s: string): boolean {
+  return trimVal(s) === "" || trimVal(s) === "—" || trimVal(s) === "-";
+}
+
+function normalizeBloodGroup(s: string): string {
+  return trimVal(s).replace(/\s+/g, "").toUpperCase();
+}
+
+function isValidBloodGroup(s: string): boolean {
+  return BLOOD_GROUPS.has(normalizeBloodGroup(s));
+}
+
+function isValidDobInput(s: string): boolean {
+  const t = trimVal(s);
+  if (!t) return false;
+  const d = new Date(t);
+  return !Number.isNaN(d.getTime());
+}
+
+function isValidGender(s: string): boolean {
+  const g = trimVal(s).toLowerCase();
+  return g === "male" || g === "female" || g === "other";
+}
+
+function isValidCanDonateBlood(s: string): boolean {
+  const v = trimVal(s).toLowerCase();
+  return v === "yes" || v === "no";
+}
+
+function approximateDobIsoFromAge(years: number): string {
+  const d = new Date();
+  d.setUTCHours(12, 0, 0, 0);
+  d.setFullYear(d.getFullYear() - Math.min(120, Math.max(1, Math.floor(years))));
+  return d.toISOString().slice(0, 10);
+}
+
+function validateAgeOrDob(ageStr: string, dobStr: string): { ok: true } | { ok: false; message: string } {
+  const dobTrim = trimVal(dobStr);
+  if (dobTrim && isValidDobInput(dobTrim)) {
+    const d = new Date(dobTrim);
+    const now = new Date();
+    if (d > now) return { ok: false, message: "Date of birth cannot be in the future" };
+    return { ok: true };
+  }
+  const ageTrim = trimVal(ageStr);
+  if (ageTrim && ageTrim !== "-") {
+    const n = Number(ageTrim);
+    if (Number.isFinite(n) && n >= 1 && n <= 120) return { ok: true };
+    return { ok: false, message: "Enter a valid age (1–120) or a valid date of birth" };
+  }
+  return { ok: false, message: "Enter date of birth (YYYY-MM-DD) or age" };
+}
+
+function validatePostFields(p: {
+  bloodGroup: string;
+  patientName: string;
+  city: string;
+  hospital: string;
+  date: string;
+  address: string;
+}): string | null {
+  if (!trimVal(p.bloodGroup)) return "Blood group is required";
+  if (!isValidBloodGroup(p.bloodGroup)) return "Enter a valid blood group (e.g. A+, O-)";
+  if (!trimVal(p.patientName)) return "Patient name is required";
+  if (!trimVal(p.city)) return "City is required";
+  if (!trimVal(p.hospital)) return "Hospital is required";
+  if (!trimVal(p.date)) return "Date is required";
+  if (!trimVal(p.address)) return "Address is required";
+  return null;
+}
+
+function AdminActionBtn({ activeKey, thisKey, style, onPress, children }: {
   activeKey: string | null;
   thisKey: string;
   style: StyleProp<ViewStyle>;
@@ -107,12 +158,7 @@ function AdminActionBtn({
   );
 }
 
-function AdminModalSaveBtn({
-  activeKey,
-  thisKey,
-  onPress,
-  label,
-}: {
+function AdminModalSaveBtn({ activeKey, thisKey, onPress, label }: {
   activeKey: string | null;
   thisKey: string;
   onPress: () => void;
@@ -331,22 +377,53 @@ export default function AdminDashboard() {
 
   const saveUserUpdate = async () => {
     if (!selectedUser) return;
+    if (!trimVal(formData.name)) {
+      Alert.alert("Error", "Name is required");
+      return;
+    }
+    if (!isValidEmail(formData.email)) {
+      Alert.alert("Error", "Enter a valid email address");
+      return;
+    }
+    if (isPlaceholderDash(formData.bloodGroup) || !isValidBloodGroup(formData.bloodGroup)) {
+      Alert.alert("Error", "Enter a valid blood group (e.g. A+, B-, O+)");
+      return;
+    }
+    if (isPlaceholderDash(formData.city)) {
+      Alert.alert("Error", "City is required");
+      return;
+    }
+    if (isPlaceholderDash(formData.country)) {
+      Alert.alert("Error", "Country is required");
+      return;
+    }
+    if (!isValidGender(formData.gender)) {
+      Alert.alert("Error", "Gender must be male, female, or other");
+      return;
+    }
+    const cdb = trimVal(formData.canDonateBlood);
+    if (!isValidCanDonateBlood(cdb)) {
+      Alert.alert("Error", "Can donate blood must be yes or no");
+      return;
+    }
+    const ageDob = validateAgeOrDob(formData.age, formData.dateOfBirth);
+    if (!ageDob.ok) {
+      Alert.alert("Error", ageDob.message);
+      return;
+    }
     try {
       setActionKey("save-user-update");
       await updateAdminUser(selectedUser.id, {
-        userName: formData.name,
-        email: formData.email,
-        bloodGroup: formData.bloodGroup,
-        city: formData.city,
-        country: formData.country,
-        gender: formData.gender,
-        dateOfBirth: formData.dateOfBirth,
-        canDonateBlood:
-          formData.canDonateBlood === "yes" || formData.canDonateBlood === "no"
-            ? formData.canDonateBlood
-            : undefined,
-        age: formData.age,
-        about: formData.about,
+        userName: trimVal(formData.name),
+        email: trimVal(formData.email),
+        bloodGroup: normalizeBloodGroup(formData.bloodGroup),
+        city: trimVal(formData.city),
+        country: trimVal(formData.country),
+        gender: trimVal(formData.gender).toLowerCase(),
+        dateOfBirth: trimVal(formData.dateOfBirth) || undefined,
+        canDonateBlood: cdb as "yes" | "no",
+        age: trimVal(formData.age),
+        about: trimVal(formData.about) || undefined,
       });
       await loadDashboard();
       setUpdateModalVisible(false);
@@ -359,28 +436,69 @@ export default function AdminDashboard() {
   };
 
   const saveNewUser = async () => {
-    if (!formData.password) {
-      Alert.alert("Error", "Please enter password");
+    if (!trimVal(formData.name)) {
+      Alert.alert("Error", "Name is required");
       return;
     }
-    if (!formData.mobileNumber || !formData.bloodGroup || !formData.city || !formData.dateOfBirth || !formData.gender || !formData.canDonateBlood) {
-      Alert.alert("Error", "Please fill all profile fields including can donate blood");
+    if (!isValidEmail(formData.email)) {
+      Alert.alert("Error", "Enter a valid email address");
+      return;
+    }
+    if (!formData.password || formData.password.length < 6) {
+      Alert.alert("Error", "Password must be at least 6 characters");
+      return;
+    }
+    const mobile = trimVal(formData.mobileNumber);
+    if (mobile.length < 10) {
+      Alert.alert("Error", "Enter a valid mobile number (at least 10 digits)");
+      return;
+    }
+    if (!isValidBloodGroup(formData.bloodGroup)) {
+      Alert.alert("Error", "Enter a valid blood group (e.g. A+, B-, O+)");
+      return;
+    }
+    if (!trimVal(formData.city)) {
+      Alert.alert("Error", "City is required");
+      return;
+    }
+    if (!isValidGender(formData.gender)) {
+      Alert.alert("Error", "Gender must be male, female, or other");
+      return;
+    }
+    if (!isValidCanDonateBlood(formData.canDonateBlood)) {
+      Alert.alert("Error", "Can donate blood must be yes or no");
+      return;
+    }
+    const ageDobNew = validateAgeOrDob(formData.age, formData.dateOfBirth);
+    if (!ageDobNew.ok) {
+      Alert.alert("Error", ageDobNew.message);
+      return;
+    }
+    let dateOfBirthForApi = trimVal(formData.dateOfBirth);
+    if (!isValidDobInput(dateOfBirthForApi)) {
+      const ag = Number(trimVal(formData.age));
+      if (Number.isFinite(ag) && ag >= 1 && ag <= 120) {
+        dateOfBirthForApi = approximateDobIsoFromAge(ag);
+      }
+    }
+    if (!isValidDobInput(dateOfBirthForApi)) {
+      Alert.alert("Error", "Enter a valid date of birth (YYYY-MM-DD) or age");
       return;
     }
     try {
       setActionKey("save-user-create");
       await createAdminUser({
-        userName: formData.name,
-        email: formData.email,
+        userName: trimVal(formData.name),
+        email: trimVal(formData.email),
         password: formData.password,
-        mobileNumber: formData.mobileNumber,
-        bloodGroup: formData.bloodGroup,
-        city: formData.city,
-        dateOfBirth: formData.dateOfBirth,
-        gender: formData.gender.toLowerCase() as "male" | "female" | "other",
-        canDonateBlood: formData.canDonateBlood.toLowerCase() as "yes" | "no",
-        country: formData.country || "Pakistan",
-        about: formData.about,
+        mobileNumber: mobile,
+        bloodGroup: normalizeBloodGroup(formData.bloodGroup),
+        city: trimVal(formData.city),
+        dateOfBirth: dateOfBirthForApi,
+        gender: trimVal(formData.gender).toLowerCase() as "male" | "female" | "other",
+        canDonateBlood: trimVal(formData.canDonateBlood).toLowerCase() as "yes" | "no",
+        country: trimVal(formData.country) || "Pakistan",
+        about: trimVal(formData.about),
         role: "user",
       });
       await loadDashboard();
@@ -477,6 +595,7 @@ export default function AdminDashboard() {
       !f.amount?.trim() ||
       !Number.isFinite(ageNum) ||
       ageNum <= 0 ||
+      ageNum > 120 ||
       !f.date?.trim() ||
       !f.hospitalName?.trim() ||
       !f.location?.trim() ||
@@ -490,11 +609,19 @@ export default function AdminDashboard() {
       Alert.alert("Error", "Please fill all donation request fields (same as app form).");
       return;
     }
+    if (!isValidBloodGroup(f.bloodGroup)) {
+      Alert.alert("Error", "Enter a valid blood group (e.g. A+, O-)");
+      return;
+    }
+    if (trimVal(f.mobileNumber).length < 10) {
+      Alert.alert("Error", "Enter a valid mobile number (at least 10 digits)");
+      return;
+    }
     try {
       setActionKey("save-donor-request");
       await updateAdminDonationRequest(selectedDonorRequest.id, {
         donarName: f.donarName.trim(),
-        bloodGroup: f.bloodGroup.trim(),
+        bloodGroup: normalizeBloodGroup(f.bloodGroup),
         amount: f.amount.trim(),
         age: ageNum,
         date: f.date.trim(),
@@ -547,15 +674,20 @@ export default function AdminDashboard() {
 
   const savePostUpdate = async () => {
     if (!selectedPost) return;
+    const postErr = validatePostFields(postFormData);
+    if (postErr) {
+      Alert.alert("Error", postErr);
+      return;
+    }
     try {
       setActionKey("save-post-update");
       await updateAdminPost(selectedPost.id, {
-        bloodGroup: postFormData.bloodGroup,
-        patientName: postFormData.patientName,
-        city: postFormData.city,
-        hospital: postFormData.hospital,
-        date: postFormData.date,
-        address: postFormData.address,
+        bloodGroup: normalizeBloodGroup(postFormData.bloodGroup),
+        patientName: trimVal(postFormData.patientName),
+        city: trimVal(postFormData.city),
+        hospital: trimVal(postFormData.hospital),
+        date: trimVal(postFormData.date),
+        address: trimVal(postFormData.address),
         isEmergency: postFormData.isEmergency,
       });
       await loadDashboard();
@@ -569,26 +701,20 @@ export default function AdminDashboard() {
   };
 
   const saveNewPost = async () => {
+    const newPostErr = validatePostFields(postFormData);
+    if (newPostErr) {
+      Alert.alert("Error", newPostErr);
+      return;
+    }
     try {
-      if (
-        !postFormData.bloodGroup ||
-        !postFormData.patientName ||
-        !postFormData.city ||
-        !postFormData.hospital ||
-        !postFormData.date ||
-        !postFormData.address
-      ) {
-        Alert.alert("Error", "Please fill all post fields");
-        return;
-      }
       setActionKey("save-post-create");
       await createAdminPost({
-        bloodGroup: postFormData.bloodGroup,
-        patientName: postFormData.patientName,
-        city: postFormData.city,
-        hospital: postFormData.hospital,
-        date: postFormData.date,
-        address: postFormData.address,
+        bloodGroup: normalizeBloodGroup(postFormData.bloodGroup),
+        patientName: trimVal(postFormData.patientName),
+        city: trimVal(postFormData.city),
+        hospital: trimVal(postFormData.hospital),
+        date: trimVal(postFormData.date),
+        address: trimVal(postFormData.address),
         isEmergency: postFormData.isEmergency,
       });
       await loadDashboard();
