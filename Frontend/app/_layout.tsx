@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import "react-native-reanimated";
 import AppProvider from "@/context/AppProvider";
 import { useAuth } from "@/context/AuthContext";
@@ -56,7 +56,7 @@ function RouteGuard() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.white }}>
+      <View style={styles.loadingOverlay}>
         <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
@@ -88,3 +88,13 @@ export default function RootLayout() {
     </AppProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.white,
+    zIndex: 10,
+  },
+});
