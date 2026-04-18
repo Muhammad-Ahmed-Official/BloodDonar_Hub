@@ -10,7 +10,6 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { responseMessages } from "../constants/responseMessages.js";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
-import { listRequests, serializeEmbeddedRequest } from "../utils/donarRequestHelpers.js";
 
 const {
     GET_SUCCESS_MESSAGES,
@@ -22,6 +21,11 @@ const {
     MISSING_FIELDS,
     USER_EXISTS,
 } = responseMessages;
+
+function plainSubdoc(r) {
+    if (!r) return null;
+    return typeof r.toObject === "function" ? r.toObject({ flattenMaps: true }) : { ...r };
+}
 
 
 // ─── USERS ───────────────────────────────────────────────────────────────────
@@ -288,7 +292,7 @@ export const getAllDonationRequests = asyncHandler(async (req, res) => {
 
     const flat = [];
     for (const d of donars) {
-        for (const r of listRequests(d.requests)) {
+        for (const r of d.requests ?? []) {
             if (!r.donarName || !String(r.donarName).trim()) continue;
             if (bloodGroup && r.bloodGroup !== bloodGroup) continue;
             if (city && !String(r.city ?? "").toLowerCase().includes(String(city).toLowerCase())) continue;
@@ -297,7 +301,7 @@ export const getAllDonationRequests = asyncHandler(async (req, res) => {
                 donarDocumentId: d._id,
                 user: d.user,
                 status: r.status,
-                ...serializeEmbeddedRequest(r),
+                ...plainSubdoc(r),
             });
         }
     }
@@ -324,7 +328,7 @@ export const updateDonationRequest = asyncHandler(async (req, res) => {
         if (!donar) {
             throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
         }
-        const list = listRequests(donar.requests);
+        const list = donar.requests ?? [];
         const active = list.find((r) => r.status === "in_progress" && r.donarName?.trim());
         const target = active || list.find((r) => r.donarName?.trim());
         if (!target) {
@@ -368,7 +372,7 @@ export const updateDonationRequest = asyncHandler(async (req, res) => {
         }
     }
 
-    const next = serializeEmbeddedRequest(sub);
+    const next = plainSubdoc(sub);
     const requiredFields = [
         "donarName",
         "bloodGroup",
@@ -397,7 +401,7 @@ export const updateDonationRequest = asyncHandler(async (req, res) => {
 
     const refreshed = await Donar.findById(donar._id).populate({ path: "user", select: "userName email" });
     const updatedSub = refreshed.requests.id(targetId);
-    const reqObj = serializeEmbeddedRequest(updatedSub);
+    const reqObj = plainSubdoc(updatedSub);
     const payload = {
         _id: reqObj._id,
         donarDocumentId: refreshed._id,

@@ -9,7 +9,6 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { Donar } from "../models/donar.models.js";
 import fs from "fs";
 import mongoose from "mongoose";
-import { listRequests, serializeEmbeddedRequest } from "../utils/donarRequestHelpers.js";
 
 const {
     NO_USER,
@@ -20,10 +19,15 @@ const {
     MISSING_FIELDS,
 } = responseMessages;
 
+function plainSubdoc(r) {
+    if (!r) return null;
+    return typeof r.toObject === "function" ? r.toObject({ flattenMaps: true }) : { ...r };
+}
+
 function getActiveDonationRequest(donarData) {
-    const list = listRequests(donarData?.requests);
+    const list = donarData?.requests ?? [];
     const active = list.find((r) => r.status === "in_progress" && r.donarName && String(r.donarName).trim());
-    return active ? serializeEmbeddedRequest(active) : null;
+    return active ? plainSubdoc(active) : null;
 }
 
 
@@ -81,15 +85,15 @@ export const getProfile = asyncHandler(async (req, res) => {
     const userInfo = await UserInfo.findOne({ user: userId });
     const donarData = await Donar.findOne({ user: userId });
 
-    const donationRequests = listRequests(donarData?.requests)
-        .map(serializeEmbeddedRequest)
-        .filter(Boolean);
+    const donationRequests = (donarData?.requests ?? []).map(plainSubdoc).filter(Boolean);
+
+    const medicalList = donarData?.medicalInformation ?? [];
 
     return res.status(StatusCodes.OK).send(
         new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, {
             user,
             userInfo: userInfo || null,
-            medicalInfo: donarData?.medicalInformation || null,
+            medicalInfo: medicalList.length ? medicalList : null,
             donationRequest: getActiveDonationRequest(donarData),
             donationRequests,
         })
@@ -177,11 +181,24 @@ export const medicalInfo = asyncHandler(async (req, res) => {
 
     const donar = await Donar.findOneAndUpdate(
         { user: userId },
-        { $set: { medicalInformation: { diabetes, headOrLungsProblem, recentCovid, cancerHistory, hivAidsTest, recentVaccination } } },
+        {
+            $push: {
+                medicalInformation: {
+                    diabetes,
+                    headOrLungsProblem,
+                    recentCovid,
+                    cancerHistory,
+                    hivAidsTest,
+                    recentVaccination,
+                },
+            },
+        },
         { new: true, upsert: true }
     );
 
-    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, ADD_SUCCESS_MESSAGES, donar.medicalInformation));
+    const items = donar.medicalInformation ?? [];
+    const added = items[items.length - 1];
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, ADD_SUCCESS_MESSAGES, added));
 });
 
 
@@ -190,10 +207,11 @@ export const medicalInfo = asyncHandler(async (req, res) => {
 // @access  Private
 export const getMedicalInfo = asyncHandler(async (req, res) => {
     const donar = await Donar.findOne({ user: req.user._id });
-    if (!donar?.medicalInformation) {
+    const list = donar?.medicalInformation ?? [];
+    if (!list.length) {
         return res.status(StatusCodes.NOT_FOUND).send(new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND));
     }
-    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, donar.medicalInformation));
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, list));
 });
 
 
@@ -216,6 +234,10 @@ export const donationRequest = asyncHandler(async (req, res) => {
     const donateToVal =
         donateTo && mongoose.isValidObjectId(donateTo) ? new mongoose.Types.ObjectId(donateTo) : undefined;
 
+    const existingDonar = await Donar.findOne({ user: userId });
+    const medList = existingDonar?.medicalInformation ?? [];
+    const latestMed = medList.length ? medList[medList.length - 1] : null;
+
     const newItem = {
         donarName,
         bloodGroup,
@@ -233,6 +255,7 @@ export const donationRequest = asyncHandler(async (req, res) => {
         status: "in_progress",
     };
     if (donateToVal) newItem.donateTo = donateToVal;
+    if (latestMed?._id) newItem.medicalInfoId = latestMed._id;
 
     const donar = await Donar.findOneAndUpdate(
         { user: userId },
@@ -240,8 +263,8 @@ export const donationRequest = asyncHandler(async (req, res) => {
         { new: true, upsert: true }
     );
 
-    const created = listRequests(donar.requests).at(-1);
-    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, ADD_SUCCESS_MESSAGES, serializeEmbeddedRequest(created)));
+    const created = (donar.requests ?? []).at(-1);
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, ADD_SUCCESS_MESSAGES, plainSubdoc(created)));
 });
 
 
@@ -266,7 +289,7 @@ export const getAllRequests = asyncHandler(async (req, res) => {
         .sort({ updatedAt: -1 });
 
     const requests = donars.flatMap((d) =>
-        listRequests(d.requests)
+        (d.requests ?? [])
             .filter(
                 (r) =>
                     r.status === "in_progress" &&
@@ -280,7 +303,7 @@ export const getAllRequests = asyncHandler(async (req, res) => {
                 donarDocumentId: d._id,
                 userId: d.user,
                 status: r.status,
-                ...serializeEmbeddedRequest(r),
+                ...plainSubdoc(r),
             }))
     );
 
@@ -300,7 +323,7 @@ export const getRequestById = asyncHandler(async (req, res) => {
     if (!embedded?.donarName) {
         donar = await Donar.findById(paramId).populate({ path: "user", select: "userName email" });
         if (donar) {
-            const list = listRequests(donar.requests);
+            const list = donar.requests ?? [];
             embedded =
                 list.find((r) => r.status === "in_progress" && r.donarName && String(r.donarName).trim()) ||
                 list.find((r) => r.donarName && String(r.donarName).trim()) ||
@@ -317,7 +340,17 @@ export const getRequestById = asyncHandler(async (req, res) => {
         "pic mobileNumber city bloodGroup gender dateOfBirth about country"
     );
 
-    const embObj = serializeEmbeddedRequest(embedded);
+    const embObj = plainSubdoc(embedded);
+
+    const medAll = donar.medicalInformation ?? [];
+    let medForRequest = null;
+    if (embedded?.medicalInfoId) {
+        const target = String(embedded.medicalInfoId);
+        medForRequest = medAll.find((m) => m && String(m._id) === target) || null;
+    }
+    if (!medForRequest && medAll.length) {
+        medForRequest = medAll[medAll.length - 1];
+    }
 
     const result = {
         _id: embObj._id,
@@ -337,7 +370,7 @@ export const getRequestById = asyncHandler(async (req, res) => {
               }
             : null,
         ...embObj,
-        medicalInformation: donar.medicalInformation,
+        medicalInformation: medForRequest,
     };
 
     return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, result));
