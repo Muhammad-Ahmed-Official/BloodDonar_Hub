@@ -11,12 +11,8 @@ import {
     updateDonationRequest,
     deleteDonationRequest,
     getAllDonors,
-    getAllPosts,
-    createPost,
-    updatePost,
-    deletePost,
     getStats,
-    createBloodRequest,
+    // createBloodRequest,
 } from "../controllers/admin.controller.js";
 
 const adminRouter = Router();
@@ -35,10 +31,6 @@ adminRouter.route("/requests/:id").patch(updateDonationRequest).delete(deleteDon
 adminRouter.route("/users/:id").delete(deleteUser).patch(updateUserByAdmin);
 adminRouter.route("/users/:id/suspend").patch(toggleSuspendUser);
 adminRouter.route("/user/:id/block").patch(toggleBlockUser);
-adminRouter.route("/blood-request").post(createBloodRequest);
-
-// Posts
-adminRouter.route("/posts").get(getAllPosts).post(createPost);
-adminRouter.route("/posts/:id").put(updatePost).delete(deletePost);
+// adminRouter.route("/blood-request").post(createBloodRequest);
 
 export default adminRouter;

@@ -167,13 +167,3 @@ export const getDonors = async (params?: {
     throw error?.response?.data || { message: "Failed to fetch donors" };
   }
 };
-
-
-export const getPosts = async (params?: { page?: number; limit?: number }) => {
-  try {
-    const res = await api.get("user/posts", { params });
-    return res.data;
-  } catch (error: any) {
-    throw error?.response?.data || { message: "Failed to fetch posts" };
-  }
-};

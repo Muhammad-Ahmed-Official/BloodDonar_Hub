@@ -33,7 +33,7 @@ export default function Onboarding2() {
       <View style={styles.content}>
         <Text style={styles.title}>Save Lifes</Text>
         <Text style={styles.description}>
-          Post requests and get help instantly or donate blood/money when needed
+          Create blood donation requests and get help instantly, or donate when needed
         </Text>
       </View>
 

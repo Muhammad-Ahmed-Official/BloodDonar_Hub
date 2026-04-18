@@ -80,21 +80,22 @@ export const blockOrUnblockUser = async (id: string) => {
   }
 };
 
-export const createAdminBloodRequest = async (data: {
-  patientName: string;
-  bloodGroup: string;
-  location: string;
-  urgencyLevel: string;
-  requiredUnits: number;
-  contactInfo: string;
-}) => {
-  try {
-    const res = await api.post("admin/blood-request", data);
-    return res.data;
-  } catch (error: any) {
-    throw error?.response?.data || { message: "Failed to create blood request" };
-  }
-};
+// export const createAdminBloodRequest = async (data: {
+//   patientName: string;
+//   bloodGroup: string;
+//   location: string;
+//   urgencyLevel: string;
+//   requiredUnits: number;
+//   contactInfo: string;
+// }) => {
+//   try {
+//     const res = await api.post("admin/blood-request", data);
+//     return res.data;
+//   } catch (error: any) {
+//     throw error?.response?.data || { message: "Failed to create blood request" };
+//   }
+// };
+
 
 export const createAdminUser = async (data: {
   userName: string;
@@ -148,60 +149,5 @@ export const toggleSuspendAdminUser = async (id: string) => {
     return res.data;
   } catch (error: any) {
     throw error?.response?.data || { message: "Failed to suspend user" };
-  }
-};
-
-export const getAdminPosts = async (params?: { page?: number; limit?: number }) => {
-  try {
-    const res = await api.get("admin/posts", { params });
-    return res.data;
-  } catch (error: any) {
-    throw error?.response?.data || { message: "Failed to fetch posts" };
-  }
-};
-
-export const updateAdminPost = async (
-  id: string,
-  data: {
-    bloodGroup?: string;
-    patientName?: string;
-    city?: string;
-    hospital?: string;
-    date?: string;
-    address?: string;
-    isEmergency?: boolean;
-  }
-) => {
-  try {
-    const res = await api.put(`admin/posts/${id}`, data);
-    return res.data;
-  } catch (error: any) {
-    throw error?.response?.data || { message: "Failed to update post" };
-  }
-};
-
-export const deleteAdminPost = async (id: string) => {
-  try {
-    const res = await api.delete(`admin/posts/${id}`);
-    return res.data;
-  } catch (error: any) {
-    throw error?.response?.data || { message: "Failed to delete post" };
-  }
-};
-
-export const createAdminPost = async (data: {
-  bloodGroup: string;
-  patientName: string;
-  city: string;
-  hospital: string;
-  date: string;
-  address: string;
-  isEmergency?: boolean;
-}) => {
-  try {
-    const res = await api.post("admin/posts", data);
-    return res.data;
-  } catch (error: any) {
-    throw error?.response?.data || { message: "Failed to create post" };
   }
 };

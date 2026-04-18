@@ -2,7 +2,6 @@ import { StatusCodes } from "http-status-codes";
 import { User } from "../models/user.model.js";
 import { UserInfo } from "../models/userInfo.model.js";
 import { Donar } from "../models/donar.models.js";
-import { Post } from "../models/post.model.js";
 import { BloodRequest } from "../models/bloodRequest.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -11,6 +10,7 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { responseMessages } from "../constants/responseMessages.js";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
+import { listRequests, serializeEmbeddedRequest } from "../utils/donarRequestHelpers.js";
 
 const {
     GET_SUCCESS_MESSAGES,
@@ -280,24 +280,30 @@ export const getAllDonationRequests = asyncHandler(async (req, res) => {
     const { page = 1, limit = 20, bloodGroup, city } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const filter = { "requests.donarName": { $exists: true, $ne: "" } };
-    if (bloodGroup) filter["requests.bloodGroup"] = bloodGroup;
-    if (city) filter["requests.city"] = { $regex: city, $options: "i" };
+    const filter = {
+        requests: { $elemMatch: { donarName: { $exists: true, $nin: [null, ""] } } },
+    };
 
-    const [donars, total] = await Promise.all([
-        Donar.find(filter)
-            .populate({ path: "user", select: "userName email" })
-            .skip(skip)
-            .limit(parseInt(limit))
-            .sort({ updatedAt: -1 }),
-        Donar.countDocuments(filter),
-    ]);
+    const donars = await Donar.find(filter).populate({ path: "user", select: "userName email" }).sort({ updatedAt: -1 });
 
-    const requests = donars.map((d) => ({
-        _id: d._id,
-        user: d.user,
-        ...d.requests.toObject(),
-    }));
+    const flat = [];
+    for (const d of donars) {
+        for (const r of listRequests(d.requests)) {
+            if (!r.donarName || !String(r.donarName).trim()) continue;
+            if (bloodGroup && r.bloodGroup !== bloodGroup) continue;
+            if (city && !String(r.city ?? "").toLowerCase().includes(String(city).toLowerCase())) continue;
+            flat.push({
+                _id: r._id,
+                donarDocumentId: d._id,
+                user: d.user,
+                status: r.status,
+                ...serializeEmbeddedRequest(r),
+            });
+        }
+    }
+
+    const total = flat.length;
+    const requests = flat.slice(skip, skip + parseInt(limit));
 
     return res.status(StatusCodes.OK).send(
         new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, { requests, total, page: parseInt(page), limit: parseInt(limit) })
@@ -308,12 +314,28 @@ export const getAllDonationRequests = asyncHandler(async (req, res) => {
 // @route   PATCH /api/v1/admin/requests/:id
 // @access  Admin
 export const updateDonationRequest = asyncHandler(async (req, res) => {
-    const donar = await Donar.findById(req.params.id);
+    const paramId = req.params.id;
+
+    let donar = await Donar.findOne({ "requests._id": paramId });
+    let targetId = paramId;
+
     if (!donar) {
-        throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
+        donar = await Donar.findById(paramId);
+        if (!donar) {
+            throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
+        }
+        const list = listRequests(donar.requests);
+        const active = list.find((r) => r.status === "in_progress" && r.donarName?.trim());
+        const target = active || list.find((r) => r.donarName?.trim());
+        if (!target) {
+            throw new ApiError(StatusCodes.NOT_FOUND, "No donation request on this record");
+        }
+        targetId = target._id;
     }
-    if (!donar.requests?.donarName) {
-        throw new ApiError(StatusCodes.NOT_FOUND, "No donation request on this record");
+
+    const sub = donar.requests.id(targetId);
+    if (!sub) {
+        throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
     }
 
     const allowed = [
@@ -330,21 +352,23 @@ export const updateDonationRequest = asyncHandler(async (req, res) => {
         "startTime",
         "endTime",
         "reason",
+        "status",
     ];
-    const current = donar.requests.toObject ? donar.requests.toObject() : { ...donar.requests };
-    const next = { ...current };
     for (const f of allowed) {
         if (!(f in req.body)) continue;
         const v = req.body[f];
         if (v === null) continue;
         if (f === "age") {
             const n = Number(v);
-            next.age = Number.isFinite(n) && n > 0 ? n : next.age;
+            if (Number.isFinite(n) && n > 0) sub.age = n;
+        } else if (f === "status") {
+            if (["in_progress", "completed", "cancelled"].includes(v)) sub.status = v;
         } else {
-            next[f] = v;
+            sub[f] = v;
         }
     }
 
+    const next = serializeEmbeddedRequest(sub);
     const requiredFields = [
         "donarName",
         "bloodGroup",
@@ -369,16 +393,16 @@ export const updateDonationRequest = asyncHandler(async (req, res) => {
         throw new ApiError(StatusCodes.BAD_REQUEST, "age is required");
     }
 
-    donar.requests = next;
     await donar.save();
 
     const refreshed = await Donar.findById(donar._id).populate({ path: "user", select: "userName email" });
-    const rdoc = refreshed.requests;
-    const reqObj = rdoc && typeof rdoc.toObject === "function" ? rdoc.toObject() : rdoc && { ...rdoc };
+    const updatedSub = refreshed.requests.id(targetId);
+    const reqObj = serializeEmbeddedRequest(updatedSub);
     const payload = {
-        _id: refreshed._id,
+        _id: reqObj._id,
+        donarDocumentId: refreshed._id,
         user: refreshed.user,
-        ...(reqObj || {}),
+        ...reqObj,
     };
     return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, UPDATE_SUCCESS_MESSAGES, payload));
 });
@@ -387,11 +411,23 @@ export const updateDonationRequest = asyncHandler(async (req, res) => {
 // @route   DELETE /api/v1/admin/requests/:id
 // @access  Admin
 export const deleteDonationRequest = asyncHandler(async (req, res) => {
-    const donar = await Donar.findById(req.params.id);
+    const paramId = req.params.id;
+
+    const pulled = await Donar.findOneAndUpdate(
+        { "requests._id": paramId },
+        { $pull: { requests: { _id: paramId } } },
+        { new: true }
+    );
+
+    if (pulled) {
+        return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, DELETED_SUCCESS_MESSAGES, {}));
+    }
+
+    const donar = await Donar.findById(paramId);
     if (!donar) {
         throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
     }
-    await Donar.findByIdAndUpdate(req.params.id, { $set: { requests: {} } });
+    await Donar.findByIdAndUpdate(paramId, { $set: { requests: [] } });
     return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, DELETED_SUCCESS_MESSAGES, {}));
 });
 
@@ -462,112 +498,18 @@ export const createBloodRequest = asyncHandler(async (req, res) => {
 });
 
 
-// ─── POSTS ───────────────────────────────────────────────────────────────────
-
-// @desc    Get all posts
-// @route   GET /api/v1/admin/posts
-// @access  Admin
-export const getAllPosts = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 20 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    const [posts, total] = await Promise.all([
-        Post.find()
-            .populate({ path: "author", select: "userName email" })
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(parseInt(limit)),
-        Post.countDocuments(),
-    ]);
-
-    return res.status(StatusCodes.OK).send(
-        new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, { posts, total, page: parseInt(page), limit: parseInt(limit) })
-    );
-});
-
-
-// @desc    Create a post
-// @route   POST /api/v1/admin/posts
-// @access  Admin
-export const createPost = asyncHandler(async (req, res) => {
-    const { bloodGroup, patientName, city, hospital, date, address, isEmergency } = req.body;
-
-    if (!bloodGroup || !patientName || !city || !hospital || !date || !address) {
-        if (req.file?.path) fs.unlinkSync(req.file.path);
-        throw new ApiError(StatusCodes.BAD_REQUEST, MISSING_FIELDS);
-    }
-
-    const post = await Post.create({
-        bloodGroup,
-        patientName,
-        city,
-        hospital,
-        date,
-        address,
-        isEmergency: isEmergency === "true" || isEmergency === true,
-        author: req.user._id,
-    });
-
-    const populated = await Post.findById(post._id).populate({ path: "author", select: "userName email" });
-    return res.status(StatusCodes.CREATED).send(new ApiResponse(StatusCodes.CREATED, ADD_SUCCESS_MESSAGES, populated));
-});
-
-
-// @desc    Update a post
-// @route   PUT /api/v1/admin/posts/:id
-// @access  Admin
-export const updatePost = asyncHandler(async (req, res) => {
-    const post = await Post.findById(req.params.id);
-    if (!post) {
-        throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
-    }
-
-    const allowedFields = ["bloodGroup", "patientName", "city", "hospital", "date", "address", "isEmergency"];
-    const updates = {};
-    for (const field of allowedFields) {
-        if (req.body[field] !== undefined) {
-            updates[field] = req.body[field];
-        }
-    }
-
-    if (updates.isEmergency !== undefined) {
-        updates.isEmergency = updates.isEmergency === "true" || updates.isEmergency === true;
-    }
-
-    const updated = await Post.findByIdAndUpdate(
-        req.params.id,
-        { $set: updates },
-        { new: true, runValidators: true }
-    ).populate({ path: "author", select: "userName email" });
-
-    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, UPDATE_SUCCESS_MESSAGES, updated));
-});
-
-
-// @desc    Delete a post
-// @route   DELETE /api/v1/admin/posts/:id
-// @access  Admin
-export const deletePost = asyncHandler(async (req, res) => {
-    const post = await Post.findByIdAndDelete(req.params.id);
-    if (!post) {
-        throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
-    }
-
-    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, DELETED_SUCCESS_MESSAGES, {}));
-});
-
-
 // ─── STATS ───────────────────────────────────────────────────────────────────
 
 // @desc    Get dashboard stats
 // @route   GET /api/v1/admin/stats
 // @access  Admin
 export const getStats = asyncHandler(async (req, res) => {
-    const [totalUsers, totalDonors, totalRequests, totalPosts, suspendedUsers, totalAdminBloodRequests] = await Promise.all([
+    const [totalUsers, totalDonors, totalRequests, suspendedUsers, totalAdminBloodRequests] = await Promise.all([
         User.countDocuments({ role: "user" }),
         UserInfo.countDocuments({ canDonateBlood: "yes" }),
-        Donar.countDocuments({ "requests.donarName": { $exists: true, $ne: "" } }),
-        Post.countDocuments(),
+        Donar.countDocuments({
+            requests: { $elemMatch: { donarName: { $exists: true, $nin: [null, ""] } } },
+        }),
         User.countDocuments({ suspended: true }),
         BloodRequest.countDocuments(),
     ]);
@@ -577,7 +519,6 @@ export const getStats = asyncHandler(async (req, res) => {
             totalUsers,
             totalDonors,
             totalRequests,
-            totalPosts,
             suspendedUsers,
             totalAdminBloodRequests,
         })

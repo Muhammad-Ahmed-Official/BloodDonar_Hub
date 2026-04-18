@@ -4,73 +4,76 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SIZES, SHADOW } from "@/constants/theme";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { getProfile } from "@/services/user.service";
 
-const DATA = [
-  {
-    id: "1",
-    name: "Receiver Name",
-    location: "Location Here",
-    blood: "AB +ve",
-    donor: "Patient Name",
-    status: "progress",
-  },
-  {
-    id: "2",
-    name: "Receiver Name",
-    location: "Location Here",
-    blood: "B +ve",
-    donor: "Patient Name",
-    status: "progress",
-  },
-  {
-    id: "3",
-    name: "Receiver Name",
-    location: "Location Here",
-    blood: "A +ve",
-    donor: "Patient Name",
-    status: "progress",
-  },
-  {
-    id: "4",
-    name: "Receiver Name",
-    location: "Location Here",
-    blood: "AB +ve",
-    donor: "Patient Name",
-    status: "completed",
-  },
-  {
-    id: "5",
-    name: "Receiver Name",
-    location: "Location Here",
-    blood: "AB +ve",
-    donor: "Patient Name",
-    status: "cancelled",
-  },
-];
+type DonationRequestItem = {
+  _id: string;
+  donarName?: string;
+  city?: string;
+  bloodGroup?: string;
+  hospitalName?: string;
+  location?: string;
+  contactPersonName?: string;
+  status?: string;
+};
 
-const TABS = [
-  { key: "progress", label: "IN PROGRESS" },
-  { key: "completed", label: "COMPLETED" },
-  { key: "cancelled", label: "CANCELLED" },
-];
+const TAB_KEYS = ["progress", "completed", "cancelled"] as const;
+type TabKey = (typeof TAB_KEYS)[number];
+
+const TAB_LABEL: Record<TabKey, string> = {
+  progress: "IN PROGRESS",
+  completed: "COMPLETED",
+  cancelled: "CANCELLED",
+};
+
+function apiStatusForTab(tab: TabKey): string {
+  if (tab === "progress") return "in_progress";
+  return tab;
+}
 
 export default function ActivityScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("progress");
+  const [activeTab, setActiveTab] = useState<TabKey>("progress");
+  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<DonationRequestItem[]>([]);
+  const [err, setErr] = useState("");
 
-  const filtered = DATA.filter((item) => item.status === activeTab);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setErr("");
+    try {
+      const res = await getProfile();
+      const raw = res?.data?.donationRequests;
+      const list = Array.isArray(raw) ? raw : [];
+      setItems(list as DonationRequestItem[]);
+    } catch (e: unknown) {
+      const msg =
+        typeof e === "object" && e !== null && "message" in e
+          ? String((e as { message: string }).message)
+          : "Could not load activity";
+      setErr(msg);
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const filtered = items.filter((item) => (item.status ?? "in_progress") === apiStatusForTab(activeTab));
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.container}>
-
-        {/* ── RED HEADER BLOCK WITH INCREASED PADDING ── */}
         <View style={styles.headerBlock}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={24} color="#fff" />
@@ -80,57 +83,51 @@ export default function ActivityScreen() {
         </View>
 
         <View style={styles.tabsWrapper}>
-          {TABS.map((tab) => (
+          {TAB_KEYS.map((tab) => (
             <TouchableOpacity
-              key={tab.key}
-              style={[
-                styles.tabBtn,
-                activeTab === tab.key && styles.tabBtnActive,
-              ]}
-              onPress={() => setActiveTab(tab.key)}
+              key={tab}
+              style={[styles.tabBtn, activeTab === tab && styles.tabBtnActive]}
+              onPress={() => setActiveTab(tab)}
             >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === tab.key && styles.tabTextActive,
-                ]}
-              >
-                {tab.label}
-              </Text>
+              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{TAB_LABEL[tab]}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* ── LIST ── */}
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => <ActivityCard item={item} />}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>No records found.</Text>
-          }
-        />
+        {loading ? (
+          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 32 }} />
+        ) : err ? (
+          <Text style={styles.emptyText}>{err}</Text>
+        ) : (
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => String(item._id)}
+            contentContainerStyle={styles.listContent}
+            renderItem={({ item }) => <ActivityCard item={item} />}
+            ListEmptyComponent={<Text style={styles.emptyText}>No records found.</Text>}
+          />
+        )}
       </View>
     </SafeAreaView>
   );
 }
 
-function ActivityCard({ item }: any) {
-  const getStatusText = (status: string) => {
+function ActivityCard({ item }: { item: DonationRequestItem }) {
+  const status = item.status ?? "in_progress";
+
+  const getStatusLabel = () => {
     switch (status) {
-      case "progress":
-        return "Terminate";
       case "completed":
         return "Completed";
       case "cancelled":
         return "Cancelled";
+      case "in_progress":
       default:
-        return status;
+        return "In progress";
     }
   };
 
-  const getStatusStyle = (status: string) => {
+  const getStatusStyle = () => {
     switch (status) {
       case "completed":
         return { backgroundColor: "#34C759" };
@@ -141,18 +138,20 @@ function ActivityCard({ item }: any) {
     }
   };
 
+  const title = item.donarName?.trim() ? item.donarName : "Blood request";
+  const loc = item.location?.trim() || item.city?.trim() || "—";
+  const donateTo = item.contactPersonName?.trim() || item.hospitalName?.trim() || "—";
+
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
-        <Text style={styles.receiverName}>{item.name}</Text>
-        <View style={[styles.statusBadge, getStatusStyle(item.status)]}>
-          <Text style={styles.statusText}>
-            {getStatusText(item.status)}
-          </Text>
+        <Text style={styles.receiverName}>{title}</Text>
+        <View style={[styles.statusBadge, getStatusStyle()]}>
+          <Text style={styles.statusText}>{getStatusLabel()}</Text>
         </View>
       </View>
 
-      <Text style={styles.locationText}>{item.location}</Text>
+      <Text style={styles.locationText}>{loc}</Text>
 
       <View style={styles.divider} />
 
@@ -162,8 +161,8 @@ function ActivityCard({ item }: any) {
           <Text style={styles.infoLabel}>Blood Group</Text>
         </View>
         <View style={styles.infoBlock}>
-          <Text style={styles.infoValue}>{item.donor}</Text>
-          <Text style={styles.infoValue}>{item.blood}</Text>
+          <Text style={styles.infoValue}>{donateTo}</Text>
+          <Text style={styles.infoValue}>{item.bloodGroup ?? "—"}</Text>
         </View>
       </View>
     </View>
@@ -214,7 +213,6 @@ const styles = StyleSheet.create({
     width: 40,
   },
 
-  /* ── TABS PILL ── */
   tabsWrapper: {
     flexDirection: "row",
     backgroundColor: COLORS.primary,
@@ -246,18 +244,17 @@ const styles = StyleSheet.create({
   },
   tabText: {
     color: "rgba(255,255,255,0.7)",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "600",
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   tabTextActive: {
     color: COLORS.primary,
     fontWeight: "800",
-    fontSize: 11,
-    letterSpacing: 0.5,
+    fontSize: 10,
+    letterSpacing: 0.3,
   },
 
-  /* ── LIST ── */
   listContent: {
     paddingHorizontal: SIZES.padding,
     paddingTop: 20,
@@ -270,7 +267,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  /* ── CARD ── */
   card: {
     backgroundColor: "#fff",
     borderRadius: 16,
@@ -288,6 +284,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#1A1A1A",
+    flex: 1,
+    marginRight: 8,
   },
   statusBadge: {
     paddingHorizontal: 14,

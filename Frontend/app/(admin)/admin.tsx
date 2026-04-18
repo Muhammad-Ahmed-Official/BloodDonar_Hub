@@ -5,7 +5,7 @@ import { COLORS, SIZES, SHADOW } from "@/constants/theme";
 import Card from "@/components/common/Card";
 import { router } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
-import { createAdminPost, createAdminUser, deleteAdminDonationRequest, deleteAdminPost, getAdminPosts, getAdminRequests, getAdminStats, getAdminUsers, toggleSuspendAdminUser, updateAdminDonationRequest, updateAdminPost, updateAdminUser } from "@/services/admin.service";
+import { createAdminUser, deleteAdminDonationRequest, getAdminRequests, getAdminStats, getAdminUsers, toggleSuspendAdminUser, updateAdminDonationRequest, updateAdminUser } from "@/services/admin.service";
 
 interface User {
   id: string;
@@ -22,17 +22,6 @@ interface User {
   canDonateBlood?: string;
   about: string;
   status: "active" | "suspended";
-}
-
-interface Post {
-  id: string;
-  bloodGroup: string;
-  patientName: string;
-  city: string;
-  hospital: string;
-  date: string;
-  address: string;
-  isEmergency: boolean;
 }
 
 interface DonorRequestRow {
@@ -125,24 +114,6 @@ function validateAgeOrDob(ageStr: string, dobStr: string): { ok: true } | { ok: 
   return { ok: false, message: "Enter date of birth (YYYY-MM-DD) or age" };
 }
 
-function validatePostFields(p: {
-  bloodGroup: string;
-  patientName: string;
-  city: string;
-  hospital: string;
-  date: string;
-  address: string;
-}): string | null {
-  if (!trimVal(p.bloodGroup)) return "Blood group is required";
-  if (!isValidBloodGroup(p.bloodGroup)) return "Enter a valid blood group (e.g. A+, O-)";
-  if (!trimVal(p.patientName)) return "Patient name is required";
-  if (!trimVal(p.city)) return "City is required";
-  if (!trimVal(p.hospital)) return "Hospital is required";
-  if (!trimVal(p.date)) return "Date is required";
-  if (!trimVal(p.address)) return "Address is required";
-  return null;
-}
-
 function AdminActionBtn({ activeKey, thisKey, style, onPress, children }: {
   activeKey: string | null;
   thisKey: string;
@@ -177,18 +148,14 @@ export default function AdminDashboard() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [actionKey, setActionKey] = useState<string | null>(null);
-  const [stats, setStats] = useState({ totalUsers: 0, totalPosts: 0, totalDonorRequests: 0 });
+  const [stats, setStats] = useState({ totalUsers: 0, totalDonorRequests: 0 });
 
   const [users, setUsers] = useState<User[]>([]);
-  const [posts, setPosts] = useState<Post[]>([]);
   const [donorRequests, setDonorRequests] = useState<DonorRequestRow[]>([]);
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [updateModalVisible, setUpdateModalVisible] = useState(false);
   const [insertModalVisible, setInsertModalVisible] = useState(false);
-  const [postModalVisible, setPostModalVisible] = useState(false);
-  const [createPostModalVisible, setCreatePostModalVisible] = useState(false);
   const [donorRequestModalVisible, setDonorRequestModalVisible] = useState(false);
   const [selectedDonorRequest, setSelectedDonorRequest] = useState<DonorRequestRow | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -206,16 +173,6 @@ export default function AdminDashboard() {
     canDonateBlood: "",
     age: "",
     about: "",
-  });
-
-  const [postFormData, setPostFormData] = useState({
-    bloodGroup: "",
-    patientName: "",
-    city: "",
-    hospital: "",
-    date: "",
-    address: "",
-    isEmergency: false,
   });
 
   const [donorRequestForm, setDonorRequestForm] = useState({
@@ -236,10 +193,9 @@ export default function AdminDashboard() {
 
   const loadDashboard = async () => {
     try {
-      const [statsRes, usersRes, postsRes, requestsRes] = await Promise.all([
+      const [statsRes, usersRes, requestsRes] = await Promise.all([
         getAdminStats(),
         getAdminUsers({ page: 1, limit: 200 }),
-        getAdminPosts({ page: 1, limit: 200 }),
         getAdminRequests({ page: 1, limit: 200 }),
       ]);
 
@@ -264,17 +220,6 @@ export default function AdminDashboard() {
           status: u.suspended ? "suspended" : "active",
         };
       });
-
-      const mappedPosts: Post[] = (postsRes?.data?.posts || []).map((p: any) => ({
-        id: p._id,
-        bloodGroup: p.bloodGroup,
-        patientName: p.patientName,
-        city: p.city,
-        hospital: p.hospital,
-        date: p.date,
-        address: p.address,
-        isEmergency: !!p.isEmergency,
-      }));
 
       const mappedDonorRequests: DonorRequestRow[] = (requestsRes?.data?.requests || []).map((r: any) => {
         const u = r.user;
@@ -304,11 +249,9 @@ export default function AdminDashboard() {
       });
 
       setUsers(mappedUsers);
-      setPosts(mappedPosts);
       setDonorRequests(mappedDonorRequests);
       setStats({
         totalUsers: statsRes?.data?.totalUsers ?? mappedUsers.length,
-        totalPosts: statsRes?.data?.totalPosts ?? mappedPosts.length,
         totalDonorRequests: statsRes?.data?.totalRequests ?? mappedDonorRequests.length,
       });
     } catch (error: any) {
@@ -359,20 +302,6 @@ export default function AdminDashboard() {
       about: "",
     });
     setInsertModalVisible(true);
-  };
-
-  const handleUpdatePost = (post: Post) => {
-    setSelectedPost(post);
-    setPostFormData({
-      bloodGroup: post.bloodGroup,
-      patientName: post.patientName,
-      city: post.city,
-      hospital: post.hospital,
-      date: post.date,
-      address: post.address,
-      isEmergency: post.isEmergency,
-    });
-    setPostModalVisible(true);
   };
 
   const saveUserUpdate = async () => {
@@ -538,33 +467,6 @@ export default function AdminDashboard() {
     );
   };
 
-  const deletePost = (postId: string) => {
-    Alert.alert(
-      "Delete Post",
-      "Are you sure you want to delete this post?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          onPress: async () => {
-            const key = `delete-post:${postId}`;
-            try {
-              setActionKey(key);
-              await deleteAdminPost(postId);
-              await loadDashboard();
-              Alert.alert("Success", "Post deleted successfully");
-            } catch (error: any) {
-              Alert.alert("Error", error?.message || "Failed to delete post");
-            } finally {
-              setActionKey(null);
-            }
-          },
-          style: "destructive",
-        },
-      ]
-    );
-  };
-
   const handleUpdateDonorRequest = (row: DonorRequestRow) => {
     setSelectedDonorRequest(row);
     setDonorRequestForm({
@@ -672,70 +574,6 @@ export default function AdminDashboard() {
     );
   };
 
-  const savePostUpdate = async () => {
-    if (!selectedPost) return;
-    const postErr = validatePostFields(postFormData);
-    if (postErr) {
-      Alert.alert("Error", postErr);
-      return;
-    }
-    try {
-      setActionKey("save-post-update");
-      await updateAdminPost(selectedPost.id, {
-        bloodGroup: normalizeBloodGroup(postFormData.bloodGroup),
-        patientName: trimVal(postFormData.patientName),
-        city: trimVal(postFormData.city),
-        hospital: trimVal(postFormData.hospital),
-        date: trimVal(postFormData.date),
-        address: trimVal(postFormData.address),
-        isEmergency: postFormData.isEmergency,
-      });
-      await loadDashboard();
-      setPostModalVisible(false);
-      Alert.alert("Success", "Post updated successfully");
-    } catch (error: any) {
-      Alert.alert("Error", error?.message || "Failed to update post");
-    } finally {
-      setActionKey(null);
-    }
-  };
-
-  const saveNewPost = async () => {
-    const newPostErr = validatePostFields(postFormData);
-    if (newPostErr) {
-      Alert.alert("Error", newPostErr);
-      return;
-    }
-    try {
-      setActionKey("save-post-create");
-      await createAdminPost({
-        bloodGroup: normalizeBloodGroup(postFormData.bloodGroup),
-        patientName: trimVal(postFormData.patientName),
-        city: trimVal(postFormData.city),
-        hospital: trimVal(postFormData.hospital),
-        date: trimVal(postFormData.date),
-        address: trimVal(postFormData.address),
-        isEmergency: postFormData.isEmergency,
-      });
-      await loadDashboard();
-      setCreatePostModalVisible(false);
-      setPostFormData({
-        bloodGroup: "",
-        patientName: "",
-        city: "",
-        hospital: "",
-        date: "",
-        address: "",
-        isEmergency: false,
-      });
-      Alert.alert("Success", "Blood request post created successfully");
-    } catch (error: any) {
-      Alert.alert("Error", error?.message || "Failed to create post");
-    } finally {
-      setActionKey(null);
-    }
-  };
-
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
@@ -797,12 +635,6 @@ export default function AdminDashboard() {
           <Text style={styles.statLabel}>Total Users</Text>
           <Ionicons name="people" size={24} color={COLORS.primary} style={styles.statIcon} />
         </View>
-
-        {/* <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{stats.totalPosts}</Text>
-          <Text style={styles.statLabel}>Total Posts</Text>
-          <Ionicons name="document-text" size={24} color={COLORS.primary} style={styles.statIcon} />
-        </View> */}
 
         <View style={styles.statCard}>
           <Text style={styles.statNumber}>{stats.totalDonorRequests}</Text>
@@ -919,64 +751,6 @@ export default function AdminDashboard() {
         ))
       )}
 
-      {/* <Text style={styles.sectionTitle}>
-        <Ionicons name="document-text-outline" size={18} /> Posts
-      </Text> */}
-      {/* <View style={{ marginBottom: 10 }}>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => {
-            setPostFormData({
-              bloodGroup: "",
-              patientName: "",
-              city: "",
-              hospital: "",
-              date: "",
-              address: "",
-              isEmergency: false,
-            });
-            setCreatePostModalVisible(true);
-          }}
-        >
-          <Ionicons name="add-circle-outline" size={16} color="#fff" />
-          <Text style={styles.addBtnText}> Create Blood Request</Text>
-        </TouchableOpacity>
-      </View> */}
-
-      {posts.map((post) => (
-        <View key={post.id} style={styles.postCardWrapper}>
-          <View style={styles.postHeader}></View>
-
-          <Card
-            isShow={false}
-            bloodGroup={post.bloodGroup}
-            patientName={post.patientName}
-            city={post.city}
-            hospital={post.hospital}
-            date={post.date}
-            address={post.address}
-            isEmergency={post.isEmergency}
-          />
-
-          <View style={styles.postActions}>
-            <TouchableOpacity style={styles.updateBtn} onPress={() => handleUpdatePost(post)}>
-              <Ionicons name="create-outline" size={16} color="#fff" />
-              <Text style={styles.btnText}> Update</Text>
-            </TouchableOpacity>
-
-            <AdminActionBtn
-              activeKey={actionKey}
-              thisKey={`delete-post:${post.id}`}
-              style={styles.deleteBtn}
-              onPress={() => deletePost(post.id)}
-            >
-              <Ionicons name="trash-outline" size={16} color="#fff" />
-              <Text style={styles.btnText}> Delete</Text>
-            </AdminActionBtn>
-          </View>
-        </View>
-      ))}
-
       <View style={{ height: 50 }} />
 
       <Modal visible={updateModalVisible} animationType="slide" transparent>
@@ -1038,37 +812,6 @@ export default function AdminDashboard() {
             <AdminModalSaveBtn activeKey={actionKey} thisKey="save-user-create" onPress={saveNewUser} label="Add User" />
 
             <TouchableOpacity onPress={() => setInsertModalVisible(false)} disabled={actionKey === "save-user-create"}>
-              <Text style={styles.cancel}>Cancel</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </Modal>
-
-      <Modal visible={postModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
-            <Text style={styles.modalTitle}>Update Post</Text>
-
-            <TextInput style={styles.input} placeholder="Blood Group" value={postFormData.bloodGroup} onChangeText={(text) => setPostFormData({...postFormData, bloodGroup: text})} />
-            <TextInput style={styles.input} placeholder="Patient Name" value={postFormData.patientName} onChangeText={(text) => setPostFormData({...postFormData, patientName: text})} />
-            <TextInput style={styles.input} placeholder="City" value={postFormData.city} onChangeText={(text) => setPostFormData({...postFormData, city: text})} />
-            <TextInput style={styles.input} placeholder="Hospital" value={postFormData.hospital} onChangeText={(text) => setPostFormData({...postFormData, hospital: text})} />
-            <TextInput style={styles.input} placeholder="Date" value={postFormData.date} onChangeText={(text) => setPostFormData({...postFormData, date: text})} />
-            <TextInput style={styles.input} placeholder="Address" value={postFormData.address} onChangeText={(text) => setPostFormData({...postFormData, address: text})} multiline />
-
-            <View style={styles.emergencyToggle}>
-              <Text style={styles.toggleLabel}>Emergency Request</Text>
-              <TouchableOpacity
-                style={[styles.toggleBtn, postFormData.isEmergency && styles.toggleActive]}
-                onPress={() => setPostFormData({...postFormData, isEmergency: !postFormData.isEmergency})}
-              >
-                <Text style={styles.toggleText}>{postFormData.isEmergency ? "Yes" : "No"}</Text>
-              </TouchableOpacity>
-            </View>
-
-            <AdminModalSaveBtn activeKey={actionKey} thisKey="save-post-update" onPress={savePostUpdate} label="Save Changes" />
-
-            <TouchableOpacity onPress={() => setPostModalVisible(false)} disabled={actionKey === "save-post-update"}>
               <Text style={styles.cancel}>Cancel</Text>
             </TouchableOpacity>
           </ScrollView>
@@ -1177,37 +920,6 @@ export default function AdminDashboard() {
               }}
               disabled={actionKey === "save-donor-request"}
             >
-              <Text style={styles.cancel}>Cancel</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </Modal>
-
-      <Modal visible={createPostModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
-            <Text style={styles.modalTitle}>Create Blood Request</Text>
-
-            <TextInput style={styles.input} placeholder="Blood Group" value={postFormData.bloodGroup} onChangeText={(text) => setPostFormData({...postFormData, bloodGroup: text})} />
-            <TextInput style={styles.input} placeholder="Patient Name" value={postFormData.patientName} onChangeText={(text) => setPostFormData({...postFormData, patientName: text})} />
-            <TextInput style={styles.input} placeholder="City" value={postFormData.city} onChangeText={(text) => setPostFormData({...postFormData, city: text})} />
-            <TextInput style={styles.input} placeholder="Hospital" value={postFormData.hospital} onChangeText={(text) => setPostFormData({...postFormData, hospital: text})} />
-            <TextInput style={styles.input} placeholder="Date" value={postFormData.date} onChangeText={(text) => setPostFormData({...postFormData, date: text})} />
-            <TextInput style={styles.input} placeholder="Address" value={postFormData.address} onChangeText={(text) => setPostFormData({...postFormData, address: text})} multiline />
-
-            <View style={styles.emergencyToggle}>
-              <Text style={styles.toggleLabel}>Emergency Request</Text>
-              <TouchableOpacity
-                style={[styles.toggleBtn, postFormData.isEmergency && styles.toggleActive]}
-                onPress={() => setPostFormData({...postFormData, isEmergency: !postFormData.isEmergency})}
-              >
-                <Text style={styles.toggleText}>{postFormData.isEmergency ? "Yes" : "No"}</Text>
-              </TouchableOpacity>
-            </View>
-
-            <AdminModalSaveBtn activeKey={actionKey} thisKey="save-post-create" onPress={saveNewPost} label="Create Post" />
-
-            <TouchableOpacity onPress={() => setCreatePostModalVisible(false)} disabled={actionKey === "save-post-create"}>
               <Text style={styles.cancel}>Cancel</Text>
             </TouchableOpacity>
           </ScrollView>
@@ -1446,18 +1158,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontWeight: "600",
-  },
-
-  postCardWrapper: {
-    marginBottom: 15,
-  },
-
-  postHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-    paddingHorizontal: 4,
   },
 
   postActions: {

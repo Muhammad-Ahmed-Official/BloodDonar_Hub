@@ -33,7 +33,7 @@ export default function Onboarding2() {   // Changed name to Onboarding2 (this i
       <View style={styles.content}>
         <Text style={styles.title}>Get Connect Community</Text>
         <Text style={styles.description}>
-          Post requests and get help instantly or donate blood/money when needed
+          Create blood donation requests and get help instantly, or donate when needed
         </Text>
       </View>
 

@@ -1,5 +1,4 @@
-import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
-import Button from "./Button";
+import { View, Text, StyleSheet, Image, TouchableOpacity, Pressable } from "react-native";
 import { COLORS } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -13,14 +12,13 @@ export default function Card({
   address = "National Stadium Rd, Karachi",
   isEmergency = true,
   isShow = true,
-  /** When set, "View Details" opens donation request `GET /user/requests/:id` screen */
   donationRequestId,
+  donateDisabled = false,
 }: any) {
   return (
     <View style={styles.wrapper}>
 
       <View style={styles.container}>
-        {/* LEFT */}
         <View style={styles.left}>
           <Image
             source={require("../../assets/projectImages/card1.png")}
@@ -33,7 +31,6 @@ export default function Card({
         <View style={styles.center}>
           <View style={styles.row}>
             <Text style={styles.name}>{patientName}</Text>
-            {/* <Text style={styles.unit}>Unit  : {units}</Text> */}
           </View>
 
           <Text style={styles.city}>{String(city ?? "").toUpperCase()}</Text>
@@ -55,12 +52,32 @@ export default function Card({
 
           {isShow && (
             <View style={[styles.btnRow, !donationRequestId && styles.btnRowSingle]}>
-              <TouchableOpacity
-                style={[styles.donateBtn, !donationRequestId && styles.donateBtnFull]}
-                onPress={() => router.push("/(tabs)/profile/medicalInfo")}
-              >
-                <Text style={styles.donateText}>Donate</Text>
-              </TouchableOpacity>
+              {donateDisabled ? (
+                <View
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: true }}
+                  style={[
+                    styles.donateBtn,
+                    !donationRequestId && styles.donateBtnFull,
+                    styles.donateBtnDisabled,
+                  ]}
+                >
+                  <Text style={[styles.donateText, styles.donateTextDisabled]}>Donate</Text>
+                </View>
+              ) : (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: false }}
+                  onPress={() => router.push("/(tabs)/profile/medicalInfo")}
+                  style={({ pressed }) => [
+                    styles.donateBtn,
+                    !donationRequestId && styles.donateBtnFull,
+                    pressed && styles.donateBtnPressed,
+                  ]}
+                >
+                  <Text style={styles.donateText}>Donate</Text>
+                </Pressable>
+              )}
 
               {!!donationRequestId && (
                 <TouchableOpacity
@@ -74,7 +91,6 @@ export default function Card({
           )}
         </View>
 
-        {/* RIGHT (Emergency) */}
         {isEmergency && (
           <View style={styles.right}>
             <Image
@@ -130,9 +146,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 14,
   },
-  unit: {
-    fontSize: 12,
-  },
   city: {
     backgroundColor: COLORS.primary,
     color: "#fff",
@@ -173,14 +186,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.primary,
     paddingVertical: 10,
+    paddingHorizontal: 8,
     borderRadius: 8,
     alignItems: "center",
+    justifyContent: "center",
+    minHeight: 40,
+  },
+  donateBtnDisabled: {
+    backgroundColor: "#E0E0E0",
+    borderWidth: 1,
+    borderColor: "#BDBDBD",
+    opacity: 1,
+  },
+  donateBtnPressed: {
+    opacity: 0.88,
   },
 
   donateText: {
     color: COLORS.white,
     fontWeight: "bold",
     fontSize: 13,
+  },
+  donateTextDisabled: {
+    color: "#616161",
   },
 
   viewBtn: {

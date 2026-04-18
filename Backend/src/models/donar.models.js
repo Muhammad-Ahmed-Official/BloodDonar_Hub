@@ -2,6 +2,31 @@ import mongoose, { Schema } from "mongoose";
 
 const yesNoEnum = ["yes", "no"];
 
+const donationRequestItemSchema = new Schema(
+    {
+        donarName: { type: String, trim: true },
+        bloodGroup: { type: String, trim: true },
+        amount: { type: String, trim: true },
+        age: { type: Number },
+        date: { type: String, trim: true },
+        hospitalName: { type: String, trim: true },
+        location: { type: String, trim: true },
+        contactPersonName: { type: String, trim: true },
+        mobileNumber: { type: String, trim: true },
+        city: { type: String, trim: true },
+        startTime: { type: String, trim: true },
+        endTime: { type: String, trim: true },
+        reason: { type: String, trim: true },
+        donateTo: { type: Schema.Types.ObjectId, ref: "User" },
+        status: {
+            type: String,
+            enum: ["in_progress", "completed", "cancelled"],
+            default: "in_progress",
+        },
+    },
+    { timestamps: true }
+);
+
 const donarSchema = new mongoose.Schema(
     {
         user: {
@@ -19,20 +44,8 @@ const donarSchema = new mongoose.Schema(
             recentVaccination: { type: String, enum: yesNoEnum },
         },
         requests: {
-            donarName: { type: String },
-            bloodGroup: { type: String },
-            amount: { type: String },
-            age: { type: Number },
-            date: { type: String },
-            hospitalName: { type: String },
-            location: { type: String },
-            contactPersonName: { type: String },
-            mobileNumber: { type: String },
-            city: { type: String },
-            startTime: { type: String },
-            endTime: { type: String },
-            reason: { type: String },
-            donateTo: { type: Schema.Types.ObjectId, ref: "User" },
+            type: [donationRequestItemSchema],
+            default: [],
         },
     },
     { timestamps: true }

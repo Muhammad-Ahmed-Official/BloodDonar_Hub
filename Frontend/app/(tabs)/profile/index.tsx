@@ -43,7 +43,7 @@ export default function ProfileScreen() {
     canDonateBlood?: string;
     city?: string;
   } | null>(null);
-  const [donationRequest, setDonationRequest] = useState<{ donarName?: string } | null>(null);
+  const [inProgressDonationCount, setInProgressDonationCount] = useState(0);
   const [savingAvail, setSavingAvail] = useState(false);
 
   useEffect(() => {
@@ -55,13 +55,19 @@ export default function ProfileScreen() {
         const d = res?.data;
         if (cancelled) return;
         setUserInfo(d?.userInfo ?? null);
-        setDonationRequest(d?.donationRequest ?? null);
+        const rawList = d?.donationRequests;
+        const list = Array.isArray(rawList) ? rawList : [];
+        const cnt = list.filter(
+          (r: { status?: string; donarName?: string }) =>
+            r?.status === "in_progress" && r?.donarName && String(r.donarName).trim()
+        ).length;
+        setInProgressDonationCount(cnt);
         setProfilePic(d?.userInfo?.pic || null);
         setIsAvailable(d?.userInfo?.canDonateBlood === "yes");
       } catch {
         if (!cancelled) {
           setUserInfo(null);
-          setDonationRequest(null);
+          setInProgressDonationCount(0);
         }
       } finally {
         if (!cancelled) setProfileLoading(false);
@@ -166,9 +172,7 @@ export default function ProfileScreen() {
             <Text style={styles.statLabel}>{t("profile.canDonate")}</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>
-              {donationRequest?.donarName ? "1" : "0"}
-            </Text>
+            <Text style={styles.statNumber}>{String(inProgressDonationCount)}</Text>
             <Text style={styles.statLabel}>{t("profile.requested")}</Text>
           </View>
         </View>

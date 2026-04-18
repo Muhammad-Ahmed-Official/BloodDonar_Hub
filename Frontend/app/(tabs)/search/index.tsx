@@ -14,22 +14,11 @@ import { useRouter } from "expo-router";
 import { COLORS, SIZES } from "../../../constants/theme";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Button from "@/components/common/Button";
-import { getAllRequests, getPosts } from "@/services/user.service";
+import { getAllRequests, getProfile } from "@/services/user.service";
 import Card from "@/components/common/Card";
 import { useLanguage } from "@/context/LanguageContext";
 
 const BLOOD_GROUPS = ["A+", "B+", "O+", "AB+", "A-", "B-", "O-", "AB-"];
-
-type PostRow = {
-  _id: string;
-  bloodGroup: string;
-  city: string;
-  patientName: string;
-  hospital: string;
-  date: string;
-  address: string;
-  isEmergency?: boolean;
-};
 
 type RequestRow = {
   _id: string;
@@ -52,11 +41,11 @@ export default function SearchScreen() {
   const { t } = useLanguage();
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [posts, setPosts] = useState<PostRow[]>([]);
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [listError, setListError] = useState("");
+  const [canDonateBlood, setCanDonateBlood] = useState<"yes" | "no" | "">("");
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -71,14 +60,14 @@ export default function SearchScreen() {
     else setSubmitting(true);
     setListError("");
     try {
-      const [postsRes, reqRes] = await Promise.all([
-        getPosts({ page: 1, limit: 200 }),
+      const [reqRes, profRes] = await Promise.all([
         getAllRequests({ page: 1, limit: 200 }),
+        getProfile().catch(() => null),
       ]);
       if (!mountedRef.current) return;
-      const postsRaw = postsRes?.data;
       const reqRaw = reqRes?.data;
-      setPosts(Array.isArray(postsRaw) ? (postsRaw as PostRow[]) : []);
+      const info = profRes?.data?.userInfo;
+      setCanDonateBlood(info?.canDonateBlood === "yes" ? "yes" : "no");
       setRequests(Array.isArray(reqRaw) ? (reqRaw as RequestRow[]) : []);
     } catch (e: unknown) {
       if (!mountedRef.current) return;
@@ -102,19 +91,6 @@ export default function SearchScreen() {
     Keyboard.dismiss();
     loadLists("submit");
   };
-
-  const filteredPosts = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    return posts.filter((p) => {
-      if (selectedGroup && p.bloodGroup !== selectedGroup) return false;
-      if (!q) return true;
-      return (
-        String(p.city ?? "").toLowerCase().includes(q) ||
-        String(p.patientName ?? "").toLowerCase().includes(q) ||
-        String(p.hospital ?? "").toLowerCase().includes(q)
-      );
-    });
-  }, [posts, selectedGroup, searchQuery]);
 
   const filteredRequests = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -173,42 +149,33 @@ export default function SearchScreen() {
           ))}
         </View>
 
-        <Text style={styles.sectionTitle}>{t("search.results")} ({filteredPosts.length + filteredRequests.length})</Text>
+        <Text style={styles.sectionTitle}>
+          {t("search.results")} ({filteredRequests.length})
+        </Text>
 
         {loading ? (
           <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 24 }} />
         ) : listError ? (
           <Text style={styles.errorText}>{listError}</Text>
-        ) : filteredPosts.length === 0 && filteredRequests.length === 0 ? (
+        ) : filteredRequests.length === 0 ? (
           <Text style={styles.emptyText}>{t("search.noCards")}</Text>
         ) : (
           <>
-          {filteredPosts.map((p) => (
-            <Card
-              key={`post-${p._id}`}
-              bloodGroup={p.bloodGroup}
-              patientName={p.patientName}
-              city={p.city}
-              hospital={p.hospital}
-              date={p.date}
-              address={p.address}
-              isEmergency={!!p.isEmergency}
-            />
-          ))}
-          {filteredRequests.map((r) => (
-            <Card
-              key={`req-${r._id}`}
-              bloodGroup={r.bloodGroup ?? "—"}
-              patientName={r.donarName ?? "Patient"}
-              city={r.city ?? "—"}
-              hospital={r.hospitalName ?? "—"}
-              date={r.date ?? "—"}
-              address={r.location ?? "—"}
-              isEmergency={requestLooksEmergency(r.reason)}
-              donationRequestId={r._id}
-            />
-          ))}
-        </>
+            {filteredRequests.map((r) => (
+              <Card
+                key={`req-${r._id}`}
+                bloodGroup={r.bloodGroup ?? "—"}
+                patientName={r.donarName ?? "Patient"}
+                city={r.city ?? "—"}
+                hospital={r.hospitalName ?? "—"}
+                date={r.date ?? "—"}
+                address={r.location ?? "—"}
+                isEmergency={requestLooksEmergency(r.reason)}
+                donationRequestId={r._id}
+                donateDisabled={canDonateBlood !== "yes"}
+              />
+            ))}
+          </>
         )}
 
         <View style={{ height: 90 }} />

@@ -39,6 +39,12 @@ const bloodRequestSchema = new mongoose.Schema(
             ref: "User",
             required: true,
         },
+        status: {
+            type: String,
+            enum: ["in_progress", "completed", "cancelled"],
+            default: "in_progress",
+            trim: true,
+        },
     },
     { timestamps: true }
 );

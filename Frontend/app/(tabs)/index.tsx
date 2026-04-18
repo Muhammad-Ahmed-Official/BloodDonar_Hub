@@ -17,22 +17,11 @@ import Card from "@/components/common/Card";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import Input from "@/components/common/Input";
-import { getAllRequests, getPosts, getProfile } from "@/services/user.service";
+import { getAllRequests, getProfile } from "@/services/user.service";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 
 const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
-
-type PostRow = {
-  _id: string;
-  bloodGroup: string;
-  patientName: string;
-  city: string;
-  hospital: string;
-  date: string;
-  address: string;
-  isEmergency?: boolean;
-};
 
 type RequestRow = {
   _id: string;
@@ -58,24 +47,17 @@ export default function HomeScreen() {
   const [showGroup, setShowGroup] = useState(false);
   const [cityInput, setCityInput] = useState("");
   const [profilePic, setProfilePic] = useState<string | null>(null);
-  const [allPosts, setAllPosts] = useState<PostRow[]>([]);
   const [allRequests, setAllRequests] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [canDonateBlood, setCanDonateBlood] = useState<"yes" | "no" | "">("");
-  const [hasOwnDonationRequest, setHasOwnDonationRequest] = useState(false);
   const insets = useSafeAreaInsets();
 
   const loadFeed = useCallback(async () => {
     setError("");
-    const [postsRes, reqRes] = await Promise.all([
-      getPosts({ page: 1, limit: 100 }),
-      getAllRequests({ page: 1, limit: 100 }),
-    ]);
-    const posts = Array.isArray(postsRes?.data) ? postsRes.data : [];
+    const reqRes = await getAllRequests({ page: 1, limit: 100 });
     const reqs = Array.isArray(reqRes?.data) ? reqRes.data : [];
-    setAllPosts(posts);
     setAllRequests(reqs);
   }, []);
 
@@ -85,11 +67,9 @@ export default function HomeScreen() {
     try {
       const [prof] = await Promise.all([getProfile().catch(() => null), loadFeed()]);
       const info = prof?.data?.userInfo;
-      const ownReq = prof?.data?.donationRequest;
 
       if (info?.pic) setProfilePic(info.pic);
       setCanDonateBlood(info?.canDonateBlood === "yes" ? "yes" : "no");
-      setHasOwnDonationRequest(!!ownReq?.donarName);
     } catch (e: unknown) {
       const msg =
         typeof e === "object" && e !== null && "message" in e
@@ -107,24 +87,9 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      // Reload when returning from create-request screen
       loadHomeData();
     }, [loadHomeData])
   );
-
-  const showCreateRequestCTA = canDonateBlood === "yes" && !hasOwnDonationRequest;
-
-  const filteredPosts = useMemo(() => {
-    const c = cityInput.trim().toLowerCase();
-    const g = selectedGroup;
-    return allPosts.filter(
-      (p) =>
-        (!g || p.bloodGroup === g) &&
-        (!c || String(p.city ?? "")
-          .toLowerCase()
-          .includes(c))
-    );
-  }, [allPosts, selectedGroup, cityInput]);
 
   const filteredRequests = useMemo(() => {
     const c = cityInput.trim().toLowerCase();
@@ -247,7 +212,7 @@ export default function HomeScreen() {
               />
               <View style={styles.activityContent}>
                 <Text style={styles.activityLabel}>{t("home.bloodDonor")}</Text>
-                <Text style={styles.activityCount}>{allPosts.length} posts</Text>
+                <Text style={styles.activityCount}>0 posts</Text>
               </View>
             </View>
 
@@ -260,6 +225,18 @@ export default function HomeScreen() {
               <View style={styles.activityContent}>
                 <Text style={styles.activityLabel}>{t("home.bloodRecipient")}</Text>
                 <Text style={styles.activityCount}>{allRequests.length} requests</Text>
+              </View> 
+            </View>
+
+            <View style={styles.activityCard}>
+              <Image
+                source={require("../../assets/projectImages/blood_transfusion.png")}
+                style={styles.activityImage}
+                resizeMode="contain"
+              />
+              <View style={styles.activityContent}>
+                <Text style={styles.activityLabel}>{t("home.bloodGiven")}</Text>
+                <Text style={styles.activityCount}>It&apos;s Easy! 1 Step</Text>
               </View>
             </View>
 
@@ -275,64 +252,35 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            <View style={styles.activityCard}>
-              <Image
-                source={require("../../assets/projectImages/blood_transfusion.png")}
-                style={styles.activityImage}
-                resizeMode="contain"
-              />
-              <View style={styles.activityContent}>
-                <Text style={styles.activityLabel}>{t("home.bloodGiven")}</Text>
-                <Text style={styles.activityCount}>It&apos;s Easy! 1 Step</Text>
-              </View>
-            </View>
           </View>
-
-          <Text style={styles.sectionTitle}>{t("home.donationRequest")}</Text>
 
           {loading ? (
             <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} />
           ) : (
             <>
-              {showCreateRequestCTA ? (
                 <View style={styles.createRequestCard}>
                   <Text style={styles.createRequestTitle}>{t("search.createRequest")}</Text>
                   <Text style={styles.createRequestSubText}>
-                    You are available as donor. Create your first donation request.
+                    You are available as donor. Create your donation request.
                   </Text>
                   <Button title={t("search.createRequest")} onPress={() => router.push("/(tabs)/profile/medicalInfo")} />
                 </View>
-              ) : (
-                <>
-                  {filteredPosts.map((p) => (
-                    <Card
-                      key={`post-${p._id}`}
-                      bloodGroup={p.bloodGroup}
-                      patientName={p.patientName}
-                      city={p.city}
-                      hospital={p.hospital}
-                      date={p.date}
-                      address={p.address}
-                      isEmergency={!!p.isEmergency}
-                    />
-                  ))}
-                  {filteredRequests.map((r) => (
-                    <Card
-                      key={`req-${r._id}`}
-                      bloodGroup={r.bloodGroup ?? "—"}
-                      patientName={r.donarName ?? "Patient"}
-                      city={r.city ?? "—"}
-                      hospital={r.hospitalName ?? "—"}
-                      date={r.date ?? "—"}
-                      address={r.location ?? "—"}
-                      isEmergency={requestLooksEmergency(r.reason)}
-                      donationRequestId={r._id}
-                    />
-                  ))}
-                  {filteredPosts.length === 0 && filteredRequests.length === 0 && (
-                    <Text style={styles.emptyFeed}>{t("home.noCards")}</Text>
-                  )}
-                </>
+              {filteredRequests.map((r) => (
+                <Card
+                  key={`req-${r._id}`}
+                  bloodGroup={r.bloodGroup ?? "—"}
+                  patientName={r.donarName ?? "Patient"}
+                  city={r.city ?? "—"}
+                  hospital={r.hospitalName ?? "—"}
+                  date={r.date ?? "—"}
+                  address={r.location ?? "—"}
+                  isEmergency={requestLooksEmergency(r.reason)}
+                  donationRequestId={r._id}
+                  donateDisabled={canDonateBlood}
+                />
+              ))}
+              {filteredRequests.length === 0 && (
+                <Text style={styles.emptyFeed}>{t("home.noCards")}</Text>
               )}
             </>
           )}
@@ -416,10 +364,10 @@ const styles = StyleSheet.create({
 
   bannerContainer: {
     width: "100%",
-    height: 160,
+    height: 120,
     borderRadius: 12,
     overflow: "hidden",
-    marginVertical: 15,
+    marginVertical: 10,
   },
 
   bannerImage: {
@@ -495,7 +443,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     color: COLORS.text,
-    marginBottom: 12,
+    marginBottom: 6,
     textAlign: "center",
   },
   activityRow: {

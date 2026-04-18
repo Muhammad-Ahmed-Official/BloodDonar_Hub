@@ -7,9 +7,9 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { Donar } from "../models/donar.models.js";
-import { Post } from "../models/post.model.js";
 import fs from "fs";
 import mongoose from "mongoose";
+import { listRequests, serializeEmbeddedRequest } from "../utils/donarRequestHelpers.js";
 
 const {
     NO_USER,
@@ -19,6 +19,12 @@ const {
     NO_DATA_FOUND,
     MISSING_FIELDS,
 } = responseMessages;
+
+function getActiveDonationRequest(donarData) {
+    const list = listRequests(donarData?.requests);
+    const active = list.find((r) => r.status === "in_progress" && r.donarName && String(r.donarName).trim());
+    return active ? serializeEmbeddedRequest(active) : null;
+}
 
 
 // ─── PROFILE ────────────────────────────────────────────────────────────────
@@ -75,12 +81,17 @@ export const getProfile = asyncHandler(async (req, res) => {
     const userInfo = await UserInfo.findOne({ user: userId });
     const donarData = await Donar.findOne({ user: userId });
 
+    const donationRequests = listRequests(donarData?.requests)
+        .map(serializeEmbeddedRequest)
+        .filter(Boolean);
+
     return res.status(StatusCodes.OK).send(
         new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, {
             user,
             userInfo: userInfo || null,
             medicalInfo: donarData?.medicalInformation || null,
-            donationRequest: donarData?.requests || null,
+            donationRequest: getActiveDonationRequest(donarData),
+            donationRequests,
         })
     );
 });
@@ -202,17 +213,35 @@ export const donationRequest = asyncHandler(async (req, res) => {
 
     const { donarName, bloodGroup, amount, age, date, hospitalName, location, contactPersonName, mobileNumber, city, startTime, endTime, reason, donateTo } = req.body;
 
+    const donateToVal =
+        donateTo && mongoose.isValidObjectId(donateTo) ? new mongoose.Types.ObjectId(donateTo) : undefined;
+
+    const newItem = {
+        donarName,
+        bloodGroup,
+        amount,
+        age: Number(age),
+        date,
+        hospitalName,
+        location,
+        contactPersonName,
+        mobileNumber,
+        city,
+        startTime,
+        endTime,
+        reason,
+        status: "in_progress",
+    };
+    if (donateToVal) newItem.donateTo = donateToVal;
+
     const donar = await Donar.findOneAndUpdate(
         { user: userId },
-        {
-            $set: {
-                requests: { donarName, bloodGroup, amount, age, date, hospitalName, location, contactPersonName, mobileNumber, city, startTime, endTime, reason, donateTo },
-            },
-        },
+        { $push: { requests: newItem } },
         { new: true, upsert: true }
     );
 
-    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, ADD_SUCCESS_MESSAGES, donar.requests));
+    const created = listRequests(donar.requests).at(-1);
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, ADD_SUCCESS_MESSAGES, serializeEmbeddedRequest(created)));
 });
 
 
@@ -222,9 +251,11 @@ export const donationRequest = asyncHandler(async (req, res) => {
 export const getAllRequests = asyncHandler(async (req, res) => {
     const { bloodGroup, city, page = 1, limit = 20 } = req.query;
 
-    const filter = { "requests.donarName": { $exists: true, $ne: "" } };
-    if (bloodGroup) filter["requests.bloodGroup"] = bloodGroup;
-    if (city) filter["requests.city"] = { $regex: city, $options: "i" };
+    const elem = { donarName: { $exists: true, $nin: [null, ""] }, status: "in_progress" };
+    if (bloodGroup) elem.bloodGroup = bloodGroup;
+    if (city) elem.city = { $regex: city, $options: "i" };
+
+    const filter = { requests: { $elemMatch: elem } };
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
@@ -234,11 +265,24 @@ export const getAllRequests = asyncHandler(async (req, res) => {
         .limit(parseInt(limit))
         .sort({ updatedAt: -1 });
 
-    const requests = donars.map((d) => ({
-        _id: d._id,
-        userId: d.user,
-        ...d.requests.toObject(),
-    }));
+    const requests = donars.flatMap((d) =>
+        listRequests(d.requests)
+            .filter(
+                (r) =>
+                    r.status === "in_progress" &&
+                    r.donarName &&
+                    String(r.donarName).trim() &&
+                    (!bloodGroup || r.bloodGroup === bloodGroup) &&
+                    (!city || String(r.city ?? "").toLowerCase().includes(String(city).toLowerCase()))
+            )
+            .map((r) => ({
+                _id: r._id,
+                donarDocumentId: d._id,
+                userId: d.user,
+                status: r.status,
+                ...serializeEmbeddedRequest(r),
+            }))
+    );
 
     return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, requests));
 });
@@ -248,8 +292,23 @@ export const getAllRequests = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/user/requests/:id
 // @access  Private
 export const getRequestById = asyncHandler(async (req, res) => {
-    const donar = await Donar.findById(req.params.id).populate({ path: "user", select: "userName email" });
-    if (!donar?.requests?.donarName) {
+    const paramId = req.params.id;
+
+    let donar = await Donar.findOne({ "requests._id": paramId }).populate({ path: "user", select: "userName email" });
+    let embedded = donar ? donar.requests.id(paramId) : null;
+
+    if (!embedded?.donarName) {
+        donar = await Donar.findById(paramId).populate({ path: "user", select: "userName email" });
+        if (donar) {
+            const list = listRequests(donar.requests);
+            embedded =
+                list.find((r) => r.status === "in_progress" && r.donarName && String(r.donarName).trim()) ||
+                list.find((r) => r.donarName && String(r.donarName).trim()) ||
+                null;
+        }
+    }
+
+    if (!donar || !embedded?.donarName) {
         return res.status(StatusCodes.NOT_FOUND).send(new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND));
     }
 
@@ -258,8 +317,12 @@ export const getRequestById = asyncHandler(async (req, res) => {
         "pic mobileNumber city bloodGroup gender dateOfBirth about country"
     );
 
+    const embObj = serializeEmbeddedRequest(embedded);
+
     const result = {
-        _id: donar._id,
+        _id: embObj._id,
+        donarDocumentId: donar._id,
+        status: embObj.status,
         userId: donar.user,
         posterProfile: posterUserInfo
             ? {
@@ -273,7 +336,7 @@ export const getRequestById = asyncHandler(async (req, res) => {
                   country: posterUserInfo.country,
               }
             : null,
-        ...donar.requests.toObject(),
+        ...embObj,
         medicalInformation: donar.medicalInformation,
     };
 
@@ -355,20 +418,3 @@ export const getDonors = asyncHandler(async (req, res) => {
 });
 
 
-// ─── POSTS ───────────────────────────────────────────────────────────────────
-
-// @desc    Get all posts (for users)
-// @route   GET /api/v1/user/posts
-// @access  Private
-export const getPosts = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 20 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    const posts = await Post.find()
-        .populate({ path: "author", select: "userName" })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(parseInt(limit));
-
-    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, posts));
-});
