@@ -8,7 +8,7 @@ import { getToken, clearSession } from "../storage/tokenStorage";
 //   ios: "http://192.168.0.104:3000/api/v1/",
 // });
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://blooddonar-hub.onrender.com/api/v1/";
 
 const api = axios.create({
   baseURL: API_URL,
