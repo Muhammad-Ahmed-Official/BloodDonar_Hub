@@ -24,13 +24,13 @@ type DonationRequestItem = {
   status?: string;
 };
 
-const TAB_KEYS = ["progress", "completed", "cancelled"] as const;
+const TAB_KEYS = ["progress", "completed"] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
 const TAB_LABEL: Record<TabKey, string> = {
   progress: "IN PROGRESS",
   completed: "COMPLETED",
-  cancelled: "CANCELLED",
+  // cancelled: "CANCELLED",
 };
 
 function apiStatusForTab(tab: TabKey): string {
@@ -119,8 +119,8 @@ function ActivityCard({ item }: { item: DonationRequestItem }) {
     switch (status) {
       case "completed":
         return "Completed";
-      case "cancelled":
-        return "Cancelled";
+      // case "cancelled":
+      //   return "Cancelled";
       case "in_progress":
       default:
         return "In progress";
@@ -131,8 +131,8 @@ function ActivityCard({ item }: { item: DonationRequestItem }) {
     switch (status) {
       case "completed":
         return { backgroundColor: "#34C759" };
-      case "cancelled":
-        return { backgroundColor: "#FF3B30" };
+      // case "cancelled":
+      //   return { backgroundColor: "#FF3B30" };
       default:
         return { backgroundColor: "#FF9500" };
     }

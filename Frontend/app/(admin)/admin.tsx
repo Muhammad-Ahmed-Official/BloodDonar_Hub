@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, ActivityIndicator, type StyleProp, type ViewStyle } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, ActivityIndicator, Platform, type StyleProp, type ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SIZES, SHADOW } from "@/constants/theme";
 import Card from "@/components/common/Card";
@@ -112,6 +112,31 @@ function validateAgeOrDob(ageStr: string, dobStr: string): { ok: true } | { ok: 
     return { ok: false, message: "Enter a valid age (1–120) or a valid date of birth" };
   }
   return { ok: false, message: "Enter date of birth (YYYY-MM-DD) or age" };
+}
+
+/** React Native's Alert.alert is a no-op on web; use window.alert / window.confirm there. */
+function adminNotify(title: string, message?: string) {
+  if (Platform.OS === "web") {
+    window.alert(message ? `${title}\n\n${message}` : title);
+  } else {
+    Alert.alert(title, message ?? "");
+  }
+}
+
+type AdminConfirmButton = {
+  text?: string;
+  style?: "cancel" | "default" | "destructive";
+  onPress?: () => void | Promise<void>;
+};
+
+function adminConfirm(title: string, message: string, buttons: AdminConfirmButton[]) {
+  if (Platform.OS === "web") {
+    if (!window.confirm(`${title}\n\n${message}`)) return;
+    const confirmBtn = [...buttons].reverse().find((b) => b.style !== "cancel");
+    void Promise.resolve(confirmBtn?.onPress?.());
+    return;
+  }
+  Alert.alert(title, message, buttons as Parameters<typeof Alert.alert>[2]);
 }
 
 function AdminActionBtn({ activeKey, thisKey, style, onPress, children }: {
@@ -255,7 +280,7 @@ export default function AdminDashboard() {
         totalDonorRequests: statsRes?.data?.totalRequests ?? mappedDonorRequests.length,
       });
     } catch (error: any) {
-      Alert.alert("Error", error?.message || "Failed to load admin dashboard");
+      adminNotify("Error", error?.message || "Failed to load admin dashboard");
     }
   };
 
@@ -307,37 +332,37 @@ export default function AdminDashboard() {
   const saveUserUpdate = async () => {
     if (!selectedUser) return;
     if (!trimVal(formData.name)) {
-      Alert.alert("Error", "Name is required");
+      adminNotify("Error", "Name is required");
       return;
     }
     if (!isValidEmail(formData.email)) {
-      Alert.alert("Error", "Enter a valid email address");
+      adminNotify("Error", "Enter a valid email address");
       return;
     }
     if (isPlaceholderDash(formData.bloodGroup) || !isValidBloodGroup(formData.bloodGroup)) {
-      Alert.alert("Error", "Enter a valid blood group (e.g. A+, B-, O+)");
+      adminNotify("Error", "Enter a valid blood group (e.g. A+, B-, O+)");
       return;
     }
     if (isPlaceholderDash(formData.city)) {
-      Alert.alert("Error", "City is required");
+      adminNotify("Error", "City is required");
       return;
     }
     if (isPlaceholderDash(formData.country)) {
-      Alert.alert("Error", "Country is required");
+      adminNotify("Error", "Country is required");
       return;
     }
     if (!isValidGender(formData.gender)) {
-      Alert.alert("Error", "Gender must be male, female, or other");
+      adminNotify("Error", "Gender must be male, female, or other");
       return;
     }
     const cdb = trimVal(formData.canDonateBlood);
     if (!isValidCanDonateBlood(cdb)) {
-      Alert.alert("Error", "Can donate blood must be yes or no");
+      adminNotify("Error", "Can donate blood must be yes or no");
       return;
     }
     const ageDob = validateAgeOrDob(formData.age, formData.dateOfBirth);
     if (!ageDob.ok) {
-      Alert.alert("Error", ageDob.message);
+      adminNotify("Error", ageDob.message);
       return;
     }
     try {
@@ -356,9 +381,9 @@ export default function AdminDashboard() {
       });
       await loadDashboard();
       setUpdateModalVisible(false);
-      Alert.alert("Success", "User updated successfully");
+      adminNotify("Success", "User updated successfully");
     } catch (error: any) {
-      Alert.alert("Error", error?.message || "Failed to update user");
+      adminNotify("Error", error?.message || "Failed to update user");
     } finally {
       setActionKey(null);
     }
@@ -366,41 +391,41 @@ export default function AdminDashboard() {
 
   const saveNewUser = async () => {
     if (!trimVal(formData.name)) {
-      Alert.alert("Error", "Name is required");
+      adminNotify("Error", "Name is required");
       return;
     }
     if (!isValidEmail(formData.email)) {
-      Alert.alert("Error", "Enter a valid email address");
+      adminNotify("Error", "Enter a valid email address");
       return;
     }
     if (!formData.password || formData.password.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters");
+      adminNotify("Error", "Password must be at least 6 characters");
       return;
     }
     const mobile = trimVal(formData.mobileNumber);
     if (mobile.length < 10) {
-      Alert.alert("Error", "Enter a valid mobile number (at least 10 digits)");
+      adminNotify("Error", "Enter a valid mobile number (at least 10 digits)");
       return;
     }
     if (!isValidBloodGroup(formData.bloodGroup)) {
-      Alert.alert("Error", "Enter a valid blood group (e.g. A+, B-, O+)");
+      adminNotify("Error", "Enter a valid blood group (e.g. A+, B-, O+)");
       return;
     }
     if (!trimVal(formData.city)) {
-      Alert.alert("Error", "City is required");
+      adminNotify("Error", "City is required");
       return;
     }
     if (!isValidGender(formData.gender)) {
-      Alert.alert("Error", "Gender must be male, female, or other");
+      adminNotify("Error", "Gender must be male, female, or other");
       return;
     }
     if (!isValidCanDonateBlood(formData.canDonateBlood)) {
-      Alert.alert("Error", "Can donate blood must be yes or no");
+      adminNotify("Error", "Can donate blood must be yes or no");
       return;
     }
     const ageDobNew = validateAgeOrDob(formData.age, formData.dateOfBirth);
     if (!ageDobNew.ok) {
-      Alert.alert("Error", ageDobNew.message);
+      adminNotify("Error", ageDobNew.message);
       return;
     }
     let dateOfBirthForApi = trimVal(formData.dateOfBirth);
@@ -411,7 +436,7 @@ export default function AdminDashboard() {
       }
     }
     if (!isValidDobInput(dateOfBirthForApi)) {
-      Alert.alert("Error", "Enter a valid date of birth (YYYY-MM-DD) or age");
+      adminNotify("Error", "Enter a valid date of birth (YYYY-MM-DD) or age");
       return;
     }
     try {
@@ -432,16 +457,16 @@ export default function AdminDashboard() {
       });
       await loadDashboard();
       setInsertModalVisible(false);
-      Alert.alert("Success", "User added successfully");
+      adminNotify("Success", "User added successfully");
     } catch (error: any) {
-      Alert.alert("Error", error?.message || "Failed to create user");
+      adminNotify("Error", error?.message || "Failed to create user");
     } finally {
       setActionKey(null);
     }
   };
 
   const suspendUser = (userId: string) => {
-    Alert.alert(
+    adminConfirm(
       "Suspend User",
       "Are you sure you want to suspend/unsuspend this user?",
       [
@@ -454,9 +479,9 @@ export default function AdminDashboard() {
               setActionKey(key);
               await toggleSuspendAdminUser(userId);
               await loadDashboard();
-              Alert.alert("Success", "User status updated successfully");
+              adminNotify("Success", "User status updated successfully");
             } catch (error: any) {
-              Alert.alert("Error", error?.message || "Failed to update user status");
+              adminNotify("Error", error?.message || "Failed to update user status");
             } finally {
               setActionKey(null);
             }
@@ -508,15 +533,15 @@ export default function AdminDashboard() {
       !f.endTime?.trim() ||
       !f.reason?.trim()
     ) {
-      Alert.alert("Error", "Please fill all donation request fields (same as app form).");
+      adminNotify("Error", "Please fill all donation request fields (same as app form).");
       return;
     }
     if (!isValidBloodGroup(f.bloodGroup)) {
-      Alert.alert("Error", "Enter a valid blood group (e.g. A+, O-)");
+      adminNotify("Error", "Enter a valid blood group (e.g. A+, O-)");
       return;
     }
     if (trimVal(f.mobileNumber).length < 10) {
-      Alert.alert("Error", "Enter a valid mobile number (at least 10 digits)");
+      adminNotify("Error", "Enter a valid mobile number (at least 10 digits)");
       return;
     }
     try {
@@ -539,16 +564,16 @@ export default function AdminDashboard() {
       await loadDashboard();
       setDonorRequestModalVisible(false);
       setSelectedDonorRequest(null);
-      Alert.alert("Success", "Donation request updated");
+      adminNotify("Success", "Donation request updated");
     } catch (error: any) {
-      Alert.alert("Error", error?.message || "Failed to update donation request");
+      adminNotify("Error", error?.message || "Failed to update donation request");
     } finally {
       setActionKey(null);
     }
   };
 
   const deleteDonorRequest = (donarDocId: string) => {
-    Alert.alert(
+    adminConfirm(
       "Delete donation request",
       "Remove this request from the donor profile? This cannot be undone.",
       [
@@ -561,9 +586,9 @@ export default function AdminDashboard() {
               setActionKey(key);
               await deleteAdminDonationRequest(donarDocId);
               await loadDashboard();
-              Alert.alert("Success", "Donation request removed");
+              adminNotify("Success", "Donation request removed");
             } catch (error: any) {
-              Alert.alert("Error", error?.message || "Failed to delete donation request");
+              adminNotify("Error", error?.message || "Failed to delete donation request");
             } finally {
               setActionKey(null);
             }
@@ -575,7 +600,7 @@ export default function AdminDashboard() {
   };
 
   const handleLogout = () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
+    adminConfirm("Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Logout",
@@ -586,7 +611,7 @@ export default function AdminDashboard() {
             await logout();
             router.replace("/(auth)/login");
           } catch {
-            Alert.alert("Error", "Could not log out. Please try again.");
+            adminNotify("Error", "Could not log out. Please try again.");
           } finally {
             setLoggingOut(false);
           }

@@ -16,8 +16,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
-  // ── Client-side validation ─────────────────────────────────────────────────
   const validate = (): string => {
     if (!email.trim()) return "Email is required";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return "Enter a valid email";
@@ -26,7 +26,6 @@ export default function LoginScreen() {
     return "";
   };
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
   const handleLogin = async () => {
     setError("");
 
@@ -74,13 +73,31 @@ export default function LoginScreen() {
         />
 
         <Label title="Password" />
-        <Input
-          placeholder="••••••••"
-          placeholderTextColor="#B0B0B0"
-          secureTextEntry
-          value={password}
-          onChangeText={(text:string) => { setPassword(text); setError(""); }}
-        />
+        <View style={styles.passwordField}>
+          <Input
+            placeholder="••••••••"
+            placeholderTextColor="#B0B0B0"
+            secureTextEntry={!showPassword}
+            value={password}
+            onChangeText={(text: string) => {
+              setPassword(text);
+              setError("");
+            }}
+            style={styles.passwordInput}
+          />
+          <TouchableOpacity
+            style={styles.passwordEye}
+            onPress={() => setShowPassword(!showPassword)}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+          >
+            <Ionicons
+              name={showPassword ? "eye-off" : "eye"}
+              size={20}
+              color="#666"
+            />
+          </TouchableOpacity>
+        </View>
 
         {/* Inline error — shows server message or validation error */}
         {!!error && <Text style={styles.errorText}>{error}</Text>}
@@ -139,6 +156,22 @@ const styles = StyleSheet.create({
   },
   form: {
     width: "100%",
+  },
+  passwordField: {
+    position: "relative",
+    marginBottom: 12,
+  },
+  passwordInput: {
+    marginBottom: 0,
+    paddingRight: 48,
+  },
+  passwordEye: {
+    position: "absolute",
+    right: 10,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+    paddingHorizontal: 6,
   },
   errorText: {
     color: "#E53935",

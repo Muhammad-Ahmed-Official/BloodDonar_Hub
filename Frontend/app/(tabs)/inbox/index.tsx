@@ -183,7 +183,7 @@ export default function InboxScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <View style={styles.searchWrap}>
+      {/* <View style={styles.searchWrap}>
         <TextInput
           placeholder={t("inbox.searchPlaceholder")}
           placeholderTextColor="#aaa"
@@ -192,7 +192,7 @@ export default function InboxScreen() {
           onChangeText={setQuery}
         />
         <Ionicons name="search" size={16} color={COLORS.primary} />
-      </View>
+      </View> */}
 
       {loading ? (
         <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 32 }} />
