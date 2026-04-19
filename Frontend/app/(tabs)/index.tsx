@@ -357,6 +357,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#000",
     borderWidth: 0,
+    marginBottom: 0,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    backgroundColor: "transparent",
   },
   icon: {
     marginLeft: 8,

@@ -172,7 +172,7 @@ export default function SearchScreen() {
                 address={r.location ?? "—"}
                 isEmergency={requestLooksEmergency(r.reason)}
                 donationRequestId={r._id}
-                donateDisabled={canDonateBlood !== "yes"}
+                donateDisabled={canDonateBlood}
               />
             ))}
           </>
