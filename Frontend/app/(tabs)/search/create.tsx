@@ -14,7 +14,8 @@ import { COLORS, SIZES } from "../../../constants/theme";
 import Input from "@/components/common/Input";
 import Button from "@/components/common/Button";
 import Label from "@/components/common/Label";
-import { donarRequest } from "@/services/user.service";
+import { donarRequest, getAllUserPushTokens } from "@/services/user.service";
+import { sendBloodRequestToAll } from "@/services/notifications";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 
 const BLOOD_GROUPS = ["A+", "B+", "O+", "AB+", "A-", "B-", "O-", "AB-"];
@@ -133,7 +134,7 @@ export default function CreateRequestScreen() {
 
     setSubmitting(true);
     try {
-      await donarRequest({
+      const newRequest = await donarRequest({
         donarName: patientName.trim(),
         bloodGroup: selectedGroup,
         amount: amountOfBlood.trim(),
@@ -148,6 +149,14 @@ export default function CreateRequestScreen() {
         endTime: formatTimeForApi(endTimeDate),
         reason: reason.trim(),
       });
+
+      // Notify all registered users about the new blood request
+      const requestId: string = newRequest?._id ?? newRequest?.id ?? "";
+      const tokens: string[] = await getAllUserPushTokens().catch(() => []);
+      if (tokens.length && requestId) {
+        sendBloodRequestToAll(tokens, requestId).catch(console.error);
+      }
+
       router.back();
     } catch (e: unknown) {
       const msg =

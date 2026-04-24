@@ -6,6 +6,8 @@ import "react-native-reanimated";
 import AppProvider from "@/context/AppProvider";
 import { useAuth } from "@/context/AuthContext";
 import { COLORS } from "@/constants/theme";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { saveExpoPushTokenToBackend } from "@/services/notifications";
 
 // ─── Route Guard ──────────────────────────────────────────────────────────────
 //
@@ -65,12 +67,28 @@ function RouteGuard() {
   return null;
 }
 
+// ─── Push Notification Initializer ───────────────────────────────────────────
+
+function PushNotificationSetup() {
+  const { user } = useAuth();
+  const { expoPushToken } = usePushNotifications();
+
+  useEffect(() => {
+    if (expoPushToken && user?._id) {
+      saveExpoPushTokenToBackend(expoPushToken, user._id).catch(console.error);
+    }
+  }, [expoPushToken, user?._id]);
+
+  return null;
+}
+
 // ─── Root Layout ──────────────────────────────────────────────────────────────
 
 export default function RootLayout() {
   return (
     <AppProvider>
         <RouteGuard />
+        <PushNotificationSetup />
         <Stack
           screenOptions={{
             headerShown: false,

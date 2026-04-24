@@ -167,3 +167,11 @@ export const getDonors = async (params?: {
     throw error?.response?.data || { message: "Failed to fetch donors" };
   }
 };
+
+/** Returns all registered Expo push tokens from the backend */
+export const getAllUserPushTokens = async (): Promise<string[]> => {
+  // TODO: replace with real endpoint — e.g. GET /users/push-tokens
+  // const res = await api.get("users/push-tokens");
+  // return res.data.tokens;
+  return [];
+};
