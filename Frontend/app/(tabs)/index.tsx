@@ -8,6 +8,7 @@ import {
   FlatList,
   StatusBar,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,7 +18,7 @@ import Card from "@/components/common/Card";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import Input from "@/components/common/Input";
-import { getAllRequests, getProfile } from "@/services/user.service";
+import { getAllRequests, getProfile, deleteRequest } from "@/services/user.service";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -32,6 +33,7 @@ type RequestRow = {
   date?: string;
   location?: string;
   reason?: string;
+  userId?: { _id: string; userName?: string; email?: string } | string;
 };
 
 function requestLooksEmergency(reason?: string) {
@@ -52,6 +54,8 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [canDonateBlood, setCanDonateBlood] = useState<"yes" | "no" | "">("");
+  const [hasMedicalInfo, setHasMedicalInfo] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
   const loadFeed = useCallback(async () => {
@@ -67,9 +71,11 @@ export default function HomeScreen() {
     try {
       const [prof] = await Promise.all([getProfile().catch(() => null), loadFeed()]);
       const info = prof?.data?.userInfo;
+      const medList = prof?.data?.medicalInfo;
 
       if (info?.pic) setProfilePic(info.pic);
       setCanDonateBlood(info?.canDonateBlood === "yes" ? "yes" : "no");
+      setHasMedicalInfo(Array.isArray(medList) ? medList.length > 0 : !!medList);
     } catch (e: unknown) {
       const msg =
         typeof e === "object" && e !== null && "message" in e
@@ -104,6 +110,23 @@ export default function HomeScreen() {
     );
   }, [allRequests, selectedGroup, cityInput]);
 
+  const getRequestOwnerId = (r: RequestRow) =>
+    typeof r.userId === "object" ? r.userId?._id : r.userId;
+
+  const handleDelete = async (requestId: string) => {
+    if (deletingId) return;
+    try {
+      setDeletingId(requestId);
+      await deleteRequest(requestId);
+      setAllRequests((prev) => prev.filter((r) => String(r._id) !== String(requestId)));
+    } catch (err: any) {
+      const msg = err?.message || err?.error || "Failed to delete request.";
+      Alert.alert("Error", msg);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const onSubmit = async () => {
     setRefreshing(true);
     setError("");
@@ -128,7 +151,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.header, { paddingTop: 30 + insets.top }]}>
+        <View style={[styles.header, { paddingTop: 5 + insets.top }]}>
           <View style={styles.headerLeft}>
             <View style={styles.avatar}>
               {profilePic ? (
@@ -140,7 +163,8 @@ export default function HomeScreen() {
             <View style={{ marginLeft: 10 }}>
               <Text style={styles.headerName}>{user?.userName ?? "User"}</Text>
               <Text style={styles.headerSub} numberOfLines={2}>
-                Donate Blood | also good for the donor&apos;s body
+                Donate Blood is also good for{'\n'}
+                the donor&apos;s body
               </Text>
             </View>
           </View>
@@ -157,7 +181,7 @@ export default function HomeScreen() {
             />
             <Ionicons
               name="location-outline"
-              size={18}
+              size={20}
               color={COLORS.primary}
               style={styles.icon}
             />
@@ -165,7 +189,11 @@ export default function HomeScreen() {
 
           <TouchableOpacity style={styles.dropdown} onPress={() => setShowGroup(!showGroup)}>
             <Text style={styles.dropdownText}>{selectedGroup || t("home.selectGroup")}</Text>
-            <Ionicons name="water-outline" size={18} color={COLORS.primary} />
+            <Image
+              source={require("../../assets/projectImages/homeIcon.png")}
+              style={styles.dropdownIcon}
+              resizeMode="contain"
+            />
           </TouchableOpacity>
 
           {showGroup && (
@@ -230,6 +258,18 @@ export default function HomeScreen() {
 
             <View style={styles.activityCard}>
               <Image
+                source={require("../../assets/projectImages/drop.png")}
+                style={styles.activityImage}
+                resizeMode="contain"
+              />
+              <View style={styles.activityContent}>
+                <Text style={styles.activityLabel}>{t("home.createPost")}</Text>
+                <Text style={styles.activityCount}>It&apos;s Easy! 3 Step</Text>
+              </View>
+            </View>
+            
+            <View style={styles.activityCard}>
+              <Image
                 source={require("../../assets/projectImages/blood_transfusion.png")}
                 style={styles.activityImage}
                 resizeMode="contain"
@@ -240,17 +280,6 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            <View style={styles.activityCard}>
-              <Image
-                source={require("../../assets/projectImages/drop.png")}
-                style={styles.activityImage}
-                resizeMode="contain"
-              />
-              <View style={styles.activityContent}>
-                <Text style={styles.activityLabel}>{t("home.createPost")}</Text>
-                <Text style={styles.activityCount}>It&apos;s Easy! 3 Step</Text>
-              </View>
-            </View>
 
           </View>
 
@@ -263,22 +292,36 @@ export default function HomeScreen() {
                   <Text style={styles.createRequestSubText}>
                     You are available as donor. Create your donation request.
                   </Text>
-                  <Button title={t("search.createRequest")} onPress={() => router.push("/(tabs)/profile/medicalInfo")} />
+                  <Button title={t("search.createRequest")} onPress={() => router.push("/(tabs)/search/create")} />
                 </View>
-              {filteredRequests.map((r) => (
-                <Card
-                  key={`req-${r._id}`}
-                  bloodGroup={r.bloodGroup ?? "—"}
-                  patientName={r.donarName ?? "Patient"}
-                  city={r.city ?? "—"}
-                  hospital={r.hospitalName ?? "—"}
-                  date={r.date ?? "—"}
-                  address={r.location ?? "—"}
-                  isEmergency={requestLooksEmergency(r.reason)}
-                  donationRequestId={r._id}
-                  donateDisabled={canDonateBlood}
-                />
-              ))}
+              {filteredRequests.map((r) => {
+                const isOwner = String(getRequestOwnerId(r)) === String(user?._id);
+                const handleDonate = () => {
+                  if (hasMedicalInfo) {
+                    router.push("/(tabs)/search/create");
+                  } else {
+                    router.push("/(tabs)/profile/medicalInfo");
+                  }
+                };
+                return (
+                  <Card
+                    key={`req-${r._id}`}
+                    bloodGroup={r.bloodGroup ?? "—"}
+                    patientName={r.donarName ?? "Patient"}
+                    city={r.city ?? "—"}
+                    hospital={r.hospitalName ?? "—"}
+                    date={r.date ?? "—"}
+                    address={r.location ?? "—"}
+                    isEmergency={requestLooksEmergency(r.reason)}
+                    donationRequestId={r._id}
+                    donateDisabled={canDonateBlood !== "yes"}
+                    isOwner={isOwner}
+                    onDelete={isOwner ? () => handleDelete(r._id) : undefined}
+                    isDeleting={deletingId === r._id}
+                    onDonate={!isOwner ? handleDonate : undefined}
+                  />
+                );
+              })}
               {filteredRequests.length === 0 && (
                 <Text style={styles.emptyFeed}>{t("home.noCards")}</Text>
               )}
@@ -400,7 +443,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   dropdownText: {
+    flex: 1,
     color: "#777",
+    fontSize: 14,
+  },
+  dropdownIcon: {
+    width: 13,
+    height: 18,
   },
   option: {
     padding: 12,
@@ -418,6 +467,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   headerLeft: {
+    paddingLeft: 20,
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
@@ -459,12 +509,14 @@ const styles = StyleSheet.create({
   activityCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.white,
+    backgroundColor: '#FCFCFD',
     borderRadius: SIZES.radius,
+    borderWidth: 1,
+    borderColor: COLORS.lightGray,
     padding: 12,
     flex: 1,
     minWidth: "45%",
-    ...SHADOW,
+    // ...SHADOW,
   },
   activityImage: {
     width: 30,

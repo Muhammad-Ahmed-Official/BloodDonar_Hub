@@ -97,7 +97,7 @@ export default function ProfileScreen() {
     setShowLogoutModal(false);
     setLoggingOut(true);
     try {
-      await logout(); // clears storage + state → route guard redirects to login
+      await logout();
     } finally {
       setLoggingOut(false);
     }
@@ -135,6 +135,7 @@ export default function ProfileScreen() {
         {profileLoading ? (
           <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 24 }} />
         ) : null}
+
         <View style={styles.profileCard}>
           <View style={styles.profileLeft}>
             <View style={styles.profileAvatar}>
@@ -146,10 +147,6 @@ export default function ProfileScreen() {
             </View>
             <View style={{ marginLeft: 12 }}>
               <Text style={styles.profileName}>{t("profile.hello")} {user?.userName ?? t("common.user")}</Text>
-              <Text style={styles.profileSub}>{user?.email}</Text>
-              {!!userInfo?.city && (
-                <Text style={styles.profileMeta}>{userInfo.city}</Text>
-              )}
               {!!userInfo?.bloodGroup && (
                 <Text style={styles.profileMeta}>{t("profile.blood")}: {userInfo.bloodGroup}</Text>
               )}
@@ -165,11 +162,9 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>
-              {userInfo?.canDonateBlood === "yes" ? t("common.yes") : t("common.no")}
-            </Text>
-            <Text style={styles.statLabel}>{t("profile.canDonate")}</Text>
+           <View style={styles.statCard}>
+            <Text style={styles.statNumber}>{String(inProgressDonationCount)}</Text>
+            <Text style={styles.statLabel}>{t("profile.completed")}</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{String(inProgressDonationCount)}</Text>
@@ -177,26 +172,24 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <View style={styles.availRow}>
-          <Text style={styles.availLabel}>{t("profile.availableToggle")}</Text>
+        <View style={styles.menuList}>
+            <View style={styles.menuItem}>
+          <Text style={styles.menuLabel}>
+            {t("profile.availableToggle")}
+          </Text>
+
           <Switch
             value={isAvailable}
             onValueChange={onAvailChange}
             disabled={savingAvail || profileLoading}
             trackColor={{ true: COLORS.primary, false: "#E0E0E0" }}
             thumbColor={COLORS.white}
-            ios_backgroundColor="#E0E0E0"
           />
         </View>
-
-        <View style={styles.menuCard}>
-          {MENU_ITEMS.map((item, index) => (
+          {MENU_ITEMS.map((item) => (
             <TouchableOpacity
               key={item.id}
-              style={[
-                styles.menuItem,
-                index < MENU_ITEMS.length - 1 && styles.menuItemBorder,
-              ]}
+              style={styles.menuItem}
               onPress={() => handleMenuPress(item.id)}
             >
               <View style={styles.menuIconWrap}>
@@ -229,16 +222,10 @@ export default function ProfileScreen() {
         <Pressable style={styles.modalOverlay} onPress={() => setShowLogoutModal(false)}>
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
-              
-              {/* Title */}
               <Text style={styles.modalTitle}>{t("common.logout")}</Text>
-              
-              {/* Message */}
               <Text style={styles.modalMessage}>
                 {t("profile.logoutConfirm")}
               </Text>
-              
-              {/* Buttons */}
               <View style={styles.modalButtons}>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.cancelButton]}
@@ -246,7 +233,6 @@ export default function ProfileScreen() {
                 >
                   <Text style={styles.cancelButtonText}>{t("common.cancel")}</Text>
                 </TouchableOpacity>
-                
                 <TouchableOpacity
                   style={[styles.modalButton, styles.logoutButton]}
                   onPress={confirmLogout}
@@ -267,9 +253,9 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: COLORS.white  
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.white,
   },
 
   header: {
@@ -277,20 +263,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: SIZES.padding,
-    paddingTop: 50,
-    paddingBottom: 14,
+    paddingTop: 23,
+    paddingBottom: 23,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    borderBottomColor: "#B8B8B8",
   },
-  headerTitle: { 
-    fontSize: 18, 
-    fontWeight: "bold", 
-    color: COLORS.text 
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: COLORS.text,
   },
 
-  content: { 
-    padding: SIZES.padding 
+  content: {
+    padding: SIZES.padding,
   },
 
   // Profile Card
@@ -298,15 +284,16 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderRadius: SIZES.radius,
     padding: 16,
+    marginTop: 24,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 20,
+    marginBottom: 10,
     ...SHADOW,
   },
-  profileLeft: { 
-    flexDirection: "row", 
-    alignItems: "center" 
+  profileLeft: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   profileAvatar: {
     width: 52,
@@ -324,29 +311,29 @@ const styles = StyleSheet.create({
   },
   profileMeta: {
     color: "rgba(255,255,255,0.85)",
-    fontSize: 11,
+    fontSize: 13,
     marginTop: 2,
   },
-  profileName: { 
-    color: COLORS.white, 
-    fontWeight: "bold", 
-    fontSize: 16 
+  profileName: {
+    color: COLORS.white,
+    fontWeight: "semibold",
+    fontSize: 16,
   },
-  profileSub: { 
-    color: "rgba(255,255,255,0.8)", 
-    fontSize: 12, 
-    marginTop: 2 
+  profileSub: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 12,
+    marginTop: 2,
   },
 
-  // Stats - Red Background Boxes
-  statsRow: { 
-    flexDirection: "row", 
-    gap: 12, 
-    marginBottom: 20, 
+  // Stats
+  statsRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 20,
     borderWidth: 2,
     borderColor: COLORS.primary,
     padding: 15,
-    borderRadius: 10
+    borderRadius: 10,
   },
   statCard: {
     flex: 1,
@@ -356,71 +343,55 @@ const styles = StyleSheet.create({
     alignItems: "center",
     ...SHADOW,
   },
-  statNumber: { 
-    color: COLORS.white, 
-    fontSize: 26, 
-    fontWeight: "bold" 
+  statNumber: {
+    color: COLORS.white,
+    fontSize: 26,
+    fontWeight: "bold",
   },
-  statLabel: { 
-    color: COLORS.white, 
-    fontSize: 12, 
+  statLabel: {
+    color: COLORS.white,
+    fontSize: 12,
     marginTop: 4,
     fontWeight: "500",
-    opacity: 0.9
+    opacity: 0.9,
   },
 
-  availRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+
+  menuList: {
     backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
-    padding: 16,
-    marginBottom: 20,
-    ...SHADOW,
-  },
-  availLabel: { 
-    fontSize: 15, 
-    fontWeight: "500", 
-    color: COLORS.text 
+    overflow: "hidden", // important → cuts last border cleanly
   },
 
-  menuCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
-    overflow: "hidden",
-    ...SHADOW,
-  },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-  },
-  menuItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
-  },
+menuItem: {
+  flexDirection: "row",
+  alignItems: "center",
+  paddingVertical: 12,
+  paddingHorizontal: 10,
+  borderBottomWidth: 1,
+  borderBottomColor: "#E5E5E5",
+},
+
   menuIconWrap: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#FFE5E5",  
+    backgroundColor: "#FFE5E5",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 14,
   },
-  menuLabel: { 
-    flex: 1, 
-    fontSize: 15, 
+  menuLabel: {
+    flex: 1,
+    fontSize: 15,
     color: COLORS.text,
-    fontWeight: "500"
+    fontWeight: "500",
   },
-  menuDanger: { 
-    color: COLORS.primary, 
-    fontWeight: "600" 
+  menuDanger: {
+    color: COLORS.primary,
+    fontWeight: "600",
   },
 
-  // Modal Styles
+  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",

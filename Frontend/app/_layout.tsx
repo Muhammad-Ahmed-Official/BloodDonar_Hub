@@ -45,10 +45,11 @@ function RouteGuard() {
     }
 
     // ③ Authenticated + verified — bounce out of auth group
-    //    Exception: profile-setup lives in auth group and is reached after verification
+    //    Exception: profile-setup lives in auth group and is reached as an
+    //    onboarding step after verification
     if (isAuthenticated && user?.isVerified && inAuthGroup) {
-      const onProfileSetup = currentScreen === "profile-setup";
-      if (!onProfileSetup) {
+      const onSetupScreen = currentScreen === "profile-setup";
+      if (!onSetupScreen) {
         user.role === "admin"
           ? router.replace("/(admin)/admin")
           : router.replace("/(tabs)");

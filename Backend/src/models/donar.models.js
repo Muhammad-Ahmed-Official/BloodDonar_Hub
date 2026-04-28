@@ -1,20 +1,5 @@
 import mongoose, { Schema } from "mongoose";
 
-const yesNoEnum = ["yes", "no"];
-
-/** Each saved questionnaire row gets its own _id (like requests[]). */
-const medicalInfoItemSchema = new Schema(
-    {
-        diabetes: { type: String, enum: yesNoEnum },
-        headOrLungsProblem: { type: String, enum: yesNoEnum },
-        recentCovid: { type: String, enum: yesNoEnum },
-        cancerHistory: { type: String, enum: yesNoEnum },
-        hivAidsTest: { type: String, enum: yesNoEnum },
-        recentVaccination: { type: String, enum: yesNoEnum },
-    },
-    { timestamps: true }
-);
-
 const donationRequestItemSchema = new Schema(
     {
         donarName: { type: String, trim: true },
@@ -31,8 +16,6 @@ const donationRequestItemSchema = new Schema(
         endTime: { type: String, trim: true },
         reason: { type: String, trim: true },
         donateTo: { type: Schema.Types.ObjectId, ref: "User" },
-        /** Points to Donar.medicalInformation[n]._id snapshot used for this request. */
-        medicalInfoId: { type: Schema.Types.ObjectId },
         status: {
             type: String,
             enum: ["in_progress", "completed", "cancelled"],
@@ -49,10 +32,6 @@ const donarSchema = new mongoose.Schema(
             ref: "User",
             required: true,
             unique: true,
-        },
-        medicalInformation: {
-            type: [medicalInfoItemSchema],
-            default: [],
         },
         requests: {
             type: [donationRequestItemSchema],

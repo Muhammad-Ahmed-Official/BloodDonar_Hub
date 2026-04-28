@@ -33,14 +33,15 @@ export const translations: Record<AppLanguage, Record<string, string>> = {
     "home.bloodDonor": "Blood Donor",
     "home.bloodGiven": "Blood Given",
     "home.donationRequest": "Donation Request",
-    "home.noCards": "No donation requests match your filters.",
+    "home.noCards": "No donation requests found.",
+    "home.createPost": "Create Post",
 
     "search.title": "Search",
     "search.placeholder": "Search by city, name, hospital",
     "search.createRequest": "Create request",
     "search.bloodGroup": "Blood group",
     "search.results": "Results",
-    "search.noCards": "No donation requests match your filters.",
+    "search.noCards": "No donation requests found.",
 
     "inbox.title": "Inbox",
     "inbox.searchPlaceholder": "Search name or message",
@@ -49,7 +50,7 @@ export const translations: Record<AppLanguage, Record<string, string>> = {
 
     "profile.title": "Profile",
     "profile.hello": "Hello",
-    "profile.blood": "Blood",
+    "profile.blood": "Blood Group",
     "profile.canDonate": "Can donate",
     "profile.requested": "Requested",
     "profile.availableToggle": "I am available to donate",
@@ -59,6 +60,7 @@ export const translations: Record<AppLanguage, Record<string, string>> = {
     "profile.menuActivity": "Activity",
     "profile.menuPrivacyPolicy": "Privacy Policy",
     "profile.menuCompatibility": "Compatibility",
+    "profile.completed": "Completed",
 
     "requestDetails.title": "Request Details",
     "requestDetails.noData": "No data",

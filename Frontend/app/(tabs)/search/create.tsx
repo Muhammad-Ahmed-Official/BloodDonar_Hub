@@ -9,8 +9,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState, useEffect } from "react";
-import { COLORS, SIZES } from "../../../constants/theme";
+import { useState } from "react";
+import { COLORS, SIZES, PAKISTAN_CITIES } from "../../../constants/theme";
 import Input from "@/components/common/Input";
 import Button from "@/components/common/Button";
 import Label from "@/components/common/Label";
@@ -42,8 +42,6 @@ export default function CreateRequestScreen() {
   const [showGroup, setShowGroup] = useState(false);
   const [selectedCity, setSelectedCity] = useState("");
   const [showCity, setShowCity] = useState(false);
-  const [cities, setCities] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
   const [activePicker, setActivePicker] = useState<ActivePicker>(null);
@@ -52,7 +50,7 @@ export default function CreateRequestScreen() {
   const [patientName, setPatientName] = useState("");
   const [amountOfBlood, setAmountOfBlood] = useState("");
   const [age, setAge] = useState("");
-  const [neededDate, setNeededDate] = useState<Date | null>(null);
+  const [neededDate, setNeededDate] = useState<Date>(new Date());
   const [startTimeDate, setStartTimeDate] = useState(() => makeTime(9, 0));
   const [endTimeDate, setEndTimeDate] = useState(() => makeTime(17, 0));
   const [hospitalName, setHospitalName] = useState("");
@@ -60,45 +58,6 @@ export default function CreateRequestScreen() {
   const [contactPerson, setContactPerson] = useState("");
   const [contactName, setContactName] = useState("");
   const [reason, setReason] = useState("");
-
-  useEffect(() => {
-    fetchCities();
-  }, []);
-
-  const fetchCities = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("https://countriesnow.space/api/v0.1/countries/cities", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ country: "Pakistan" }),
-      });
-      const data = await response.json();
-      
-      if (data.data && data.data.length > 0) {
-        const sortedCities = data.data.sort();
-        setCities(sortedCities);
-      } else {
-        // Fallback cities
-        setCities([
-          "Karachi", "Lahore", "Islamabad", "Rawalpindi", "Faisalabad",
-          "Multan", "Peshawar", "Quetta", "Sialkot", "Gujranwala",
-          "Hyderabad", "Abbottabad", "Bahawalpur", "Sargodha", "Sukkur",
-          "Mirpur", "Muzaffarabad", "Gilgit", "Skardu", "Mardan"
-        ]);
-      }
-    } catch (err) {
-      console.log(err);
-      setCities([
-        "Karachi", "Lahore", "Islamabad", "Rawalpindi", "Faisalabad",
-        "Multan", "Peshawar", "Quetta", "Sialkot", "Gujranwala"
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSubmit = async () => {
     setFormError("");
@@ -110,8 +69,8 @@ export default function CreateRequestScreen() {
       setFormError("Blood group is required");
       return;
     }
-    if (!amountOfBlood.trim() || !age.trim() || !neededDate) {
-      setFormError("Amount, age, and date are required");
+    if (!amountOfBlood.trim() || !age.trim()) {
+      setFormError("Amount and age are required");
       return;
     }
     const ageNum = parseInt(age.trim(), 10);
@@ -187,7 +146,7 @@ export default function CreateRequestScreen() {
 
   const pickerValue =
     activePicker === "date"
-      ? neededDate ?? new Date()
+      ? neededDate
       : activePicker === "start"
         ? startTimeDate
         : activePicker === "end"
@@ -292,8 +251,8 @@ export default function CreateRequestScreen() {
             style={styles.dropdown}
             onPress={() => setActivePicker(activePicker === "date" ? null : "date")}
           >
-            <Text style={[styles.dropdownText, !neededDate && styles.placeholderText]}>
-              {neededDate ? formatDateForApi(neededDate) : "Select date"}
+            <Text style={styles.dropdownText}>
+              {formatDateForApi(neededDate)}
             </Text>
             <Ionicons name="calendar-outline" size={18} color="#888" />
           </TouchableOpacity>
@@ -326,9 +285,9 @@ export default function CreateRequestScreen() {
           {showCity && (
             <View style={[styles.listContainer, { maxHeight: 250 }]}>
               <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 250 }}>
-                {cities.map((item, index) => (
+                {PAKISTAN_CITIES.map((item) => (
                   <TouchableOpacity
-                    key={`${item}-${index}`}
+                    key={item}
                     style={styles.option}
                     onPress={() => {
                       setSelectedCity(item);
@@ -460,7 +419,7 @@ export default function CreateRequestScreen() {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: "#F8F8F8" 
+    backgroundColor: COLORS.white 
   },
   
   header: {
@@ -468,17 +427,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: SIZES.padding,
-    paddingTop: 50,
-    paddingBottom: 14,
+    paddingTop: 23,
+    paddingBottom: 23,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: "#B8B8B8",
   },
-  
-  headerTitle: { 
-    fontSize: 18, 
-    fontWeight: "bold", 
-    color: COLORS.text 
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "bold",
+    color: COLORS.text,
   },
   
   content: { 
@@ -486,7 +444,7 @@ const styles = StyleSheet.create({
   },
   
   fieldGroup: {
-    marginBottom: 20,
+    marginBottom: 8,
   },
 
   dropdown: {

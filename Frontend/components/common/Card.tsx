@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Image, TouchableOpacity, Pressable } from "react-native";
+import { View, Text, StyleSheet, Image, TouchableOpacity, Pressable, ActivityIndicator } from "react-native";
 import { COLORS } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -14,7 +14,13 @@ export default function Card({
   isShow = true,
   donationRequestId,
   donateDisabled = false,
+  isOwner = false,
+  isDeleting = false,
+  onDelete,
+  onDonate,
 }: any) {
+  const isDonateDisabled = donateDisabled || isOwner;
+
   return (
     <View style={styles.wrapper}>
 
@@ -31,6 +37,20 @@ export default function Card({
         <View style={styles.center}>
           <View style={styles.row}>
             <Text style={styles.name}>{patientName}</Text>
+            {isOwner && onDelete && (
+              <TouchableOpacity
+                onPress={onDelete}
+                disabled={isDeleting}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ opacity: isDeleting ? 0.4 : 1 }}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size={18} color="#E53935" />
+                ) : (
+                  <Ionicons name="trash-outline" size={18} color="#E53935" />
+                )}
+              </TouchableOpacity>
+            )}
           </View>
 
           <Text style={styles.city}>{String(city ?? "").toUpperCase()}</Text>
@@ -52,7 +72,7 @@ export default function Card({
 
           {isShow && (
             <View style={[styles.btnRow, !donationRequestId && styles.btnRowSingle]}>
-              {donateDisabled ? (
+              {isDonateDisabled ? (
                 <View
                   accessibilityRole="button"
                   accessibilityState={{ disabled: true }}
@@ -62,13 +82,13 @@ export default function Card({
                     styles.donateBtnDisabled,
                   ]}
                 >
-                  <Text style={[styles.donateText, styles.donateTextDisabled]}>Donate</Text>
+                  <Text style={[styles.donateText, styles.donateTextDisabled]}> Donate </Text>
                 </View>
               ) : (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityState={{ disabled: false }}
-                  onPress={() => router.push("/(tabs)/profile/medicalInfo")}
+                  onPress={onDonate ?? (() => router.push("/(tabs)/profile/medicalInfo"))}
                   style={({ pressed }) => [
                     styles.donateBtn,
                     !donationRequestId && styles.donateBtnFull,

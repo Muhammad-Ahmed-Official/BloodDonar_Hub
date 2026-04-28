@@ -12,11 +12,12 @@ export default function SignupScreen() {
   const router = useRouter();
   const { signup } = useAuth();
 
-  const [userName, setUserName] = useState("");
-  const [email, setEmail]       = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState("");
+  const [userName, setUserName]     = useState("");
+  const [email, setEmail]           = useState("");
+  const [password, setPassword]     = useState("");
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const validate = (): string => {
     if (!userName.trim())  return "Name is required";
@@ -79,13 +80,24 @@ export default function SignupScreen() {
         />
 
         <Label title="Password" />
-        <Input
-          placeholder="••••••••"
-          placeholderTextColor="#B0B0B0"
-          secureTextEntry
-          value={password}
-          onChangeText={(t: string) => { setPassword(t); clearError(); }}
-        />
+        <View style={styles.passwordField}>
+          <Input
+            placeholder="••••••••"
+            placeholderTextColor="#B0B0B0"
+            secureTextEntry={!showPassword}
+            value={password}
+            onChangeText={(t: string) => { setPassword(t); clearError(); }}
+            style={styles.passwordInput}
+          />
+          <TouchableOpacity
+            style={styles.passwordEye}
+            onPress={() => setShowPassword(!showPassword)}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+          >
+            <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color="#666" />
+          </TouchableOpacity>
+        </View>
 
         {!!error && <Text style={styles.errorText}>{error}</Text>}
 
@@ -93,7 +105,7 @@ export default function SignupScreen() {
           <Button title={loading ? "Signing up..." : "Sign Up"} onPress={handleSignup} disabled={loading} />
         </View>
       </View>
-
+      
       <View style={styles.loginContainer}>
         <Text style={styles.loginText}>
           Already have an account?{" "}
@@ -112,8 +124,11 @@ const styles = StyleSheet.create({
   header:      { alignItems: "flex-start", marginBottom: 30 },
   subtitle:    { fontSize: 20, fontWeight: "700", color: COLORS.black, marginBottom: 12 },
   description: { fontSize: 15, color: "#666", lineHeight: 22 },
-  form:        { width: "100%" },
-  errorText:   { color: "#E53935", fontSize: 13, marginTop: 4, marginBottom: 8 },
+  form:         { width: "100%" },
+  passwordField: { position: "relative", marginBottom: 12 },
+  passwordInput: { marginBottom: 0, paddingRight: 48 },
+  passwordEye:   { position: "absolute", right: 10, top: 0, bottom: 0, justifyContent: "center", paddingHorizontal: 6 },
+  errorText:    { color: "#E53935", fontSize: 13, marginTop: 4, marginBottom: 8 },
   loginContainer: { marginTop: 20 },
   loginText:   { fontSize: 15, color: "#666", textAlign: "center" },
   loginLink:   { color: COLORS.primary, fontWeight: "bold" },

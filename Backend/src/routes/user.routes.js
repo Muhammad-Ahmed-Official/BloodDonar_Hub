@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { verifyJwt } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
-import { profileSetUp, getProfile, changeNumber, updateProfile, medicalInfo, getMedicalInfo, donationRequest, getAllRequests, getRequestById, getPublicUserProfile, getDonors } from "../controllers/user.controller.js";
+import { profileSetUp, getProfile, changeNumber, updateProfile, medicalInfo, getMedicalInfo, donationRequest, deleteRequest, getAllRequests, getRequestById, getPublicUserProfile, getDonors } from "../controllers/user.controller.js";
 
 const userRouter = Router();
 
@@ -22,7 +22,7 @@ userRouter.route("/medicalInfo").get(getMedicalInfo);
 userRouter.route("/donarRequest").post(donationRequest);
 userRouter.route("/requests").get(getAllRequests);
 userRouter.route("/public/:userId").get(getPublicUserProfile);
-userRouter.route("/requests/:id").get(getRequestById);
+userRouter.route("/requests/:id").get(getRequestById).delete(deleteRequest);
 
 // Donors
 userRouter.route("/donors").get(getDonors);

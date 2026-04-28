@@ -24,10 +24,12 @@ export const createProfile = async (
     });
 
     if (avatarUri) {
-      const fileName = avatarUri.split("/").pop() ?? "avatar.jpg";
-      const ext      = fileName.split(".").pop()?.toLowerCase() ?? "jpg";
+      const rawName  = avatarUri.split("/").pop() ?? "avatar.jpg";
+      const hasDot   = rawName.includes(".");
+      // Android content:// URIs often have no extension — fall back to "jpg"
+      const ext      = hasDot ? rawName.split(".").pop()!.toLowerCase() : "jpg";
       const mimeType = ext === "png" ? "image/png" : "image/jpeg";
-      // React Native requires this object shape for file uploads
+      const fileName = hasDot ? rawName : `avatar.${ext}`;
       formData.append("avatar", { uri: avatarUri, name: fileName, type: mimeType } as any);
     }
 
@@ -132,6 +134,24 @@ export const getAllRequests = async (params?: {
     return res.data;
   } catch (error: any) {
     throw error?.response?.data || { message: "Failed to fetch requests" };
+  }
+};
+
+export const deleteRequest = async (requestId: string) => {
+  try {
+    const res = await api.delete(`user/requests/${requestId}`);
+    return res.data;
+  } catch (error: any) {
+    throw error?.response?.data || { message: "Failed to delete request" };
+  }
+};
+
+export const getMedicalInfo = async () => {
+  try {
+    const res = await api.get("user/medicalInfo");
+    return res.data;
+  } catch (error: any) {
+    throw error?.response?.data || { message: "Failed to fetch medical info" };
   }
 };
 

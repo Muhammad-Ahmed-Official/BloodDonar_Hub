@@ -1,38 +1,30 @@
 import { io, type Socket } from "socket.io-client";
+import { Platform } from "react-native";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://blooddonar-hub.onrender.com/api/v1/";
-
-/** Socket.IO connects to the HTTP origin — strip REST prefix `/api/v1`. */
-function getSocketBaseUrl(): string {
-  // const origin = API_URL.replace(/\/?api\/v1\/?$/i, "").replace(/\/$/, "");
-  return "https://blooddonar-hub.onrender.com";
-}
+export const SOCKET_URL = Platform.select({
+  android: "http://192.168.0.104:3000",
+  ios:     "http://192.168.0.104:3000",
+  default: "http://localhost:3000",
+});
 
 let socket: Socket | null = null;
 let currentUserId: string | null = null;
 
-// function getSocketBaseUrl() {
-//   // Must match your API host (without /api/v1)
-//   const host = Platform.select({
-//     default: "http://localhost:3000",
-//     android: "http://192.168.0.106:3000",
-//     ios: "http://192.168.0.106:3000",
-//   });
-//   return host!;
-// }
-
-export function connectRealtime(userId: string) {
-  if (!userId) return null;
-  if (socket && currentUserId === userId) return socket;
+export function connectRealtime(userId: string): Socket {
+  if (socket && currentUserId === userId && socket.connected) return socket;
 
   disconnectRealtime();
 
   currentUserId = userId;
-  socket = io(getSocketBaseUrl(), {
-    transports: ["websocket"],
+  socket = io(SOCKET_URL, {
+    transports: ["websocket", "polling"],
     query: { userId },
     autoConnect: true,
   });
+
+  socket.on("connect",       () => console.log("[Socket] connected:", socket?.id));
+  socket.on("connect_error", (e) => console.error("[Socket] error:", e.message));
+  socket.on("disconnect",    (r) => console.log("[Socket] disconnected:", r));
 
   return socket;
 }
@@ -49,4 +41,3 @@ export function disconnectRealtime() {
   socket = null;
   currentUserId = null;
 }
-

@@ -5,338 +5,285 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, SIZES, SHADOW } from "@/constants/theme";
+import { COLORS } from "@/constants/theme";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { getRequestById } from "@/services/user.service";
 import { useLanguage } from "@/context/LanguageContext";
 
-type PosterProfile = {
-  pic?: string;
-  mobileNumber?: string;
-  city?: string;
-  bloodGroup?: string;
-  gender?: string;
-  about?: string;
-  country?: string;
-};
-
-type RequestDetail = {
-  _id?: string;
-  donarName?: string;
-  bloodGroup?: string;
-  amount?: string;
-  age?: number;
-  date?: string;
-  hospitalName?: string;
-  city?: string;
-  location?: string;
-  contactPersonName?: string;
-  mobileNumber?: string;
-  startTime?: string;
-  endTime?: string;
-  reason?: string;
-  posterProfile?: PosterProfile | null;
-  userId?: { _id?: string; userName?: string; email?: string } | string;
-};
-
-function getOwnerId(userId: RequestDetail["userId"]): string {
-  if (userId && typeof userId === "object" && userId._id) {
-    return String(userId._id);
-  }
-  if (typeof userId === "string") return userId;
-  return "";
-}
-
 export default function RequestDetails() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams();
   const requestId = Array.isArray(id) ? id[0] : id;
 
-  const [data, setData] = useState<RequestDetail | null>(null);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
 
   useEffect(() => {
-    if (!requestId) {
-      setErr("Missing request id");
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
+    if (!requestId) return;
     (async () => {
-      setLoading(true);
-      setErr("");
       try {
         const res = await getRequestById(requestId);
-        const d = res?.data as RequestDetail | undefined;
-        if (!cancelled) setData(d ?? null);
-      } catch (e: unknown) {
-        const msg =
-          typeof e === "object" && e !== null && "message" in e
-            ? String((e as { message: string }).message)
-            : "Could not load request";
-        if (!cancelled) setErr(msg);
+        setData(res?.data ?? null);
+      } catch {
+        setData(null);
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [requestId]);
 
-  const poster =
-    data?.userId && typeof data.userId === "object"
-      ? data.userId.userName ?? "User"
-      : "User";
+  if (loading) {
+    return <ActivityIndicator style={{ marginTop: 50 }} />;
+  }
 
-  const posterPic = data?.posterProfile?.pic?.trim();
-  const posterCity = data?.posterProfile?.city ?? data?.city ?? "";
-  const ownerId = data ? getOwnerId(data.userId) : "";
-
-  const openPosterProfile = () => {
-    if (!ownerId) return;
-    router.push({
-      pathname: "/(stack)/request",
-      params: { userId: ownerId },
-    });
-  };
+  if (!data) {
+    return <Text style={{ padding: 20 }}>No Data</Text>;
+  }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container}>
+      
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={22} color="#222" />
+          <Ionicons name="chevron-back" size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t("requestDetails.title")}</Text>
+        <View style={{ width: 24 }} />
       </View>
 
-      {loading ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
-      ) : err ? (
-        <Text style={styles.errorText}>{err}</Text>
-      ) : !data ? (
-        <Text style={styles.errorText}>{t("requestDetails.noData")}</Text>
-      ) : (
-        <>
-          <View style={styles.profileCard}>
-            <View style={styles.profileLeft}>
-              <View style={styles.avatarCircle}>
-                {posterPic ? (
-                  <Image source={{ uri: posterPic }} style={styles.avatarImg} />
-                ) : (
-                  <Ionicons name="person" size={28} color="#ccc" />
-                )}
-              </View>
-              <View style={styles.profileInfo}>
-                <Text style={styles.profileName} numberOfLines={1}>
-                  {poster}
-                </Text>
-                <Text style={styles.profileLocation} numberOfLines={1}>
-                  {posterCity || "—"}
-                </Text>
-              </View>
-            </View>
-            {!!ownerId && (
-              <TouchableOpacity style={styles.viewProfileBtn} onPress={openPosterProfile}>
-                <Text style={styles.viewProfileText}>{t("requestDetails.viewProfile")}</Text>
-              </TouchableOpacity>
-            )}
+      {/* Profile */}
+      <View style={styles.profileRow}>
+        <View style={styles.profileLeft}>
+
+          <View>
+            <Text style={styles.name}>{data?.userId?.userName || "User"}</Text>
+            <Text style={styles.city}>{data?.city || "—"}</Text>
           </View>
+        </View>
 
-          <Text style={styles.sectionTitle}>{t("requestDetails.patientDetails")}</Text>
-          <View style={styles.detailsCard}>
-            <DetailRow label={t("requestDetails.patientName")} value={data.donarName ?? "—"} />
-            <DetailRow label={t("requestDetails.age")} value={data.age != null ? String(data.age) : "—"} />
-            <DetailRow label={t("requestDetails.bloodGroup")} value={data.bloodGroup ?? "—"} highlight />
-            <DetailRow label={t("requestDetails.units")} value={data.amount ?? "—"} />
-            <DetailRow label={t("requestDetails.hospital")} value={data.hospitalName ?? "—"} />
-            <DetailRow label={t("requestDetails.city")} value={data.city ?? "—"} isLast />
-          </View>
+        <TouchableOpacity
+          style={styles.btn}
+          onPress={() =>
+            router.push({ pathname: "/(stack)/request/", params: { userId: data.userId._id } })
+          }
+        >
+          <Text style={styles.btnText}>View Profile</Text>
+        </TouchableOpacity>
+      </View>
 
-          <Text style={styles.sectionTitle}>{t("requestDetails.case")}</Text>
-          <View style={styles.detailsCard}>
-            <DetailRow label={t("requestDetails.dateNeeded")} value={data.date ?? "—"} />
-            <DetailRow label={t("requestDetails.timing")} value={`${data.startTime ?? "—"} – ${data.endTime ?? "—"}`} />
-            <DetailRow label={t("requestDetails.contact")} value={data.contactPersonName ?? "—"} />
-            <DetailRow label={t("requestDetails.mobile")} value={data.mobileNumber ?? "—"} />
-            <DetailRow label={t("requestDetails.address")} value={data.location ?? "—"} isLast />
-          </View>
+      {/* Patient Details */}
+      <Section title="Patient Details">
+        <DetailRow2
+          leftLabel="Patient Name"
+          leftValue={data.donarName}
+          rightLabel="Age"
+          rightValue={String(data.age || "—")}
+        />
 
-          {!!data.reason && (
-            <>
-              <Text style={styles.sectionTitle}>{t("requestDetails.reason")}</Text>
-              <View style={[styles.detailsCard, { paddingVertical: 12 }]}>
-                <Text style={styles.reasonText}>{data.reason}</Text>
-              </View>
-            </>
-          )}
-        </>
-      )}
+        <DetailRow2
+          leftLabel="Blood Group"
+          leftValue={data.bloodGroup}
+          rightLabel="Units Required"
+          rightValue={data.amount}
+        />
 
-      <View style={{ height: 30 }} />
+        <DetailRow2
+          leftLabel="Hospital"
+          leftValue={data.hospitalName}
+          rightLabel="City"
+          rightValue={data.city}
+          isLast
+        />
+      </Section>
+
+      {/* Case */}
+      <Section title="Patient Details">
+        <DetailRow2
+          leftLabel="Case"
+          leftValue={data.reason || "Emergency"}
+          rightLabel="Timing"
+          rightValue={`${data.startTime} - ${data.endTime}`}
+          isLast
+        />
+      </Section>
+
+      {/* Activity */}
+      <Section title="Activity">
+        <Text style={styles.activity}>Request Sent {timeAgo(data.createdAt)}</Text>
+      </Section>
+
     </ScrollView>
   );
 }
 
-function DetailRow({
-  label,
-  value,
-  highlight,
-  isLast,
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-  isLast?: boolean;
-}) {
+
+function timeAgo(dateStr?: string): string {
+  if (!dateStr) return "";
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}hr ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  const weeks = Math.floor(days / 7);
+  return `${weeks}w ago`;
+}
+
+function Section({ title, children }: any) {
   return (
-    <View style={[styles.detailRow, !isLast && styles.detailRowBorder]}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={[styles.detailValue, highlight && styles.highlightValue]} numberOfLines={3}>
-        {value}
-      </Text>
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {children}
     </View>
   );
 }
 
+function DetailRow2({
+  leftLabel,
+  leftValue,
+  rightLabel,
+  rightValue,
+  isLast,
+}: any) {
+  return (
+    <View style={[styles.row]}>
+      <View style={[styles.col, styles.leftCol]}>
+        <Text style={styles.label}>{leftLabel}</Text>
+        <Text style={styles.value}>{leftValue || "—"}</Text>
+      </View>
+
+      <View style={[styles.col, styles.rightCol]}>
+        <Text style={styles.label}>{rightLabel}</Text>
+        <Text style={styles.value}>{rightValue || "—"}</Text>
+      </View>
+    </View>
+  );
+}
+
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
-  },
-  errorText: {
-    color: "#E53935",
-    padding: SIZES.padding,
-    marginTop: 16,
-  },
-  reasonText: {
-    fontSize: 14,
-    color: "#333",
-    lineHeight: 20,
+    backgroundColor: "#fff",
   },
 
   header: {
     flexDirection: "row",
-    alignItems: "center",
-    paddingTop: 52,
-    paddingBottom: 14,
-    paddingHorizontal: SIZES.padding,
-    backgroundColor: "#fff",
+    justifyContent: "space-between",
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: "bold",
-    marginLeft: 10,
-    color: "#1A1A1A",
+    borderColor: "#ddd",
   },
 
-  profileCard: {
-    backgroundColor: "#fff",
-    margin: SIZES.padding,
-    padding: 14,
-    borderRadius: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-    ...SHADOW,
+  headerTitle: {
+    fontWeight: "bold",
+    fontSize: 18,
   },
+
+  profileRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 16,
+    alignItems: "center",
+  },
+
   profileLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    flex: 1,
-    minWidth: 0,
+    gap: 10,
   },
-  avatarCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#F0F0F0",
-    alignItems: "center",
+
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#eee",
     justifyContent: "center",
-    overflow: "hidden",
+    alignItems: "center",
   },
+
   avatarImg: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
-  profileInfo: {
-    gap: 2,
-    flex: 1,
-    minWidth: 0,
-  },
-  profileName: {
-    fontSize: 15,
+
+  name: {
     fontWeight: "bold",
-    color: "#1A1A1A",
+    fontSize: 17
   },
-  profileLocation: {
+
+  city: {
     fontSize: 12,
     color: "#888",
   },
-  viewProfileBtn: {
+
+  btn: {
     backgroundColor: COLORS.primary,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 20,
-    flexShrink: 0,
   },
-  viewProfileText: {
+
+  btnText: {
     color: "#fff",
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 13,
+  },
+
+  section: {
+    borderBottomWidth: 1,
+    borderColor: "#E5E5E5",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
 
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
     color: COLORS.primary,
-    marginHorizontal: SIZES.padding,
-    marginTop: 16,
+    fontWeight: "bold",
     marginBottom: 8,
   },
 
-  detailsCard: {
-    backgroundColor: "#fff",
-    marginHorizontal: SIZES.padding,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    ...SHADOW,
-  },
-  detailRow: {
+  row: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
     paddingVertical: 12,
-    gap: 12,
   },
-  detailRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#F5F5F5",
-  },
-  detailLabel: {
+
+
+col: {
+  flex: 1,
+  maxWidth: "50%",
+},
+
+leftCol: {
+  alignItems: "flex-start",
+},
+
+rightCol: {
+  alignItems: "flex-end",
+},
+
+label: {
+  fontSize: 13,
+  fontWeight: "bold",
+  textAlign: "left",
+},
+
+value: {
+  fontSize: 13,
+  marginTop: 2,
+  color: "#B8B8B8",
+},
+
+  activity: {
     fontSize: 13,
-    color: "#888",
-    flexShrink: 0,
-  },
-  detailValue: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#1A1A1A",
-    flex: 1,
-    textAlign: "right",
-  },
-  highlightValue: {
-    color: COLORS.primary,
+    marginTop: 6,
   },
 });

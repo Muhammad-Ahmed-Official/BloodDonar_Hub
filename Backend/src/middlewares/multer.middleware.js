@@ -19,9 +19,11 @@ const storage = multer.diskStorage({
 
 const fileFilter = (req, file, cb) => {
     const allowed = /jpeg|jpg|png|webp/;
-    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-    const mime = allowed.test(file.mimetype);
-    if (ext && mime) {
+    const rawExt = path.extname(file.originalname).toLowerCase();
+    // Allow missing extension (common with Android content:// URIs) — trust MIME type
+    const extOk  = !rawExt || allowed.test(rawExt);
+    const mimeOk = allowed.test(file.mimetype);
+    if (extOk && mimeOk) {
         cb(null, true);
     } else {
         cb(new Error("Only image files (jpeg, jpg, png, webp) are allowed"));

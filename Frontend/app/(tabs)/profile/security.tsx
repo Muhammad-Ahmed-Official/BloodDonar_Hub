@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { COLORS } from "@/constants/theme";
+import { COLORS, SIZES } from "@/constants/theme";
 import { changeNumber } from "@/services/user.service";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -54,7 +54,7 @@ export default function AccountSecurityScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
-          <Ionicons name="chevron-back" size={22} color="#222" />
+          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t("security.title")}</Text>
         <View style={{ width: 24 }} />
@@ -203,21 +203,21 @@ export default function AccountSecurityScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8F8F8",
+    backgroundColor: COLORS.white
   },
+
 
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 14,
+    paddingHorizontal: SIZES.padding,
+    paddingTop: 23,
+    paddingBottom: 23,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    borderBottomColor: "#B8B8B8",
   },
-
   headerTitle: {
     fontSize: 18,
     fontWeight: "bold",
@@ -226,14 +226,14 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: COLORS.white,
-    margin: 16,
-    borderRadius: 12,
+    marginVertical: 24,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 3,
+    // borderRadius: 12,
+    // shadowColor: "#000",
+    // shadowOffset: { width: 0, height: 2 },
+    // shadowOpacity: 0.06,
+    // shadowRadius: 4,
+    // elevation: 3,
   },
 
   row: {
@@ -278,8 +278,8 @@ const styles = StyleSheet.create({
 
   divider: {
     height: 1,
-    backgroundColor: "#F0F0F0",
-    marginHorizontal: 16,
+    backgroundColor: "#B8B8B8",
+    // marginHorizontal: 16,
   },
 
   /* MODAL */

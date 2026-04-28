@@ -17,6 +17,8 @@ const {
     ADD_SUCCESS_MESSAGES,
     NO_DATA_FOUND,
     MISSING_FIELDS,
+    DELETED_SUCCESS_MESSAGES,
+    UNAUTHORIZED_REQUEST,
 } = responseMessages;
 
 function plainSubdoc(r) {
@@ -87,13 +89,11 @@ export const getProfile = asyncHandler(async (req, res) => {
 
     const donationRequests = (donarData?.requests ?? []).map(plainSubdoc).filter(Boolean);
 
-    const medicalList = donarData?.medicalInformation ?? [];
-
     return res.status(StatusCodes.OK).send(
         new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, {
             user,
             userInfo: userInfo || null,
-            medicalInfo: medicalList.length ? medicalList : null,
+            medicalInfo: userInfo?.medicalInfo?.diabetes ? userInfo.medicalInfo : null,
             donationRequest: getActiveDonationRequest(donarData),
             donationRequests,
         })
@@ -179,26 +179,17 @@ export const medicalInfo = asyncHandler(async (req, res) => {
 
     const { diabetes, headOrLungsProblem, recentCovid, cancerHistory, hivAidsTest, recentVaccination } = req.body;
 
-    const donar = await Donar.findOneAndUpdate(
+    const userInfo = await UserInfo.findOneAndUpdate(
         { user: userId },
         {
-            $push: {
-                medicalInformation: {
-                    diabetes,
-                    headOrLungsProblem,
-                    recentCovid,
-                    cancerHistory,
-                    hivAidsTest,
-                    recentVaccination,
-                },
+            $set: {
+                medicalInfo: { diabetes, headOrLungsProblem, recentCovid, cancerHistory, hivAidsTest, recentVaccination },
             },
         },
         { new: true, upsert: true }
     );
 
-    const items = donar.medicalInformation ?? [];
-    const added = items[items.length - 1];
-    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, ADD_SUCCESS_MESSAGES, added));
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, ADD_SUCCESS_MESSAGES, userInfo.medicalInfo));
 });
 
 
@@ -206,12 +197,12 @@ export const medicalInfo = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/user/medicalInfo
 // @access  Private
 export const getMedicalInfo = asyncHandler(async (req, res) => {
-    const donar = await Donar.findOne({ user: req.user._id });
-    const list = donar?.medicalInformation ?? [];
-    if (!list.length) {
+    const userInfo = await UserInfo.findOne({ user: req.user._id });
+    const info = userInfo?.medicalInfo ?? null;
+    if (!info || !info.diabetes) {
         return res.status(StatusCodes.NOT_FOUND).send(new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND));
     }
-    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, list));
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, info));
 });
 
 
@@ -234,10 +225,6 @@ export const donationRequest = asyncHandler(async (req, res) => {
     const donateToVal =
         donateTo && mongoose.isValidObjectId(donateTo) ? new mongoose.Types.ObjectId(donateTo) : undefined;
 
-    const existingDonar = await Donar.findOne({ user: userId });
-    const medList = existingDonar?.medicalInformation ?? [];
-    const latestMed = medList.length ? medList[medList.length - 1] : null;
-
     const newItem = {
         donarName,
         bloodGroup,
@@ -255,7 +242,6 @@ export const donationRequest = asyncHandler(async (req, res) => {
         status: "in_progress",
     };
     if (donateToVal) newItem.donateTo = donateToVal;
-    if (latestMed?._id) newItem.medicalInfoId = latestMed._id;
 
     const donar = await Donar.findOneAndUpdate(
         { user: userId },
@@ -265,6 +251,28 @@ export const donationRequest = asyncHandler(async (req, res) => {
 
     const created = (donar.requests ?? []).at(-1);
     return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, ADD_SUCCESS_MESSAGES, plainSubdoc(created)));
+});
+
+
+// @desc    Delete a donation request (owner only)
+// @route   DELETE /api/v1/user/requests/:id
+// @access  Private
+export const deleteRequest = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const requestId = req.params.id;
+
+    const donar = await Donar.findOne({ user: userId });
+    if (!donar) throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
+
+    const exists = donar.requests.id(requestId);
+    if (!exists) throw new ApiError(StatusCodes.NOT_FOUND, UNAUTHORIZED_REQUEST);
+
+    await Donar.findOneAndUpdate(
+        { user: userId },
+        { $pull: { requests: { _id: new mongoose.Types.ObjectId(requestId) } } }
+    );
+
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, DELETED_SUCCESS_MESSAGES, null));
 });
 
 
@@ -336,21 +344,11 @@ export const getRequestById = asyncHandler(async (req, res) => {
     }
 
     const ownerId = donar.user?._id ?? donar.user;
-    const posterUserInfo = await UserInfo.findOne({ user: ownerId }).select(
-        "pic mobileNumber city bloodGroup gender dateOfBirth about country"
-    );
+    const posterUserInfo = await UserInfo.findOne({ user: ownerId });
 
     const embObj = plainSubdoc(embedded);
 
-    const medAll = donar.medicalInformation ?? [];
-    let medForRequest = null;
-    if (embedded?.medicalInfoId) {
-        const target = String(embedded.medicalInfoId);
-        medForRequest = medAll.find((m) => m && String(m._id) === target) || null;
-    }
-    if (!medForRequest && medAll.length) {
-        medForRequest = medAll[medAll.length - 1];
-    }
+    const medForRequest = posterUserInfo?.medicalInfo?.diabetes ? posterUserInfo.medicalInfo : null;
 
     const result = {
         _id: embObj._id,

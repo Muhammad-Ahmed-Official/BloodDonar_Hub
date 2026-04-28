@@ -1,11 +1,11 @@
-import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Alert, Linking } from "react-native";
+import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ScrollView, Alert, Linking } from "react-native";
 import { useRouter } from "expo-router";
-import { COLORS } from "../../../constants/theme";
+import { COLORS, PAKISTAN_CITIES } from "../../../constants/theme";
 import Input from "@/components/common/Input";
 import Button from "@/components/common/Button";
 import Label from "@/components/common/Label";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { createProfile } from "@/services/user.service";
@@ -20,9 +20,7 @@ export default function ProfileSetup1() {
   const [selectedCity, setSelectedCity] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
   const [showGroup, setShowGroup] = useState(false);
-  const [cities, setCities] = useState<string[]>([]);
   const [showCity, setShowCity] = useState(false);
-  const [loadingCities, setLoadingCities] = useState(false);
   const [showDonate, setShowDonate] = useState(false);
   const [selectGender, setSelectGender] = useState("");
   const [isYes, setIsYes] = useState("");
@@ -49,43 +47,6 @@ export default function ProfileSetup1() {
     return age;
   };
 
-
-  useEffect(() => {
-    fetchCities();
-  }, []);
-
-  const fetchCities = async () => {
-    setLoadingCities(true);
-    try {
-      const response = await fetch("https://countriesnow.space/api/v0.1/countries/cities", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ country: "Pakistan" }),
-      });
-      const data = await response.json();
-      
-      if (data.data && data.data.length > 0) {
-        const sortedCities = data.data.sort();
-        setCities(sortedCities);
-      } else {
-        setCities([
-          "Karachi", "Lahore", "Islamabad", "Rawalpindi", "Faisalabad",
-          "Multan", "Peshawar", "Quetta", "Sialkot", "Gujranwala",
-          "Hyderabad", "Abbottabad", "Bahawalpur", "Sargodha", "Sukkur",
-        ]);
-      }
-    } catch (err) {
-      console.log(err);
-      setCities([
-        "Karachi", "Lahore", "Islamabad", "Rawalpindi", "Faisalabad",
-        "Multan", "Peshawar", "Quetta", "Sialkot", "Gujranwala",
-      ]);
-    } finally {
-      setLoadingCities(false);
-    }
-  };
 
   const handlePickImage = async () => {
     try {
@@ -158,7 +119,7 @@ export default function ProfileSetup1() {
         canDonateBlood: isYes.toLowerCase() as "yes" | "no",
         about: about.trim(),
       }, avatarUri ?? undefined);
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/profile/medicalInfo");
     } catch (err: any) {
       setError(err?.message || "Profile setup failed. Please try again.");
     } finally {
@@ -278,30 +239,23 @@ export default function ProfileSetup1() {
 
         {showCity && (
           <View style={[styles.listContainer, { maxHeight: 250 }]}>
-            {loadingCities ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Loading cities...</Text>
-              </View>
-            ) : (
-              <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 250 }}>
-                {cities.map((item, index) => (
-                  <TouchableOpacity
-                    key={`${item}-${index}`}
-                    style={styles.option}
-                    onPress={() => {
-                      setSelectedCity(item);
-                      setShowCity(false);
-                    }}
-                  >
-                    <Text style={styles.optionText}>{item}</Text>
-                    {selectedCity === item && (
-                      <Ionicons name="checkmark" size={18} color={COLORS.primary} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
+            <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 250 }}>
+              {PAKISTAN_CITIES.map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  style={styles.option}
+                  onPress={() => {
+                    setSelectedCity(item);
+                    setShowCity(false);
+                  }}
+                >
+                  <Text style={styles.optionText}>{item}</Text>
+                  {selectedCity === item && (
+                    <Ionicons name="checkmark" size={18} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         )}
 
@@ -571,14 +525,5 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 40,
-  },
-  loadingContainer: {
-    padding: 20,
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 10,
-    color: "#666",
-    fontSize: 14,
   },
 });

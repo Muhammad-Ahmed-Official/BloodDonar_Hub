@@ -57,6 +57,15 @@ const userInfoSchema = new mongoose.Schema({
       trim: true,
       maxlength: 500,
     },
+
+    medicalInfo: {
+      diabetes:            { type: String, enum: ["yes", "no"] },
+      headOrLungsProblem:  { type: String, enum: ["yes", "no"] },
+      recentCovid:         { type: String, enum: ["yes", "no"] },
+      cancerHistory:       { type: String, enum: ["yes", "no"] },
+      hivAidsTest:         { type: String, enum: ["yes", "no"] },
+      recentVaccination:   { type: String, enum: ["yes", "no"] },
+    },
   },
   { timestamps: true }
 );

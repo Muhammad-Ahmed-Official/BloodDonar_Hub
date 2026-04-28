@@ -302,11 +302,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: SIZES.padding,
-    paddingTop: 50,
-    paddingBottom: 16,
+    paddingTop: 23,
+    paddingBottom: 23,
     backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: "#B8B8B8",
   },
-  headerTitle: { fontSize: 18, fontWeight: "bold", color: COLORS.text },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: COLORS.text,
+  },
 
   searchWrap: {
     flexDirection: "row",

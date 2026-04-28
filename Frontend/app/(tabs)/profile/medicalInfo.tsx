@@ -1,25 +1,30 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SIZES, SHADOW } from "@/constants/theme";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { medicalInfo as submitMedicalInfo } from "@/services/user.service";
+import {
+  medicalInfo as submitMedicalInfo,
+  getMedicalInfo,
+} from "@/services/user.service";
 import { useLanguage } from "@/context/LanguageContext";
 
 const QUESTIONS = [
-  { id: "q1", text: "Do you have diabetes?" },
-  { id: "q2", text: "Have you ever had problems with your heart or lungs?" },
-  { id: "q3", text: "In the last 28 days do you have you had COVID-19?" },
-  { id: "q4", text: "Have you ever had cancer?" },
-  {
-    id: "q5",
-    text: "Have you ever had a positive test for the HIV / AIDS virus?",
-  },
-  {
-    id: "q6",
-    text: "In the last 3 months have you had a vaccination?",
-  },
+  { id: "q1", key: "diabetes",            text: "Do you have diabetes?" },
+  { id: "q2", key: "headOrLungsProblem",  text: "Have you ever had problems with your heart or lungs?" },
+  { id: "q3", key: "recentCovid",         text: "In the last 28 days do you have you had COVID-19?" },
+  { id: "q4", key: "cancerHistory",       text: "Have you ever had cancer?" },
+  { id: "q5", key: "hivAidsTest",         text: "Have you ever had a positive test for the HIV / AIDS virus?" },
+  { id: "q6", key: "recentVaccination",   text: "In the last 3 months have you had a vaccination?" },
 ];
 
 type Answers = Record<string, "yes" | "no" | null>;
@@ -34,14 +39,41 @@ export default function BecomeDonor() {
   );
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(true);
+  const [hasExistingData, setHasExistingData] = useState(false);
 
-  const setAnswer = (id: string, val: "yes" | "no") => {
+  useEffect(() => {
+    const fetchExisting = async () => {
+      try {
+        const res = await getMedicalInfo();
+        const existing = res?.data;
+        if (existing?.diabetes) {
+          setAnswers({
+            q1: existing.diabetes           ?? null,
+            q2: existing.headOrLungsProblem ?? null,
+            q3: existing.recentCovid        ?? null,
+            q4: existing.cancerHistory      ?? null,
+            q5: existing.hivAidsTest        ?? null,
+            q6: existing.recentVaccination  ?? null,
+          });
+          setAgreedToTerms(true);
+          setHasExistingData(true);
+        }
+      } catch {
+        // no existing record — blank form
+      } finally {
+        setLoadingExisting(false);
+      }
+    };
+    fetchExisting();
+  }, []);
+
+  const setAnswer = (id: string, val: "yes" | "no") =>
     setAnswers((prev) => ({ ...prev, [id]: val }));
-  };
 
-  const allAnswered = Object.values(answers).every((v) => v !== null) && agreedToTerms;
+  const allAnswered =
+    Object.values(answers).every((v) => v !== null) && agreedToTerms;
 
-  // Extra bottom padding: tab bar (~60px) + safe area inset + breathing room
   const bottomPadding = insets.bottom + 80;
 
   const handleNext = async () => {
@@ -49,14 +81,14 @@ export default function BecomeDonor() {
     setSubmitting(true);
     try {
       await submitMedicalInfo({
-        diabetes: answers.q1!,
+        diabetes:           answers.q1!,
         headOrLungsProblem: answers.q2!,
-        recentCovid: answers.q3!,
-        cancerHistory: answers.q4!,
-        hivAidsTest: answers.q5!,
-        recentVaccination: answers.q6!,
+        recentCovid:        answers.q3!,
+        cancerHistory:      answers.q4!,
+        hivAidsTest:        answers.q5!,
+        recentVaccination:  answers.q6!,
       });
-      router.push("/(tabs)/search/create");
+      router.replace("/(tabs)");
     } catch (e: unknown) {
       const msg =
         typeof e === "object" && e !== null && "message" in e
@@ -73,73 +105,85 @@ export default function BecomeDonor() {
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
-          <Ionicons name="chevron-back" size={22} color="#222" />
+          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t("medical.title")}</Text>
+        <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: bottomPadding },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.pageTitle}>{t("medical.questions")}</Text>
-        <Text style={styles.pageSubtitle}>
-          {t("medical.subtitle")}
-        </Text>
+      {loadingExisting ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: bottomPadding },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.pageTitle}>{t("medical.questions")}</Text>
+          <Text style={styles.pageSubtitle}>{t("medical.subtitle")}</Text>
 
-        {/* QUESTIONS */}
-        {QUESTIONS.map((q) => (
-          <View key={q.id} style={styles.questionCard}>
-            <Text style={styles.questionText}>{q.text}</Text>
-            <View style={styles.radioRow}>
-              <RadioOption
-                label={t("common.yes")}
-                selected={answers[q.id] === "yes"}
-                onPress={() => setAnswer(q.id, "yes")}
-              />
-              <RadioOption
-                label={t("common.no")}
-                selected={answers[q.id] === "no"}
-                onPress={() => setAnswer(q.id, "no")}
-              />
+          {/* QUESTIONS */}
+          {QUESTIONS.map((q) => (
+            <View key={q.id} style={styles.questionCard}>
+              <Text style={styles.questionText}>{q.text}</Text>
+              <View style={styles.radioRow}>
+                <RadioOption
+                  label={t("common.yes")}
+                  selected={answers[q.id] === "yes"}
+                  onPress={() => setAnswer(q.id, "yes")}
+                />
+                <RadioOption
+                  label={t("common.no")}
+                  selected={answers[q.id] === "no"}
+                  onPress={() => setAnswer(q.id, "no")}
+                />
+              </View>
             </View>
-          </View>
-        ))}
+          ))}
 
-        {/* TERMS — toggleable checkbox */}
-        <TouchableOpacity
-          style={styles.termsRow}
-          onPress={() => setAgreedToTerms((prev) => !prev)}
-          activeOpacity={0.7}
-        >
-          <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
-            {agreedToTerms && (
-              <Ionicons name="checkmark" size={13} color="#fff" />
-            )}
-          </View>
-          <Text style={styles.termsText}>
-            {t("medical.agreeText")}{" "}
-            <Text style={styles.termsLink}>{t("medical.terms")}</Text>
-          </Text>
-        </TouchableOpacity>
+          {/* TERMS */}
+          <TouchableOpacity
+            style={styles.termsRow}
+            onPress={() => setAgreedToTerms((prev) => !prev)}
+            activeOpacity={0.7}
+          >
+            <View
+              style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}
+            >
+              {agreedToTerms && (
+                <Ionicons name="checkmark" size={13} color="#fff" />
+              )}
+            </View>
+            <Text style={styles.termsText}>
+              {t("medical.agreeText")}{" "}
+              <Text style={styles.termsLink}>{t("medical.terms")}</Text>
+            </Text>
+          </TouchableOpacity>
 
-        {/* CTA BUTTON */}
-        <TouchableOpacity
-          onPress={handleNext}
-          style={[styles.ctaBtn, (!allAnswered || submitting) && styles.ctaBtnDisabled]}
-          disabled={!allAnswered || submitting}
-          activeOpacity={0.85}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.ctaBtnText}>{t("medical.becomeDonor")}</Text>
+          {/* CTA — only shown when no prior data exists */}
+          {!hasExistingData && (
+            <TouchableOpacity
+              onPress={handleNext}
+              style={[
+                styles.ctaBtn,
+                (!allAnswered || submitting) && styles.ctaBtnDisabled,
+              ]}
+              disabled={!allAnswered || submitting}
+              activeOpacity={0.85}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.ctaBtnText}>{t("medical.becomeDonor")}</Text>
+              )}
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
-      </ScrollView>
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -174,29 +218,32 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 
-  /* HEADER */
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 52,
-    paddingBottom: 14,
+    justifyContent: "space-between",
     paddingHorizontal: SIZES.padding,
-    backgroundColor: "#fff",
+    paddingTop: 23,
+    paddingBottom: 23,
+    backgroundColor: COLORS.white,
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    borderBottomColor: "#B8B8B8",
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "bold",
-    marginLeft: 10,
-    color: "#1A1A1A",
+    color: COLORS.text,
   },
 
   scrollContent: {
     padding: SIZES.padding,
   },
-
   pageTitle: {
     fontSize: 22,
     fontWeight: "bold",
@@ -263,7 +310,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  /* TERMS — custom toggleable checkbox */
+  /* TERMS */
   termsRow: {
     flexDirection: "row",
     alignItems: "center",

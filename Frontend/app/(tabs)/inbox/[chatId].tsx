@@ -3,11 +3,10 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { COLORS, SHADOW } from "../../../constants/theme";
+import { COLORS, SHADOW, SIZES } from "../../../constants/theme";
 import { getMessages, sendMessage as sendMessageApi } from "@/services/chat.service";
 import { useAuth } from "@/context/AuthContext";
-import { getPublicUserProfile } from "@/services/user.service";
-import { getRealtimeSocket } from "@/services/realtime";
+import { getPublicUserProfile, getProfile } from "@/services/user.service";
 import { useFocusEffect } from "@react-navigation/native";
 
 type ApiUser = { _id?: string; userName?: string };
@@ -41,7 +40,10 @@ type SocketPayload = {
 function formatTime(iso?: string) {
   if (!iso) return "";
   try {
-    return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const d = new Date(iso);
+    const date = d.toLocaleDateString([], { month: "short", day: "numeric" });
+    const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return `${date}  ${time}`;
   } catch {
     return "";
   }
@@ -50,7 +52,7 @@ function formatTime(iso?: string) {
 export default function ChatScreen() {
   const router = useRouter();
   const { chatId } = useLocalSearchParams();
-  const { user } = useAuth();
+  const { user, socket } = useAuth();
   const receiverId = useMemo(() => (Array.isArray(chatId) ? chatId[0] : (chatId as string)), [chatId]);
 
   const [messages, setMessages] = useState<UiMessage[]>([]);
@@ -62,13 +64,12 @@ export default function ChatScreen() {
   const [error, setError] = useState("");
   const [partner, setPartner] = useState<{ name: string; pic?: string; mobile?: string } | null>(null);
   const [loadingPartner, setLoadingPartner] = useState(false);
+  const [myPic, setMyPic] = useState<string | null>(null);
 
   const emitSeen = useCallback(() => {
-    const s = getRealtimeSocket();
-    if (!s || !receiverId || !user?._id) return;
-    // Mark partner -> me messages as seen
-    s.emit("seenMsg", { sender: String(receiverId), receiver: String(user._id) });
-  }, [receiverId, user?._id]);
+    if (!socket || !receiverId || !user?._id) return;
+    socket.emit("seenMsg", { sender: String(receiverId), receiver: String(user._id) });
+  }, [socket, receiverId, user?._id]);
 
   useEffect(() => {
     if (!receiverId) {
@@ -154,14 +155,27 @@ export default function ChatScreen() {
     };
   }, [receiverId]);
 
-  // Real-time receive
+  // Fetch own profile pic once
   useEffect(() => {
-    const s = getRealtimeSocket();
-    if (!s || !receiverId || !user?._id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getProfile();
+        const pic = res?.data?.userInfo?.pic ?? null;
+        if (!cancelled) setMyPic(pic);
+      } catch {
+        // no-op — avatar just stays null
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Real-time receive — re-runs whenever the socket instance changes
+  useEffect(() => {
+    if (!socket || !receiverId || !user?._id) return;
 
     const onNewMessage = (payload: any) => {
       const p = payload as SocketPayload;
-      // Only apply messages belonging to this open chat
       const me = String(user._id);
       const fromPartner = String(p.sender) === String(receiverId) && String(p.receiver) === me;
       if (!fromPartner) return;
@@ -190,15 +204,14 @@ export default function ChatScreen() {
         ];
       });
 
-      // instantly mark as seen if I'm currently in this chat
       emitSeen();
     };
 
-    s.on("newMessage", onNewMessage);
+    socket.on("newMessage", onNewMessage);
     return () => {
-      s.off("newMessage", onNewMessage);
+      socket.off("newMessage", onNewMessage);
     };
-  }, [receiverId, user?._id]);
+  }, [socket, receiverId, user?._id]);
 
   const sendMessage = async () => {
     if (!receiverId) return;
@@ -211,7 +224,7 @@ export default function ChatScreen() {
         id: optimisticId,
         text,
         sender: "me",
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        time: formatTime(new Date().toISOString()),
         pending: true,
       },
       ...prev,
@@ -261,31 +274,40 @@ export default function ChatScreen() {
 
   const renderMessage = ({ item } : any) => {
     const isMe = item.sender === "me";
-    
+    const pic  = isMe ? myPic : partner?.pic;
+
     return (
-      <View style={[
-        styles.messageContainer,
-        isMe ? styles.myMessageContainer : styles.theirMessageContainer
-      ]}>
-        <View style={[
-          styles.bubble,
-          isMe ? styles.myBubble : styles.theirBubble
-        ]}>
-          <Text style={[
-            styles.bubbleText,
-            isMe && styles.myBubbleText
-          ]}>
-            {item.text}
-          </Text>
-          <View style={styles.timeContainer}>
-            <Text style={[
-              styles.timeText,
-              isMe && styles.myTimeText
-            ]}>
-              {item.time}
+      <View style={[styles.messageRow, isMe ? styles.myRow : styles.theirRow]}>
+        {!isMe && (
+          <View style={styles.msgAvatar}>
+            {pic ? (
+              <Image source={{ uri: pic }} style={styles.msgAvatarImg} />
+            ) : (
+              <Ionicons name="person" size={16} color="#999" />
+            )}
+          </View>
+        )}
+
+        <View style={styles.msgContent}>
+          <View style={[styles.bubble, isMe ? styles.myBubble : styles.theirBubble]}>
+            <Text style={[styles.bubbleText, isMe && styles.myBubbleText]}>
+              {item.text}
             </Text>
           </View>
+          <Text style={[styles.timeText, isMe ? styles.myTime : styles.theirTime]}>
+            {item.time}
+          </Text>
         </View>
+
+        {isMe && (
+          <View style={styles.msgAvatar}>
+            {pic ? (
+              <Image source={{ uri: pic }} style={styles.msgAvatarImg} />
+            ) : (
+              <Ionicons name="person" size={16} color="#999" />
+            )}
+          </View>
+        )}
       </View>
     );
   };
@@ -297,7 +319,7 @@ export default function ChatScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.push("/(tabs)/inbox")} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
 
         <View style={styles.headerInfo}>
@@ -323,29 +345,31 @@ export default function ChatScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Messages */}
-      {loading ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 24 }} />
-      ) : (
-        <>
-          {!!error && <Text style={styles.errorText}>{error}</Text>}
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.messagesList}
-            showsVerticalScrollIndicator={false}
-            renderItem={renderMessage}
-            inverted
-          />
-        </>
-      )}
-
-      {/* Input Area - Only Send Icon */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
+        {/* Messages */}
+        {loading ? (
+          <ActivityIndicator size="large" color={COLORS.primary} style={{ flex: 1, marginTop: 24 }} />
+        ) : (
+          <>
+            {!!error && <Text style={styles.errorText}>{error}</Text>}
+            <FlatList
+              ref={flatListRef}
+              data={messages}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.messagesList}
+              showsVerticalScrollIndicator={false}
+              renderItem={renderMessage}
+              inverted
+              style={{ flex: 1 }}
+            />
+          </>
+        )}
+
+        {/* Input Area */}
         <View style={[styles.inputContainer, { paddingBottom: insets.bottom + 12 }]}>
           <View style={styles.inputWrapper}>
             <TextInput
@@ -356,7 +380,7 @@ export default function ChatScreen() {
               onChangeText={setInputText}
               multiline
             />
-            
+
             <TouchableOpacity style={styles.sendBtn} onPress={sendMessage} disabled={sending}>
               <Ionicons name="send" size={20} color={COLORS.white} />
             </TouchableOpacity>
@@ -370,18 +394,19 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F8F8F8",
+    backgroundColor: COLORS.white,
   },
 
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: SIZES.padding,
+    paddingTop: 23,
+    paddingBottom: 23,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: "#B8B8B8",
   },
 
   backBtn: {
@@ -448,23 +473,47 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
-  messageContainer: {
-    marginBottom: 12,
-  },
-
-  myMessageContainer: {
+  messageRow: {
+    flexDirection: "row",
     alignItems: "flex-end",
+    marginBottom: 12,
+    gap: 8,
   },
 
-  theirMessageContainer: {
-    alignItems: "flex-start",
+  myRow: {
+    justifyContent: "flex-end",
+  },
+
+  theirRow: {
+    justifyContent: "flex-start",
+  },
+
+  msgAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#eee",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+    flexShrink: 0,
+    marginBottom: 19,
+  },
+
+  msgAvatarImg: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+  },
+
+  msgContent: {
+    maxWidth: "75%",
   },
 
   bubble: {
-    maxWidth: "80%",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 5,
   },
 
   theirBubble: {
@@ -488,26 +537,25 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
 
-  timeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    marginTop: 4,
-  },
-
   timeText: {
     fontSize: 10,
     color: "#999",
+    marginTop: 3,
+    marginHorizontal: 4,
   },
 
-  myTimeText: {
-    color: "rgba(255,255,255,0.7)",
+  myTime: {
+    alignSelf: "flex-end",
+  },
+
+  theirTime: {
+    alignSelf: "flex-start",
   },
 
   inputContainer: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: "#F8F8F8",
+    backgroundColor: COLORS.white,
     borderTopWidth: 1,
     borderTopColor: "#f0f0f0",
   },

@@ -124,7 +124,7 @@ export default function SearchScreen() {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-          <Ionicons name="search-outline" size={18} color="#aaa" />
+          <Ionicons name="search-outline" size={20} color="#FF0000" />
         </View>
 
         <Button title={t("common.submit")} onPress={handleSearchSubmit} disabled={submitting} />
@@ -194,29 +194,37 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: SIZES.padding,
-    paddingTop: 50,
-    paddingBottom: 14,
+    paddingTop: 23,
+    paddingBottom: 23,
     backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: "#B8B8B8",
   },
-  headerTitle: { fontSize: 16, fontWeight: "bold", color: COLORS.text },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: COLORS.text,
+  },
+
   content: { padding: SIZES.padding },
   searchWrap: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.white,
     borderRadius: SIZES.radius,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    marginBottom: 12,
+    marginVertical: 14,
     borderWidth: 1,
     borderColor: "#eee",
+    backgroundColor: "#FFF5F5",
   },
-  searchInput: { flex: 1, fontSize: 14, color: COLORS.text },
-  sectionTitle: { fontSize: 15, fontWeight: "bold", color: COLORS.text, marginVertical: 12 },
+  searchInput: { flex: 1, fontSize: 14, color: COLORS.text,  },
+  sectionTitle: { fontSize: 15, fontWeight: "bold", color: COLORS.text, marginVertical: 18 },
   groupGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    justifyContent: "center",
+    gap: 12,
     marginBottom: 6,
   },
   groupBtn: {
@@ -225,7 +233,7 @@ const styles = StyleSheet.create({
     gap: 4,
     borderWidth: 1.5,
     borderColor: COLORS.primary,
-    borderRadius: 10,
+    borderRadius: 5,
     paddingHorizontal: 14,
     paddingVertical: 8,
     backgroundColor: COLORS.white,

@@ -89,9 +89,10 @@ export default function PosterProfileScreen() {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={22} color="black" />
+          <Ionicons name="chevron-back" size={22} color="#222" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile Details</Text>
+        <View style={{ width: 40 }} />
       </View>
 
       {loading ? (
@@ -122,11 +123,9 @@ export default function PosterProfileScreen() {
 
             <View style={styles.actionRow}>
               <TouchableOpacity onPress={openChat} style={styles.chatBtn}>
-                <Ionicons name="chatbubble-outline" size={16} color={COLORS.primary} />
                 <Text style={styles.chatBtnText}>Chat Now</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.callBtn} onPress={handleCall}>
-                <Ionicons name="call-outline" size={16} color="#fff" />
                 <Text style={styles.callBtnText}>Call</Text>
               </TouchableOpacity>
             </View>
@@ -142,21 +141,14 @@ export default function PosterProfileScreen() {
               value={data.userInfo?.gender ? capitalize(data.userInfo.gender) : "—"}
             />
             <AboutRow icon="location-outline" label="City" value={data.userInfo?.city ?? "—"} />
-            <AboutRow icon="globe-outline" label="Country" value={data.userInfo?.country ?? "—"} />
+            {/* <AboutRow icon="globe-outline" label="Country" value={data.userInfo?.country ?? "—"} /> */}
             <AboutRow icon="call-outline" label="Mobile" value={data.userInfo?.mobileNumber ?? "—"} />
             <AboutRow icon="mail-outline" label="Email" value={data.user?.email ?? "—"} isLast />
           </View>
-
-          {!!data.userInfo?.about && (
-            <View style={[styles.aboutCard, { marginTop: 12 }]}>
-              <Text style={styles.aboutTitle}>BIO</Text>
-              <Text style={styles.bioText}>{data.userInfo.about}</Text>
-            </View>
-          )}
         </>
       )}
 
-      <View style={{ height: 30 }} />
+      <View style={{ height: 20 }} />
     </ScrollView>
   );
 }
@@ -210,18 +202,18 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 52,
-    paddingBottom: 14,
+    justifyContent: "space-between",
     paddingHorizontal: SIZES.padding,
-    backgroundColor: "#fff",
+    paddingTop: 23,
+    paddingBottom: 23,
+    backgroundColor: COLORS.white,
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    borderBottomColor: "#B8B8B8",
   },
   headerTitle: {
-    color: COLORS.black,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "bold",
-    marginLeft: 10,
+    color: COLORS.text,
   },
 
   profileSection: {
@@ -241,15 +233,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0F0F0",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 3,
-    borderColor: COLORS.primary,
   },
   avatar: {
     width: 90,
     height: 90,
     borderRadius: 45,
-    borderWidth: 3,
-    borderColor: COLORS.primary,
   },
   name: {
     fontSize: 18,
@@ -258,10 +246,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   bloodBadge: {
-    backgroundColor: "#FDEAEA",
-    paddingHorizontal: 14,
     paddingVertical: 4,
-    borderRadius: 20,
     marginBottom: 18,
   },
   bloodText: {
@@ -272,34 +257,30 @@ const styles = StyleSheet.create({
 
   actionRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 42,
   },
   chatBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 25,
+    paddingVertical: 6,
+    borderRadius: 5,
   },
   chatBtnText: {
-    color: COLORS.primary,
+    color: COLORS.white,
     fontWeight: "600",
     fontSize: 14,
   },
   callBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    paddingHorizontal: 30,
+    paddingVertical: 6,
+    borderRadius: 5,
   },
   callBtnText: {
-    color: "#fff",
+    color: COLORS.primary,
     fontWeight: "600",
     fontSize: 14,
   },
@@ -314,7 +295,7 @@ const styles = StyleSheet.create({
   aboutTitle: {
     fontSize: 13,
     fontWeight: "bold",
-    color: "#AAAAAA",
+    textAlign: "center",
     letterSpacing: 1,
     marginBottom: 12,
   },

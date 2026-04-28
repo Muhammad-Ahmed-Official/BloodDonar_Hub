@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { loginUser, signUpUser, verifyEmail as verifyEmailService, logoutUser } from "../services/auth.service";
 import { saveToken, saveUser, getToken, getSavedUser, clearSession } from "../storage/tokenStorage";
 import { connectRealtime, disconnectRealtime } from "@/services/realtime";
+import type { Socket } from "socket.io-client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,6 +20,7 @@ interface AuthContextValue {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  socket: Socket | null;
   login: (email: string, password: string) => Promise<void>;
   signup: (userName: string, email: string, password: string) => Promise<void>;
   verifyOtp: (otp: string) => Promise<void>;
@@ -35,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   // ── Restore session on app launch ──────────────────────────────────────────
   useEffect(() => {
@@ -57,9 +60,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Realtime socket lifecycle ──────────────────────────────────────────────
   useEffect(() => {
     if (user?._id && token) {
-      connectRealtime(String(user._id));
+      const s = connectRealtime(String(user._id));
+      setSocket(s);
     } else {
       disconnectRealtime();
+      setSocket(null);
     }
   }, [user?._id, token]);
 
@@ -108,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     logoutUser(); // notify server (fire-and-forget)
     disconnectRealtime();
+    setSocket(null);
     await clearSession();
     setToken(null);
     setUser(null);
@@ -120,6 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token,
         isLoading,
         isAuthenticated: !!token && !!user,
+        socket,
         login,
         signup,
         verifyOtp,
