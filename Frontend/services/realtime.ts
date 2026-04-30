@@ -1,11 +1,13 @@
 import { io, type Socket } from "socket.io-client";
 import { Platform } from "react-native";
 
-export const SOCKET_URL = Platform.select({
-  android: "http://192.168.0.104:3000",
-  ios:     "http://192.168.0.104:3000",
-  default: "http://localhost:3000",
-});
+// export const SOCKET_URL = Platform.select({
+//   android: "http://192.168.0.104:3000",
+//   ios:     "http://192.168.0.104:3000",
+//   default: "http://localhost:3000",
+// });
+
+const SOCKET_URL = "https://blooddonar-hub.onrender.com";
 
 let socket: Socket | null = null;
 let currentUserId: string | null = null;
