@@ -14,5 +14,6 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.radius,
     marginBottom: 12,
     backgroundColor: COLORS.white,
+    color: COLORS.black,
   },
 });

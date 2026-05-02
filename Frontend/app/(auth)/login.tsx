@@ -39,9 +39,7 @@ export default function LoginScreen() {
     try {
       await login(email, password);
     } catch (err: any) {
-      // Display the exact message from the server (ApiError.message)
-      const message = err?.message || err?.data?.message || "Login failed. Please try again.";
-      setError(message);
+      setError(err?.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
