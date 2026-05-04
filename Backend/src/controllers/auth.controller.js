@@ -70,8 +70,9 @@ export const signup = asyncHandler(async (req, res) => {
         expiresIn: otpExpiry,
     });
 
-    const emailResponse = await sendEmailOTP(email, otp);
-    if (!emailResponse) {
+    try {
+        await sendEmailOTP(email, otp);
+    } catch {
         await User.findByIdAndDelete(user._id);
         throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, EMAIL_ERROR);
     }
@@ -107,11 +108,12 @@ export const resendOtp = asyncHandler(async (req, res) => {
     }
 
     const newOtp = uuidv4().replace(/-/g, "").slice(0, 6).toUpperCase();
+
+    await sendEmailOTP(email, newOtp);
+
     isUser.otp = newOtp;
     isUser.expiresIn = Date.now() + 600000;
     await isUser.save({ validateBeforeSave: false });
-
-    await sendEmailOTP(email, newOtp);
 
     return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, RESET_OTP_SECCESS));
 });
