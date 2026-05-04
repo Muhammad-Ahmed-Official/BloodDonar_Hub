@@ -50,48 +50,57 @@ const generateAccessToken = async (userId) => {
 export const signup = asyncHandler(async (req, res) => {
     const { userName, email, password } = req.body;
 
-    if ([userName, email, password].some((field) => typeof field !== "string" || field.trim() === "")) {
+    if ([userName, email, password].some(
+        (field) => typeof field !== "string" || field.trim() === ""
+    )) {
         throw new ApiError(StatusCodes.BAD_REQUEST, MISSING_FIELDS);
     }
 
-    const isUserExist = await User.findOne({ $or: [{ userName }, { email }] });
+    const normalizedUserName = userName.trim().toLowerCase();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const isUserExist = await User.findOne({
+        $or: [{ userName: normalizedUserName }, { email: normalizedEmail }]
+    });
+
     if (isUserExist) {
         throw new ApiError(StatusCodes.CONFLICT, USER_EXISTS);
     }
 
     const otp = uuidv4().replace(/-/g, "").slice(0, 6).toUpperCase();
-    const otpExpiry = Date.now() + 600000; // 10 minutes
+    const otpExpiry = Date.now() + 600000;
+
+    try {
+        await sendEmailOTP(normalizedEmail, otp);
+    } catch (err) {
+        console.error("Email error:", err); // stop hiding real errors
+        throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, EMAIL_ERROR);
+    }
 
     const user = await User.create({
-        userName: userName.trim().toLowerCase(),
-        email: email.trim().toLowerCase(),
+        userName: normalizedUserName,
+        email: normalizedEmail,
         password,
         otp,
         expiresIn: otpExpiry,
     });
 
-    try {
-        await sendEmailOTP(email, otp);
-    } catch {
-        await User.findByIdAndDelete(user._id);
-        throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, EMAIL_ERROR);
-    }
-
     const { accessToken } = await generateAccessToken(user._id);
 
-    const createdUser = await User.findById(user._id).select("-password -otp -expiresIn");
-    if (!createdUser) {
-        throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, NO_USER);
-    }
+    const createdUser = await User.findById(user._id)
+        .select("-password -otp -expiresIn");
 
-    const options = { httpOnly: true, secure: process.env.NODE_ENV === "production" };
+    const options = { httpOnly: true, secure: true };
 
     return res
         .status(StatusCodes.CREATED)
         .cookie("accessToken", accessToken, options)
-        .send(new ApiResponse(StatusCodes.CREATED, SUCCESS_REGISTRATION, { user: createdUser, accessToken }));
+        .send(new ApiResponse(
+            StatusCodes.CREATED,
+            SUCCESS_REGISTRATION,
+            { user: createdUser, accessToken }
+        ));
 });
-
 
 // @desc    RESEND OTP
 // @route   POST /api/v1/auth/resend-otp

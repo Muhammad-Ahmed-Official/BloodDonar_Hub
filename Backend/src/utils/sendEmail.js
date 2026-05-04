@@ -1,34 +1,30 @@
 import nodemailer from "nodemailer";
 import { SEND_EMAIL_CODE } from "../email/template.js";
+const emailConfig = {
+    service: "gmail",
+    auth: {
+        user: process.env.PORTAL_EMAIL,
+        pass: process.env.PORTAL_PASSWORD,
+    },
+};
 
-async function sendEmailOTP(mail, otp) {
-    const user = process.env.PORTAL_EMAIL;
-    const pass = (process.env.PORTAL_PASSWORD || "").replace(/\s+/g, "");
-
-    if (!user || !pass) {
-        throw new Error("PORTAL_EMAIL or PORTAL_PASSWORD env var is not set.");
-    }
-
-    const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: { user, pass },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 15000,
-    });
-
+async function sendEmailOTP(mail, otp) { 
+    const transporter = nodemailer.createTransport(emailConfig);
     const mailOptions = {
-        from: `"Blood Donor Hub" <${user}>`,
-        to: mail,
-        subject: "Your OTP Code",
+        from: process.env.PORTAL_EMAIL,
+        to: mail, 
+        subject: "Blood Donor Hub Password Reset OTP",
         html: SEND_EMAIL_CODE(otp),
     };
 
     try {
         await transporter.sendMail(mailOptions);
+        return `OTP sent to ${mail} via email`;
     } catch (error) {
-        throw new Error(`Failed to send OTP email: ${error?.message || error}`);
+        throw new Error(
+            `Error sending OTP to ${mail} via email: ${error?.message || error}`,
+        );
     }
 }
 
-export { sendEmailOTP };
+export { sendEmailOTP }
