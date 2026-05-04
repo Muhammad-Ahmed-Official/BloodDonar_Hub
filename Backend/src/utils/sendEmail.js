@@ -1,23 +1,24 @@
 import nodemailer from "nodemailer";
 import { SEND_EMAIL_CODE } from "../email/template.js";
 
-// Gmail App Passwords are displayed with spaces for readability but must be sent without them
-const appPassword = (process.env.PORTAL_PASSWORD || "").replace(/\s+/g, "");
-
-const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-        user: process.env.PORTAL_EMAIL,
-        pass: appPassword,
-    },
-    connectionTimeout: 10000,  // fail fast if Gmail SMTP unreachable (default is 2 min)
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-});
-
 async function sendEmailOTP(mail, otp) {
+    const user = process.env.PORTAL_EMAIL;
+    const pass = (process.env.PORTAL_PASSWORD || "").replace(/\s+/g, "");
+
+    if (!user || !pass) {
+        throw new Error("PORTAL_EMAIL or PORTAL_PASSWORD env var is not set.");
+    }
+
+    const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: { user, pass },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+    });
+
     const mailOptions = {
-        from: `"Blood Donor Hub" <${process.env.PORTAL_EMAIL}>`,
+        from: `"Blood Donor Hub" <${user}>`,
         to: mail,
         subject: "Your OTP Code",
         html: SEND_EMAIL_CODE(otp),
