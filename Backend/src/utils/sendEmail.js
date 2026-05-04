@@ -8,21 +8,21 @@ const emailConfig = {
     },
 };
 
-async function sendEmailOTP(mail, otp) { 
-    const transporter = nodemailer.createTransport(emailConfig);
+async function sendEmailOTP(mail, otp) {
     const mailOptions = {
-        from: process.env.PORTAL_EMAIL,
-        to: mail, 
-        subject: "Blood Donor Hub Password Reset OTP",
+        from: `"Blood Donor Hub" <${process.env.PORTAL_EMAIL}>`,
+        to: mail,
+        subject: "Blood Donor Hub OTP",
         html: SEND_EMAIL_CODE(otp),
     };
 
     try {
         await transporter.sendMail(mailOptions);
-        return `OTP sent to ${mail} via email`;
+        return `OTP sent to ${mail}`;
     } catch (error) {
+        console.error("SMTP ERROR FULL:", error); // don’t hide it
         throw new Error(
-            `Error sending OTP to ${mail} via email: ${error?.message || error}`,
+            `Error sending OTP: ${error?.message || error}`
         );
     }
 }
