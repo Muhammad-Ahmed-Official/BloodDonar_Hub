@@ -8,72 +8,91 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SIZES, SHADOW } from "@/constants/theme";
-import { useCallback, useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getProfile } from "@/services/user.service";
+import { getMyAssignments, getMyRequests } from "@/services/bloodRequest.service";
+import { getRealtimeSocket } from "@/services/realtime";
 
-type DonationRequestItem = {
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type DonorItem = {
   _id: string;
-  donarName?: string;
-  city?: string;
-  bloodGroup?: string;
-  hospitalName?: string;
-  location?: string;
-  contactPersonName?: string;
-  status?: string;
+  requestId: string;
+  receiverName: string;
+  city: string;
+  bloodGroup: string;
+  hospitalName: string;
+  units: number;
+  status: "in_progress" | "completed";
+  donorStatus: string;
 };
 
-const TAB_KEYS = ["progress", "completed"] as const;
-type TabKey = (typeof TAB_KEYS)[number];
-
-const TAB_LABEL: Record<TabKey, string> = {
-  progress: "IN PROGRESS",
-  completed: "COMPLETED",
-  // cancelled: "CANCELLED",
+type ReceiverItem = {
+  _id: string;
+  requestId: string;
+  donarName: string;
+  city: string;
+  bloodGroup: string;
+  hospitalName: string;
+  units: number;
+  status: "pending" | "completed" | "cancelled";
 };
 
-function apiStatusForTab(tab: TabKey): string {
-  if (tab === "progress") return "in_progress";
-  return tab;
-}
+// ─── Tab Config ───────────────────────────────────────────────────────────────
+
+const MAIN_TAB_KEYS = ["donor", "receiver"] as const;
+type MainTabKey = (typeof MAIN_TAB_KEYS)[number];
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function ActivityScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabKey>("progress");
-  const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<DonationRequestItem[]>([]);
-  const [err, setErr] = useState("");
+  const [mainTab, setMainTab] = useState<MainTabKey>("donor");
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setErr("");
+  const [donorItems, setDonorItems] = useState<DonorItem[]>([]);
+  const [receiverItems, setReceiverItems] = useState<ReceiverItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchAll = useCallback(async () => {
     try {
-      const res = await getProfile();
-      const raw = res?.data?.donationRequests;
-      const list = Array.isArray(raw) ? raw : [];
-      setItems(list as DonationRequestItem[]);
-    } catch (e: unknown) {
-      const msg =
-        typeof e === "object" && e !== null && "message" in e
-          ? String((e as { message: string }).message)
-          : "Could not load activity";
-      setErr(msg);
-      setItems([]);
+      const [assignRes, reqRes] = await Promise.all([
+        getMyAssignments(),
+        getMyRequests(),
+      ]);
+      setDonorItems(assignRes?.data ?? []);
+      setReceiverItems(reqRes?.data ?? []);
+    } catch (err) {
+      console.error("[Activity] fetch error:", err);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    fetchAll();
+  }, [fetchAll]);
 
-  const filtered = items.filter((item) => (item.status ?? "in_progress") === apiStatusForTab(activeTab));
+  // Real-time: re-fetch when a requestUpdated event arrives on this user's socket room
+  useEffect(() => {
+    const socket = getRealtimeSocket();
+    if (!socket) return;
+
+    function onRequestUpdated() {
+      fetchAll();
+    }
+
+    socket.on("requestUpdated", onRequestUpdated);
+    return () => {
+      socket.off("requestUpdated", onRequestUpdated);
+    };
+  }, [fetchAll]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.container}>
+
+        {/* ── Header ── */}
         <View style={styles.headerBlock}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={24} color="#fff" />
@@ -82,29 +101,41 @@ export default function ActivityScreen() {
           <View style={styles.headerSpacer} />
         </View>
 
-        <View style={styles.tabsWrapper}>
-          {TAB_KEYS.map((tab) => (
+        {/* ── Main Tabs: Donor / Receiver ── */}
+        <View style={styles.mainTabsWrapper}>
+          {MAIN_TAB_KEYS.map((tab) => (
             <TouchableOpacity
               key={tab}
-              style={[styles.tabBtn, activeTab === tab && styles.tabBtnActive]}
-              onPress={() => setActiveTab(tab)}
+              style={[styles.mainTabBtn, mainTab === tab && styles.mainTabBtnActive]}
+              onPress={() => setMainTab(tab)}
             >
-              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{TAB_LABEL[tab]}</Text>
+              <Text style={[styles.mainTabText, mainTab === tab && styles.mainTabTextActive]}>
+                {tab === "donor" ? "DONOR" : "RECEIVER"}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
 
+        {/* ── Content ── */}
         {loading ? (
-          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 32 }} />
-        ) : err ? (
-          <Text style={styles.emptyText}>{err}</Text>
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator color={COLORS.primary} size="large" />
+          </View>
+        ) : mainTab === "donor" ? (
+          <FlatList
+            data={donorItems}
+            keyExtractor={(item) => item._id}
+            contentContainerStyle={styles.listContent}
+            renderItem={({ item }) => <DonorCard item={item} />}
+            ListEmptyComponent={<Text style={styles.emptyText}>No donation assignments yet.</Text>}
+          />
         ) : (
           <FlatList
-            data={filtered}
-            keyExtractor={(item) => String(item._id)}
+            data={receiverItems}
+            keyExtractor={(item) => item._id}
             contentContainerStyle={styles.listContent}
-            renderItem={({ item }) => <ActivityCard item={item} />}
-            ListEmptyComponent={<Text style={styles.emptyText}>No records found.</Text>}
+            renderItem={({ item }) => <ReceiverCard item={item} />}
+            ListEmptyComponent={<Text style={styles.emptyText}>No blood requests yet.</Text>}
           />
         )}
       </View>
@@ -112,62 +143,107 @@ export default function ActivityScreen() {
   );
 }
 
-function ActivityCard({ item }: { item: DonationRequestItem }) {
-  const status = item.status ?? "in_progress";
+// ─── Donor Card ───────────────────────────────────────────────────────────────
+
+function DonorCard({ item }: { item: DonorItem }) {
+  const getStatusStyle = () => {
+    switch (item.donorStatus) {
+      case "completed":  return { backgroundColor: "#34C759" };
+      case "accepted":   return { backgroundColor: "#007AFF" };
+      case "rejected":
+      case "cancelled":  return { backgroundColor: "#FF3B30" };
+      default:           return { backgroundColor: "#FF9500" };
+    }
+  };
 
   const getStatusLabel = () => {
-    switch (status) {
-      case "completed":
-        return "Completed";
-      // case "cancelled":
-      //   return "Cancelled";
-      case "in_progress":
-      default:
-        return "In progress";
+    switch (item.donorStatus) {
+      case "completed":  return "Completed";
+      case "accepted":   return "Accepted";
+      case "rejected":   return "Rejected";
+      case "cancelled":  return "Cancelled";
+      default:           return "Pending";
     }
   };
-
-  const getStatusStyle = () => {
-    switch (status) {
-      case "completed":
-        return { backgroundColor: "#34C759" };
-      // case "cancelled":
-      //   return { backgroundColor: "#FF3B30" };
-      default:
-        return { backgroundColor: "#FF9500" };
-    }
-  };
-
-  const title = item.donarName?.trim() ? item.donarName : "Blood request";
-  const loc = item.location?.trim() || item.city?.trim() || "—";
-  const donateTo = item.contactPersonName?.trim() || item.hospitalName?.trim() || "—";
 
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
-        <Text style={styles.receiverName}>{title}</Text>
+        <Text style={styles.cardName}>{item.receiverName}</Text>
         <View style={[styles.statusBadge, getStatusStyle()]}>
           <Text style={styles.statusText}>{getStatusLabel()}</Text>
         </View>
       </View>
 
-      <Text style={styles.locationText}>{loc}</Text>
+      <Text style={styles.locationText}>{item.city}</Text>
 
       <View style={styles.divider} />
 
       <View style={styles.infoRow}>
         <View style={styles.infoBlock}>
-          <Text style={styles.infoLabel}>Donate to</Text>
+          <Text style={styles.infoLabel}>Hospital</Text>
           <Text style={styles.infoLabel}>Blood Group</Text>
+          <Text style={styles.infoLabel}>Units</Text>
         </View>
         <View style={styles.infoBlock}>
-          <Text style={styles.infoValue}>{donateTo}</Text>
-          <Text style={styles.infoValue}>{item.bloodGroup ?? "—"}</Text>
+          <Text style={styles.infoValue}>{item.hospitalName}</Text>
+          <Text style={styles.infoValue}>{item.bloodGroup}</Text>
+          <Text style={styles.infoValue}>{item.units} {item.units === 1 ? "unit" : "units"}</Text>
         </View>
       </View>
     </View>
   );
 }
+
+// ─── Receiver Card ────────────────────────────────────────────────────────────
+
+function ReceiverCard({ item }: { item: ReceiverItem }) {
+  const getStatusStyle = () => {
+    switch (item.status) {
+      case "completed": return { backgroundColor: "#34C759" };
+      case "cancelled": return { backgroundColor: "#FF3B30" };
+      default:          return { backgroundColor: "#007AFF" };
+    }
+  };
+
+  const getStatusLabel = () => {
+    switch (item.status) {
+      case "completed": return "Completed";
+      case "cancelled": return "Cancelled";
+      default:          return "Pending";
+    }
+  };
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.topRow}>
+        <Text style={styles.cardName}>{item.donarName}</Text>
+        <View style={[styles.statusBadge, getStatusStyle()]}>
+          <Text style={styles.statusText}>{getStatusLabel()}</Text>
+        </View>
+      </View>
+
+      <Text style={styles.locationText}>{item.city}</Text>
+
+      <View style={styles.divider} />
+
+      <View style={styles.infoRow}>
+        <View style={styles.infoBlock}>
+          <Text style={styles.infoLabel}>Hospital</Text>
+          <Text style={styles.infoLabel}>Blood Group</Text>
+          <Text style={styles.infoLabel}>Units</Text>
+        </View>
+        <View style={styles.infoBlock}>
+          <Text style={styles.infoValue}>{item.hospitalName}</Text>
+          <Text style={styles.infoValue}>{item.bloodGroup}</Text>
+          <Text style={styles.infoValue}>{item.units} {item.units === 1 ? "unit" : "units"}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -179,6 +255,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8F8F8",
   },
 
+  // Header
   headerBlock: {
     backgroundColor: COLORS.primary,
     flexDirection: "row",
@@ -213,28 +290,29 @@ const styles = StyleSheet.create({
     width: 40,
   },
 
-  tabsWrapper: {
+  // Main Tabs (Donor / Receiver)
+  mainTabsWrapper: {
     flexDirection: "row",
     backgroundColor: COLORS.primary,
     borderRadius: 50,
     padding: 6,
     marginHorizontal: SIZES.padding,
     marginTop: 24,
-    marginBottom: 8,
+    marginBottom: 16,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
   },
-  tabBtn: {
+  mainTabBtn: {
     flex: 1,
     paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 50,
   },
-  tabBtnActive: {
+  mainTabBtnActive: {
     backgroundColor: "#fff",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -242,23 +320,24 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  tabText: {
+  mainTabText: {
     color: "rgba(255,255,255,0.7)",
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "600",
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
-  tabTextActive: {
+  mainTabTextActive: {
     color: COLORS.primary,
     fontWeight: "800",
-    fontSize: 10,
-    letterSpacing: 0.3,
+    fontSize: 12,
+    letterSpacing: 0.5,
   },
 
+  // List
   listContent: {
     paddingHorizontal: SIZES.padding,
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingTop: 4,
+    paddingBottom: 24,
   },
   emptyText: {
     textAlign: "center",
@@ -266,7 +345,13 @@ const styles = StyleSheet.create({
     marginTop: 40,
     fontSize: 14,
   },
+  loadingWrap: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 
+  // Card
   card: {
     backgroundColor: "#fff",
     borderRadius: 16,
@@ -280,7 +365,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 6,
   },
-  receiverName: {
+  cardName: {
     fontSize: 16,
     fontWeight: "700",
     color: "#1A1A1A",
@@ -309,7 +394,7 @@ const styles = StyleSheet.create({
   },
   infoRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 24,
   },
   infoBlock: {
     gap: 4,

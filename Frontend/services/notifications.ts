@@ -1,3 +1,5 @@
+import api from "./api";
+
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
 export interface BloodRequestPayload {
@@ -13,13 +15,21 @@ export interface BloodRequestPayload {
   channelId: string;
 }
 
-/** Placeholder — replace with real API call to store token per user */
+/**
+ * Persist the device's Expo push token to the backend.
+ * The backend uses this token to send server-side push notifications
+ * that work even when the app is closed.
+ */
 export const saveExpoPushTokenToBackend = async (
   token: string,
-  userId: string
+  _userId: string
 ): Promise<void> => {
-  // TODO: await api.patch(`/users/${userId}/push-token`, { expoPushToken: token });
-  console.log("[PushToken] saved for user", userId, "→", token);
+  try {
+    await api.patch("user/push-token", { expoPushToken: token });
+    console.log("[PushToken] Saved to backend:", token);
+  } catch (err) {
+    console.error("[PushToken] Failed to save:", err);
+  }
 };
 
 /** Send a blood donation request notification to a single device */

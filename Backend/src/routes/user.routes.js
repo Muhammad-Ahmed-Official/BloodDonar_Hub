@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { verifyJwt } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
-import { profileSetUp, getProfile, changeNumber, updateProfile, medicalInfo, getMedicalInfo, donationRequest, deleteRequest, getAllRequests, getRequestById, getPublicUserProfile, getDonors } from "../controllers/user.controller.js";
+import { profileSetUp, getProfile, changeNumber, updateProfile, medicalInfo, getMedicalInfo, donationRequest, deleteRequest, getAllRequests, getRequestById, getPublicUserProfile, getDonors, savePushToken } from "../controllers/user.controller.js";
 
 const userRouter = Router();
 
@@ -26,5 +26,8 @@ userRouter.route("/requests/:id").get(getRequestById).delete(deleteRequest);
 
 // Donors
 userRouter.route("/donors").get(getDonors);
+
+// Push token — must be registered so backend can send notifications to this device
+userRouter.route("/push-token").patch(savePushToken);
 
 export default userRouter;

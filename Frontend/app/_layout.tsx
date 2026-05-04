@@ -1,13 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
+import * as Notifications from "expo-notifications";
 import "react-native-reanimated";
 import AppProvider from "@/context/AppProvider";
 import { useAuth } from "@/context/AuthContext";
 import { COLORS } from "@/constants/theme";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { saveExpoPushTokenToBackend } from "@/services/notifications";
+import BloodRequestModal from "@/components/BloodRequestModal";
+import ConfirmDonationModal from "@/components/ConfirmDonationModal";
 
 // ─── Route Guard ──────────────────────────────────────────────────────────────
 //
@@ -83,6 +86,74 @@ function PushNotificationSetup() {
   return null;
 }
 
+// ─── Notification Tap Handler ─────────────────────────────────────────────────
+// Handles taps on push notifications whether the app is foregrounded,
+// backgrounded, or was completely killed. The Expo notification response
+// listener fires in all three cases.
+
+type PendingNotif =
+  | { type: "BLOOD_REQUEST"; requestId: string }
+  | { type: "DONATION_CONFIRMATION"; requestId: string }
+  | null;
+
+function NotificationHandler() {
+  const router = useRouter();
+  const [pending, setPending] = useState<PendingNotif>(null);
+  const listenerRef = useRef<Notifications.EventSubscription | null>(null);
+
+  useEffect(() => {
+    // Check if app was opened FROM a killed state by a notification tap
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) handleResponse(response);
+    });
+
+    // Fires when notification is tapped while app is in foreground or background
+    listenerRef.current = Notifications.addNotificationResponseReceivedListener(
+      handleResponse
+    );
+
+    return () => {
+      listenerRef.current?.remove();
+    };
+  }, []);
+
+  function handleResponse(response: Notifications.NotificationResponse) {
+    const data = response.notification.request.content.data as {
+      type?: string;
+      requestId?: string;
+    };
+
+    if (!data?.type || !data?.requestId) return;
+
+    if (data.type === "BLOOD_REQUEST") {
+      router.replace("/(tabs)");
+      setPending({ type: "BLOOD_REQUEST", requestId: data.requestId });
+    } else if (data.type === "DONATION_CONFIRMATION") {
+      router.replace("/(tabs)");
+      setPending({ type: "DONATION_CONFIRMATION", requestId: data.requestId });
+    }
+  }
+
+  function clearPending() {
+    setPending(null);
+  }
+
+  return (
+    <>
+      <BloodRequestModal
+        visible={pending?.type === "BLOOD_REQUEST"}
+        requestId={pending?.requestId ?? ""}
+        onClose={clearPending}
+      />
+      <ConfirmDonationModal
+        visible={pending?.type === "DONATION_CONFIRMATION"}
+        requestId={pending?.requestId ?? ""}
+        onClose={clearPending}
+      />
+    </>
+  );
+}
+
 // ─── Root Layout ──────────────────────────────────────────────────────────────
 
 export default function RootLayout() {
@@ -90,6 +161,7 @@ export default function RootLayout() {
     <AppProvider>
         <RouteGuard />
         <PushNotificationSetup />
+        <NotificationHandler />
         <Stack
           screenOptions={{
             headerShown: false,

@@ -5,6 +5,7 @@ import authRouter from "./routes/auth.routes.js";
 import userRouter from "./routes/user.routes.js";
 import adminRouter from "./routes/admin.routes.js";
 import chatRouter from "./routes/chat.routes.js";
+import bloodRequestRouter from "./routes/bloodRequest.routes.js";
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1/chat", chatRouter);
+app.use("/api/v1/bloodRequest", bloodRequestRouter);
 
 // Global error handler
 app.use((err, req, res, next) => {

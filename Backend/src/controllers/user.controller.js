@@ -425,6 +425,26 @@ export const getPublicUserProfile = asyncHandler(async (req, res) => {
 });
 
 
+// ─── PUSH TOKEN ──────────────────────────────────────────────────────────────
+
+// @desc    Save / update Expo push token for this device
+// @route   PATCH /api/v1/user/push-token
+// @access  Private
+export const savePushToken = asyncHandler(async (req, res) => {
+    const { expoPushToken } = req.body;
+
+    if (!expoPushToken) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, MISSING_FIELDS);
+    }
+
+    await User.findByIdAndUpdate(req.user._id, { expoPushToken });
+
+    return res.status(StatusCodes.OK).send(
+        new ApiResponse(StatusCodes.OK, UPDATE_SUCCESS_MESSAGES, null)
+    );
+});
+
+
 // ─── DONORS LIST ─────────────────────────────────────────────────────────────
 
 // @desc    Get donors list with optional filters
