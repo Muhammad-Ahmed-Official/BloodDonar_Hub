@@ -1,32 +1,33 @@
 import nodemailer from "nodemailer";
 import { SEND_EMAIL_CODE } from "../email/template.js";
-const emailConfig = {
+
+// Gmail App Passwords are displayed with spaces for readability but must be sent without them
+const appPassword = (process.env.PORTAL_PASSWORD || "").replace(/\s+/g, "");
+
+const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
         user: process.env.PORTAL_EMAIL,
-        pass: process.env.PORTAL_PASSWORD,
+        pass: appPassword,
     },
-};
+    connectionTimeout: 10000,  // fail fast if Gmail SMTP unreachable (default is 2 min)
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+});
 
-async function sendEmailOTP(mail, otp) { 
-    const transporter = nodemailer.createTransport(emailConfig);
+async function sendEmailOTP(mail, otp) {
     const mailOptions = {
-        from: process.env.PORTAL_EMAIL,
-        to: mail, 
-        subject: "OTP ",
+        from: `"Blood Donor Hub" <${process.env.PORTAL_EMAIL}>`,
+        to: mail,
+        subject: "Your OTP Code",
         html: SEND_EMAIL_CODE(otp),
     };
 
     try {
         await transporter.sendMail(mailOptions);
-        return `OTP sent to ${mail} via email`;
     } catch (error) {
-        throw new Error(
-            `Error sending OTP to ${mail} via email: ${error?.message || error}`,
-        );
+        throw new Error(`Failed to send OTP email: ${error?.message || error}`);
     }
 }
 
-
-
-export { sendEmailOTP }
+export { sendEmailOTP };
