@@ -13,10 +13,12 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { COLORS, SIZES, SHADOW } from "../../../constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { getProfile, updateProfile } from "@/services/user.service";
 import { useLanguage } from "@/context/LanguageContext";
+import { saveExpoPushTokenToBackend, clearExpoPushToken, getLocalPushToken } from "@/services/notifications";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -34,6 +36,7 @@ export default function ProfileScreen() {
 
   const [isAvailable, setIsAvailable] = useState(true);
   const [isNotif, setIsNotif] = useState(true);
+  const [savingNotif, setSavingNotif] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -51,7 +54,10 @@ export default function ProfileScreen() {
     (async () => {
       setProfileLoading(true);
       try {
-        const res = await getProfile();
+        const [res, notifPref] = await Promise.all([
+          getProfile(),
+          AsyncStorage.getItem("notifications_enabled"),
+        ]);
         const d = res?.data;
         if (cancelled) return;
         setUserInfo(d?.userInfo ?? null);
@@ -64,6 +70,7 @@ export default function ProfileScreen() {
         setInProgressDonationCount(cnt);
         setProfilePic(d?.userInfo?.pic || null);
         setIsAvailable(d?.userInfo?.canDonateBlood === "yes");
+        setIsNotif(notifPref !== "false");
       } catch {
         if (!cancelled) {
           setUserInfo(null);
@@ -88,6 +95,25 @@ export default function ProfileScreen() {
       setIsAvailable(!val);
     } finally {
       setSavingAvail(false);
+    }
+  };
+
+  const onNotifChange = async (val: boolean) => {
+    setIsNotif(val);
+    setSavingNotif(true);
+    try {
+      await AsyncStorage.setItem("notifications_enabled", String(val));
+      if (val) {
+        const token = await getLocalPushToken();
+        if (token) await saveExpoPushTokenToBackend(token, user?._id ?? "");
+      } else {
+        await clearExpoPushToken();
+      }
+    } catch {
+      setIsNotif(!val);
+      await AsyncStorage.setItem("notifications_enabled", String(!val)).catch(() => {});
+    } finally {
+      setSavingNotif(false);
     }
   };
 
@@ -154,7 +180,8 @@ export default function ProfileScreen() {
           </View>
           <Switch
             value={isNotif}
-            onValueChange={setIsNotif}
+            onValueChange={onNotifChange}
+            disabled={savingNotif || profileLoading}
             trackColor={{ true: '#f38e8e', false: "#E0E0E0" }}
             thumbColor={COLORS.white}
             ios_backgroundColor="#E0E0E0"

@@ -12,6 +12,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { getRequestById } from "@/services/user.service";
 import { useLanguage } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function RequestDetails() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function RequestDetails() {
   const { id } = useLocalSearchParams();
   const requestId = Array.isArray(id) ? id[0] : id;
 
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -66,14 +68,16 @@ export default function RequestDetails() {
           </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.btn}
-          onPress={() =>
-            router.push({ pathname: "/(stack)/request/", params: { userId: data.userId._id } })
-          }
-        >
-          <Text style={styles.btnText}>View Profile</Text>
-        </TouchableOpacity>
+        {user?._id !== data?.userId?._id && (
+          <TouchableOpacity
+            style={styles.btn}
+            onPress={() =>
+              router.push({ pathname: "/(stack)/request/", params: { userId: data.userId._id } })
+            }
+          >
+            <Text style={styles.btnText}>View Profile</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Patient Details */}

@@ -3,6 +3,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import * as Notifications from "expo-notifications";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import "react-native-reanimated";
 import AppProvider from "@/context/AppProvider";
 import { useAuth } from "@/context/AuthContext";
@@ -78,9 +79,12 @@ function PushNotificationSetup() {
   const { expoPushToken } = usePushNotifications();
 
   useEffect(() => {
-    if (expoPushToken && user?._id) {
-      saveExpoPushTokenToBackend(expoPushToken, user._id).catch(console.error);
-    }
+    if (!expoPushToken || !user?._id) return;
+    AsyncStorage.getItem("notifications_enabled").then((stored) => {
+      if (stored !== "false") {
+        saveExpoPushTokenToBackend(expoPushToken, user._id).catch(console.error);
+      }
+    });
   }, [expoPushToken, user?._id]);
 
   return null;

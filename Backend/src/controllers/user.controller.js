@@ -49,12 +49,10 @@ export const profileSetUp = asyncHandler(async (req, res) => {
     const { mobileNumber, bloodGroup, city, dateOfBirth, gender, canDonateBlood, about } = req.body;
 
     if (!mobileNumber || !bloodGroup || !city || !dateOfBirth || !gender || canDonateBlood === undefined) {
-        // Clean up uploaded file if validation fails
         if (req.file?.path) fs.unlinkSync(req.file.path);
         throw new ApiError(StatusCodes.BAD_REQUEST, MISSING_FIELDS);
     }
 
-    // Handle optional avatar upload
     let picUrl = "";
     if (req.file?.path) {
         const uploaded = await uploadOnCloudinary(req.file.path);
@@ -156,7 +154,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
     const profile = await UserInfo.findOneAndUpdate(
         { user: userId },
         { $set: updates },
-        { new: true, upsert: true, runValidators: false }
+        { returnDocument: "after", upsert: true, runValidators: false }
     );
 
     return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, UPDATE_SUCCESS_MESSAGES, profile));
@@ -186,7 +184,7 @@ export const medicalInfo = asyncHandler(async (req, res) => {
                 medicalInfo: { diabetes, headOrLungsProblem, recentCovid, cancerHistory, hivAidsTest, recentVaccination },
             },
         },
-        { new: true, upsert: true }
+        { returnDocument: "after", upsert: true }
     );
 
     return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, ADD_SUCCESS_MESSAGES, userInfo.medicalInfo));
@@ -246,7 +244,7 @@ export const donationRequest = asyncHandler(async (req, res) => {
     const donar = await Donar.findOneAndUpdate(
         { user: userId },
         { $push: { requests: newItem } },
-        { new: true, upsert: true }
+        { returnDocument: "after", upsert: true }
     );
 
     const created = (donar.requests ?? []).at(-1);
@@ -433,11 +431,12 @@ export const getPublicUserProfile = asyncHandler(async (req, res) => {
 export const savePushToken = asyncHandler(async (req, res) => {
     const { expoPushToken } = req.body;
 
-    if (!expoPushToken) {
+    // Allow null to clear the token (user disabled notifications)
+    if (expoPushToken === undefined) {
         throw new ApiError(StatusCodes.BAD_REQUEST, MISSING_FIELDS);
     }
 
-    await User.findByIdAndUpdate(req.user._id, { expoPushToken });
+    await User.findByIdAndUpdate(req.user._id, { expoPushToken: expoPushToken || null });
 
     return res.status(StatusCodes.OK).send(
         new ApiResponse(StatusCodes.OK, UPDATE_SUCCESS_MESSAGES, null)

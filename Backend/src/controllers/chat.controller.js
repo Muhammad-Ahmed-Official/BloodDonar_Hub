@@ -202,7 +202,7 @@ export const editMessage = asyncHandler(async (req, res) => {
     const updated = await Chat.findOneAndUpdate(
         { customId },
         { $set: { message: message.trim() } },
-        { new: true }
+        { returnDocument: "after" }
     );
 
     return res.status(StatusCodes.OK).send(

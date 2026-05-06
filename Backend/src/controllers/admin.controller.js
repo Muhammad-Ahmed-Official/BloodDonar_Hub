@@ -232,7 +232,7 @@ export const updateUserByAdmin = asyncHandler(async (req, res) => {
     if (req.body.email !== undefined) userUpdates.email = String(req.body.email).trim().toLowerCase();
 
     if (Object.keys(userUpdates).length > 0) {
-        await User.findByIdAndUpdate(id, { $set: userUpdates }, { new: true, runValidators: true });
+        await User.findByIdAndUpdate(id, { $set: userUpdates }, { returnDocument: "after", runValidators: true });
     }
 
     const profileFields = ["mobileNumber", "bloodGroup", "city", "country", "about"];
@@ -263,7 +263,7 @@ export const updateUserByAdmin = asyncHandler(async (req, res) => {
     }
 
     if (Object.keys(profileUpdates).length > 0) {
-        await UserInfo.findOneAndUpdate({ user: id }, { $set: profileUpdates }, { upsert: true, new: true });
+        await UserInfo.findOneAndUpdate({ user: id }, { $set: profileUpdates }, { upsert: true, returnDocument: "after" });
     }
 
     const updatedUser = await User.findById(id).select("-password -otp -expiresIn");
@@ -420,7 +420,7 @@ export const deleteDonationRequest = asyncHandler(async (req, res) => {
     const pulled = await Donar.findOneAndUpdate(
         { "requests._id": paramId },
         { $pull: { requests: { _id: paramId } } },
-        { new: true }
+        { returnDocument: "after" }
     );
 
     if (pulled) {

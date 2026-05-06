@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import api from "./api";
 
 export const createProfile = async (
@@ -24,17 +25,27 @@ export const createProfile = async (
     });
 
     if (avatarUri) {
-      const rawName  = avatarUri.split("/").pop() ?? "avatar.jpg";
-      const hasDot   = rawName.includes(".");
-      // Android content:// URIs often have no extension — fall back to "jpg"
-      const ext      = hasDot ? rawName.split(".").pop()!.toLowerCase() : "jpg";
-      const mimeType = ext === "png" ? "image/png" : "image/jpeg";
-      const fileName = hasDot ? rawName : `avatar.${ext}`;
-      formData.append("avatar", { uri: avatarUri, name: fileName, type: mimeType } as any);
+      if (Platform.OS === "web") {
+        // blob: URIs only exist in browser memory — fetch and convert to File
+        const fetchResp = await fetch(avatarUri);
+        const blob = await fetchResp.blob();
+        const ext = blob.type.includes("png") ? "png" : "jpg";
+        formData.append("avatar", new File([blob], `avatar.${ext}`, { type: blob.type || "image/jpeg" }));
+      } else {
+        const rawName  = avatarUri.split("/").pop() ?? "avatar.jpg";
+        const hasDot   = rawName.includes(".");
+        const ext      = hasDot ? rawName.split(".").pop()!.toLowerCase() : "jpg";
+        const mimeType = ext === "png" ? "image/png" : "image/jpeg";
+        const fileName = hasDot ? rawName : `avatar.${ext}`;
+        formData.append("avatar", { uri: avatarUri, name: fileName, type: mimeType } as any);
+      }
     }
 
+    // Native: explicitly set Content-Type so React Native XHR appends the boundary.
+    // Web: omit it — the browser sets multipart/form-data + boundary automatically.
     const res = await api.post("user/createProfile", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
+      headers: Platform.OS !== "web" ? { "Content-Type": "multipart/form-data" } : undefined,
+      timeout: 30000,
     });
     return res.data;
   } catch (error: any) {
@@ -53,18 +64,48 @@ export const getProfile = async () => {
 };
 
 
-export const updateProfile = async (data: Partial<{
-  mobileNumber: string;
-  bloodGroup: string;
-  city: string;
-  dateOfBirth: string;
-  gender: string;
-  canDonateBlood: "yes" | "no";
-  about: string;
-  country: string;
-}>) => {
+export const updateProfile = async (
+  data: Partial<{
+    mobileNumber: string;
+    bloodGroup: string;
+    city: string;
+    dateOfBirth: string;
+    gender: string;
+    canDonateBlood: "yes" | "no";
+    about: string;
+    country: string;
+  }>,
+  avatarUri?: string
+) => {
   try {
-    const res = await api.put("user/profile", data);
+    const formData = new FormData();
+
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") {
+        formData.append(key, value as string);
+      }
+    });
+
+    if (avatarUri) {
+      if (Platform.OS === "web") {
+        const fetchResp = await fetch(avatarUri);
+        const blob = await fetchResp.blob();
+        const ext = blob.type.includes("png") ? "png" : "jpg";
+        formData.append("avatar", new File([blob], `avatar.${ext}`, { type: blob.type || "image/jpeg" }));
+      } else {
+        const rawName  = avatarUri.split("/").pop() ?? "avatar.jpg";
+        const hasDot   = rawName.includes(".");
+        const ext      = hasDot ? rawName.split(".").pop()!.toLowerCase() : "jpg";
+        const mimeType = ext === "png" ? "image/png" : "image/jpeg";
+        const fileName = hasDot ? rawName : `avatar.${ext}`;
+        formData.append("avatar", { uri: avatarUri, name: fileName, type: mimeType } as any);
+      }
+    }
+
+    const res = await api.put("user/profile", formData, {
+      headers: Platform.OS !== "web" ? { "Content-Type": "multipart/form-data" } : undefined,
+      timeout: 30000,
+    });
     return res.data;
   } catch (error: any) {
     throw error?.response?.data || { message: "Profile update failed" };

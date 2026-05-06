@@ -70,12 +70,12 @@ export const signup = asyncHandler(async (req, res) => {
     const otp = uuidv4().replace(/-/g, "").slice(0, 6).toUpperCase();
     const otpExpiry = Date.now() + 600000;
 
-    try {
-        await sendEmailOTP(normalizedEmail, otp);
-    } catch (err) {
-        console.error("Email error:", err); // stop hiding real errors
-        throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, EMAIL_ERROR);
-    }
+    // try {
+    //     await sendEmailOTP(normalizedEmail, otp);
+    // } catch (err) {
+    //     console.error("Email error:", err); // stop hiding real errors
+    //     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, EMAIL_ERROR);
+    // }
 
     const user = await User.create({
         userName: normalizedUserName,

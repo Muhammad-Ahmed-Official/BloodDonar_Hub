@@ -1,4 +1,7 @@
 import api from "./api";
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
+import Constants from "expo-constants";
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
@@ -29,6 +32,24 @@ export const saveExpoPushTokenToBackend = async (
     console.log("[PushToken] Saved to backend:", token);
   } catch (err) {
     console.error("[PushToken] Failed to save:", err);
+  }
+};
+
+/** Clear the push token on the backend (used when user disables notifications) */
+export const clearExpoPushToken = async (): Promise<void> => {
+  await api.patch("user/push-token", { expoPushToken: null });
+};
+
+/** Get the device's current Expo push token without setting up any listeners */
+export const getLocalPushToken = async (): Promise<string | null> => {
+  if (!Device.isDevice) return null;
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
+  if (!projectId) return null;
+  try {
+    const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
+    return data;
+  } catch {
+    return null;
   }
 };
 

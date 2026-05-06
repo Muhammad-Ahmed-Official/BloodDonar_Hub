@@ -390,7 +390,12 @@ async function findAndAssignReplacementDonor(bloodRequest, rejectedDonorId, io) 
         path: "user",
         match: {
             suspended: false,
-            _id: { $nin: alreadyAssignedIds },
+            _id: {
+                $nin: [
+                    ...alreadyAssignedIds,
+                    new mongoose.Types.ObjectId(String(bloodRequest.createdBy)),
+                ],
+            },
         },
         select: "_id expoPushToken",
     });
@@ -416,7 +421,7 @@ async function findAndAssignReplacementDonor(bloodRequest, rejectedDonorId, io) 
                 },
             },
         },
-        { new: true }
+        { returnDocument: "after" }
     );
 
     if (!updated) return; // request was cancelled in the meantime

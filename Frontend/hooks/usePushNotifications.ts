@@ -26,7 +26,6 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     useState<Notifications.Notification | null>(null);
 
   const receivedListener = useRef<Notifications.EventSubscription | null>(null);
-  const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
   useEffect(() => {
     registerForPushNotificationsAsync().then((token) => {
@@ -40,20 +39,8 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       }
     );
 
-    // Fires when user taps notification (background or killed state)
-    responseListener.current =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        const data = response.notification.request.content.data as {
-          requestId?: string;
-          type?: string;
-        };
-        console.log("[Notification] tapped:", data);
-        // TODO: use expo-router to navigate — e.g. router.push(`/(stack)/request/${data.requestId}`)
-      });
-
     return () => {
       receivedListener.current?.remove();
-      responseListener.current?.remove();
     };
   }, []);
 
