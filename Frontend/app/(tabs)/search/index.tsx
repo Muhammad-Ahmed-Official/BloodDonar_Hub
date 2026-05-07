@@ -150,7 +150,7 @@ export default function SearchScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>
-          {t("search.results")} ({filteredRequests.length})
+          {t("search.results")}
         </Text>
 
         {loading ? (
@@ -191,14 +191,11 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: SIZES.padding,
-    paddingTop: 23,
-    paddingBottom: 23,
-    backgroundColor: COLORS.white,
+    padding: 16,
+    paddingVertical: 40,
     borderBottomWidth: 1,
-    borderBottomColor: "#B8B8B8",
+    borderColor: "#B8B8B8",
   },
   headerTitle: {
     fontSize: 18,
@@ -219,7 +216,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF5F5",
   },
   searchInput: { flex: 1, fontSize: 14, color: COLORS.text,  },
-  sectionTitle: { fontSize: 15, fontWeight: "bold", color: COLORS.text, marginVertical: 18 },
+  sectionTitle: { fontSize: 15, fontWeight: "bold", color: COLORS.text, marginVertical: 18, marginLeft: 16 },
   groupGrid: {
     flexDirection: "row",
     flexWrap: "wrap",

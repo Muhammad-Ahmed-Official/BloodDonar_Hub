@@ -88,7 +88,7 @@ export default function Card({
                 <Pressable
                   accessibilityRole="button"
                   accessibilityState={{ disabled: false }}
-                  onPress={onDonate ?? (() => router.push("/(tabs)/profile/medicalInfo"))}
+                  // onPress={onDonate ?? (() => router.push("/(tabs)/profile/medicalInfo"))}
                   style={({ pressed }) => [
                     styles.donateBtn,
                     !donationRequestId && styles.donateBtnFull,

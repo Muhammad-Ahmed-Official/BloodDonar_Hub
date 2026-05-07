@@ -151,7 +151,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.header, { paddingTop: 5 + insets.top }]}>
+        <View style={[styles.header, { paddingTop: 0 + insets.top }]}>
           <View style={styles.headerLeft}>
             <View style={styles.avatar}>
               {profilePic ? (
@@ -298,7 +298,7 @@ export default function HomeScreen() {
                 const isOwner = String(getRequestOwnerId(r)) === String(user?._id);
                 const handleDonate = () => {
                   if (hasMedicalInfo) {
-                    router.push("/(tabs)/search/create");
+                    // router.push("/(tabs)/search/create");
                   } else {
                     router.push("/(tabs)/profile/medicalInfo");
                   }
@@ -516,7 +516,6 @@ const styles = StyleSheet.create({
     padding: 12,
     flex: 1,
     minWidth: "45%",
-    // ...SHADOW,
   },
   activityImage: {
     width: 30,

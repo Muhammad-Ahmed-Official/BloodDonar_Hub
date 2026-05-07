@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, StatusBar, Linking, ActivityIndicator, Image } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { FontAwesome6, Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { COLORS, SHADOW, SIZES } from "../../../constants/theme";
@@ -317,33 +317,64 @@ export default function ChatScreen() {
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
       
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push("/(tabs)/inbox")} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
+<View style={styles.header}>
+  <TouchableOpacity
+    onPress={() => router.push("/(tabs)/inbox")}
+    style={styles.backBtn}
+  >
+    <Ionicons
+      name="chevron-back"
+      size={24}
+      color={COLORS.text}
+    />
+  </TouchableOpacity>
 
-        <View style={styles.headerInfo}>
-          <View style={styles.avatar}>
-            {partner?.pic ? (
-              <Image source={{ uri: partner.pic }} style={styles.avatarImg} />
-            ) : (
-              <Ionicons name="person" size={22} color={COLORS.white} />
-            )}
-          </View>
-          <View style={styles.headerText}>
-            <Text style={styles.headerName} numberOfLines={1}>
-              {partner?.name ?? "Chat"}
-            </Text>
-            <Text style={styles.headerStatus}>
-              {loadingPartner ? "Loading…" : " "}
-            </Text>
-          </View>
-        </View>
+  <View style={styles.headerInfo}>
+    <View style={styles.avatar}>
+      {partner?.pic ? (
+        <Image
+          source={{ uri: partner.pic }}
+          style={styles.avatarImg}
+        />
+      ) : (
+        <Ionicons
+          name="person"
+          size={22}
+          color={COLORS.white}
+        />
+      )}
+    </View>
 
-        <TouchableOpacity style={styles.callBtn} onPress={handleCall} disabled={!partner?.mobile}>
-          <Ionicons name="call-outline" size={22} color={partner?.mobile ? COLORS.primary : "#bbb"} />
-        </TouchableOpacity>
-      </View>
+    <View style={styles.headerText}>
+      <Text
+  style={styles.headerName}
+  numberOfLines={1}
+>
+  {(partner?.name ?? "Chat")
+    .charAt(0)
+    .toUpperCase() + (partner?.name ?? "Chat").slice(1)}
+</Text>
+
+      {/* {!!loadingPartner && (
+        <Text style={styles.headerStatus}>
+          Loading...
+        </Text>
+      )} */}
+    </View>
+  </View>
+
+  <TouchableOpacity
+    style={styles.callBtn}
+    onPress={handleCall}
+    disabled={!partner?.mobile}
+  >
+    <Ionicons
+      name="call-outline"
+      size={22}
+      color={partner?.mobile ? COLORS.primary : "#bbb"}
+    />
+  </TouchableOpacity>
+</View>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -382,7 +413,7 @@ export default function ChatScreen() {
             />
 
             <TouchableOpacity style={styles.sendBtn} onPress={sendMessage} disabled={sending}>
-              <Ionicons name="send" size={20} color={COLORS.white} />
+              <FontAwesome6 name="arrow-right" size={20} color={COLORS.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -397,70 +428,88 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
   },
 
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: SIZES.padding,
-    paddingTop: 23,
-    paddingBottom: 23,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: "#B8B8B8",
-  },
+header: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
 
-  backBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  paddingHorizontal: SIZES.padding,
+  paddingTop: 18,
+  paddingBottom: 18,
 
-  headerInfo: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    marginLeft: 8,
-  },
+  backgroundColor: COLORS.white,
 
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#ccc",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-    overflow: "hidden",
-  },
-  avatarImg: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
+  borderBottomWidth: 1,
+  borderColor: "#B8B8B8",
+},
 
-  headerText: {
-    justifyContent: "center",
-  },
+backBtn: {
+  width: 42,
+  height: 42,
 
-  headerName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: COLORS.text,
-  },
+  justifyContent: "center",
+  alignItems: "center",
+},
 
-  headerStatus: {
-    fontSize: 12,
-    color: "#25D366",
-    marginTop: 2,
-  },
+headerInfo: {
+  flex: 1,
 
-  callBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  flexDirection: "row",
+  alignItems: "center",
+
+  marginHorizontal: 10,
+},
+
+avatar: {
+  width: 44,
+  height: 44,
+  borderRadius: 22,
+
+  backgroundColor: "#ccc",
+
+  justifyContent: "center",
+  alignItems: "center",
+
+  overflow: "hidden",
+
+  marginRight: 12,
+},
+
+headerText: {
+  // flex: 1,
+  fontSize: 30,
+  justifyContent: "center",
+},
+
+avatarImg: {
+  width: "100%",
+  height: "100%",
+},
+
+
+headerName: {
+  fontSize: 16,
+  fontWeight: "700",
+  color: COLORS.text,
+  lineHeight: 20,
+},
+
+headerStatus: {
+  fontSize: 12,
+  color: "#25D366",
+
+  marginTop: 2,
+
+  lineHeight: 16,
+},
+
+callBtn: {
+  width: 42,
+  height: 42,
+
+  justifyContent: "center",
+  alignItems: "center",
+},
 
   messagesList: {
     paddingHorizontal: 16,
@@ -517,9 +566,8 @@ const styles = StyleSheet.create({
   },
 
   theirBubble: {
-    backgroundColor: COLORS.white,
+    backgroundColor: "#F5F5F8",
     borderTopLeftRadius: 4,
-    ...SHADOW,
   },
 
   myBubble: {
@@ -539,8 +587,7 @@ const styles = StyleSheet.create({
 
   timeText: {
     fontSize: 10,
-    color: "#999",
-    marginTop: 3,
+    marginTop: 6,
     marginHorizontal: 4,
   },
 
@@ -553,8 +600,8 @@ const styles = StyleSheet.create({
   },
 
   inputContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    // paddingHorizontal: 16,
+    // paddingVertical: 8,
     backgroundColor: COLORS.white,
     borderTopWidth: 1,
     borderTopColor: "#f0f0f0",
@@ -563,11 +610,10 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.white,
-    borderRadius: 25,
+    backgroundColor: "#F5F5F8",
+    // borderRadius: 25,
     paddingHorizontal: 16,
     paddingVertical: 4,
-    ...SHADOW,
   },
 
   input: {

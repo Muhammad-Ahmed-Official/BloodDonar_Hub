@@ -267,13 +267,24 @@ export default function InboxScreen() {
                 </View>
 
                 <View style={styles.chatInfo}>
-                  <Text style={styles.chatName}>{name}</Text>
+                  <View style={styles.nameRow}>
+                    <Text style={styles.chatName}>{name}</Text>
+
+                    {(item.unreadCount ?? 0) > 0 && (
+                      <View style={styles.badgeInline}>
+                        <Text style={styles.badgeText}>
+                          {item.unreadCount! > 99 ? "99+" : item.unreadCount}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
                   <Text style={styles.chatLast} numberOfLines={1}>
                     {item.message ?? ""}
                   </Text>
                 </View>
 
-                <View style={styles.chatRight}>
+                {/* <View style={styles.chatRight}>
                   <Text style={styles.chatTime}>{formatTime(item.createdAt)}</Text>
                   {(item.unreadCount ?? 0) > 0 && (
                     <View style={styles.badge}>
@@ -282,7 +293,7 @@ export default function InboxScreen() {
                       </Text>
                     </View>
                   )}
-                </View>
+                </View> */}
               </TouchableOpacity>
             );
           }}
@@ -299,14 +310,11 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: SIZES.padding,
-    paddingTop: 23,
-    paddingBottom: 23,
-    backgroundColor: COLORS.white,
+    padding: 16,
+    paddingVertical: 40,
     borderBottomWidth: 1,
-    borderBottomColor: "#B8B8B8",
+    borderColor: "#B8B8B8",
   },
   headerTitle: {
     fontSize: 18,
@@ -314,19 +322,19 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
 
-  searchWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.white,
-    marginHorizontal: SIZES.padding,
-    marginVertical: 12,
-    borderRadius: SIZES.radius,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: "#eee",
-  },
-  searchInput: { flex: 1, marginLeft: 8, fontSize: 14, padding: 5, color: COLORS.text },
+  // searchWrap: {
+  //   flexDirection: "row",
+  //   alignItems: "center",
+  //   backgroundColor: COLORS.white,
+  //   marginHorizontal: SIZES.padding,
+  //   marginVertical: 12,
+  //   borderRadius: SIZES.radius,
+  //   paddingHorizontal: 12,
+  //   paddingVertical: 10,
+  //   borderWidth: 1,
+  //   borderColor: "#eee",
+  // },
+  // searchInput: { flex: 1, marginLeft: 8, fontSize: 14, padding: 5, color: COLORS.text },
 
   errorText: {
     color: "#E53935",
@@ -342,11 +350,8 @@ const styles = StyleSheet.create({
   chatItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
     padding: 15,
     marginBottom: 10,
-    ...SHADOW,
   },
   avatarWrap: { marginRight: 12 },
   avatarCircle: {
@@ -361,9 +366,12 @@ const styles = StyleSheet.create({
   avatarImg: { width: 48, height: 48, borderRadius: 24 },
   chatInfo: { flex: 1 },
   chatName: { fontSize: 15, fontWeight: "600", color: COLORS.text },
-  chatLast: { fontSize: 13, color: "#888", marginTop: 4 },
+  chatLast: { fontSize: 13,  marginTop: 4 },
   chatRight: { alignItems: "flex-end" },
-  chatTime: { fontSize: 11, color: "#aaa" },
+  chatTime: { 
+    fontSize: 13,
+    fontWeight: 'bold' 
+  },
   badge: {
     marginTop: 6,
     minWidth: 20,
@@ -373,6 +381,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 6,
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
+  badgeInline: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 5,
   },
   badgeText: { color: COLORS.white, fontSize: 11, fontWeight: "bold" },
 });

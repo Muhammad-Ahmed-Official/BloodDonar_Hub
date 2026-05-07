@@ -1,10 +1,10 @@
-npx create-expo-app@latest .
-npm install expo@^55.0.0
-npx expo install --fix 
-npx expo-doctor
-# remove : "newArchEnabled": true, "edgeToEdgeEnabled": true,
+// npx create-expo-app@latest .
+// npm install expo@^55.0.0
+// npx expo install --fix 
+// npx expo-doctor
+// # remove : "newArchEnabled": true, "edgeToEdgeEnabled": true,
 
-import {
+// import {
 //   View,
 //   Text,
 //   StyleSheet,

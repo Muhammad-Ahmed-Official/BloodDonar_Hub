@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "@/constants/theme";
@@ -61,9 +62,8 @@ export default function RequestDetails() {
       {/* Profile */}
       <View style={styles.profileRow}>
         <View style={styles.profileLeft}>
-
           <View>
-            <Text style={styles.name}>{data?.userId?.userName || "User"}</Text>
+            <Text style={styles.name}>{data?.userId?.userName.charAt(0).toUpperCase() + data?.userId?.userName.slice(1) || "User"}</Text>
             <Text style={styles.city}>{data?.city || "—"}</Text>
           </View>
         </View>
@@ -88,14 +88,12 @@ export default function RequestDetails() {
           rightLabel="Age"
           rightValue={String(data.age || "—")}
         />
-
         <DetailRow2
           leftLabel="Blood Group"
           leftValue={data.bloodGroup}
           rightLabel="Units Required"
           rightValue={data.amount}
         />
-
         <DetailRow2
           leftLabel="Hospital"
           leftValue={data.hospitalName}
@@ -116,10 +114,23 @@ export default function RequestDetails() {
         />
       </Section>
 
-      {/* Activity */}
-      <Section title="Activity">
+      {/* Activity — no bottom border */}
+      <Section title="Activity" noBorder style={styles.section}>
         <Text style={styles.activity}>Request Sent {timeAgo(data.createdAt)}</Text>
       </Section>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: false }}
+        // onPress={onDonate ?? (() => router.push("/(tabs)/profile/medicalInfo"))}
+        style={({ pressed }) => [
+          styles.donateBtn,
+          // !donationRequestId && styles.donateBtnFull,
+          pressed && styles.donateBtnPressed,
+        ]}
+      >
+        <Text style={styles.donateText}>Donate</Text>
+      </Pressable>
 
     </ScrollView>
   );
@@ -140,9 +151,9 @@ function timeAgo(dateStr?: string): string {
   return `${weeks}w ago`;
 }
 
-function Section({ title, children }: any) {
+function Section({ title, children, noBorder }: any) {
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, noBorder && styles.sectionNoBorder]}>
       <Text style={styles.sectionTitle}>{title}</Text>
       {children}
     </View>
@@ -162,7 +173,6 @@ function DetailRow2({
         <Text style={styles.label}>{leftLabel}</Text>
         <Text style={styles.value}>{leftValue || "—"}</Text>
       </View>
-
       <View style={[styles.col, styles.rightCol]}>
         <Text style={styles.label}>{rightLabel}</Text>
         <Text style={styles.value}>{rightValue || "—"}</Text>
@@ -174,7 +184,6 @@ function DetailRow2({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: "#fff",
   },
 
@@ -182,8 +191,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     padding: 16,
+    paddingVertical: 40,
     borderBottomWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#B8B8B8",
   },
 
   headerTitle: {
@@ -195,6 +205,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     padding: 16,
+    marginTop: 12,
+    marginBottom: 80,
     alignItems: "center",
   },
 
@@ -202,6 +214,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    marginLeft: 10,
   },
 
   avatar: {
@@ -221,7 +234,7 @@ const styles = StyleSheet.create({
 
   name: {
     fontWeight: "bold",
-    fontSize: 17
+    fontSize: 17,
   },
 
   city: {
@@ -231,8 +244,8 @@ const styles = StyleSheet.create({
 
   btn: {
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 30,
+    paddingVertical: 9,
     borderRadius: 20,
   },
 
@@ -246,12 +259,18 @@ const styles = StyleSheet.create({
     borderColor: "#E5E5E5",
     paddingHorizontal: 16,
     paddingVertical: 10,
+    marginTop: 24
+  },
+
+  sectionNoBorder: {
+    borderBottomWidth: 0,
   },
 
   sectionTitle: {
     color: COLORS.primary,
     fontWeight: "bold",
     marginBottom: 8,
+    marginLeft: 10,
   },
 
   row: {
@@ -260,34 +279,69 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
 
+  col: {
+    flex: 1,
+    maxWidth: "50%",
+  },
 
-col: {
-  flex: 1,
-  maxWidth: "50%",
-},
+  leftCol: {
+    alignItems: "flex-start",
+  },
 
-leftCol: {
-  alignItems: "flex-start",
-},
+  rightCol: {
+    alignItems: "flex-end",
+  },
 
-rightCol: {
-  alignItems: "flex-end",
-},
+  label: {
+    fontSize: 13,
+    fontWeight: "bold",
+    textAlign: "left",
+    marginLeft: 10,
+  },
 
-label: {
-  fontSize: 13,
-  fontWeight: "bold",
-  textAlign: "left",
-},
-
-value: {
-  fontSize: 13,
-  marginTop: 2,
-  color: "#B8B8B8",
-},
+  value: {
+    fontSize: 13,
+    marginTop: 2,
+    color: "#B8B8B8",
+    marginLeft: 10,
+  },
 
   activity: {
     fontSize: 13,
-    marginTop: 6,
+    marginTop: 10,
+    marginLeft: 10,
   },
+  donateBtnFull: {
+    flex: 1,
+    maxWidth: "100%",
+  },
+  donateBtn: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    margin: 10
+  },
+  donateBtnDisabled: {
+    backgroundColor: "#E0E0E0",
+    borderWidth: 1,
+    borderColor: "#BDBDBD",
+    opacity: 1,
+  },
+  donateBtnPressed: {
+    opacity: 0.88,
+  },
+
+  donateText: {
+    color: COLORS.white,
+    fontWeight: "bold",
+    fontSize: 13,
+  },
+  donateTextDisabled: {
+    color: "#616161",
+  },
+
 });

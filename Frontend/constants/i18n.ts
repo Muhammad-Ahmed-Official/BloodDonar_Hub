@@ -40,7 +40,7 @@ export const translations: Record<AppLanguage, Record<string, string>> = {
     "search.placeholder": "Search by city, name, hospital",
     "search.createRequest": "Create request",
     "search.bloodGroup": "Blood group",
-    "search.results": "Results",
+    "search.results": "Donation Requests",
     "search.noCards": "No donation requests found.",
 
     "inbox.title": "Inbox",
