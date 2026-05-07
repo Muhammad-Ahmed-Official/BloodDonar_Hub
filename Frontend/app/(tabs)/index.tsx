@@ -161,7 +161,10 @@ export default function HomeScreen() {
               )}
             </View>
             <View style={{ marginLeft: 10 }}>
-              <Text style={styles.headerName}>{user?.userName ?? "User"}</Text>
+              <Text style={styles.headerName}>
+                {(user?.userName ?? "User").charAt(0).toUpperCase() +
+                  (user?.userName ?? "User").slice(1)}
+              </Text>
               <Text style={styles.headerSub} numberOfLines={2}>
                 Donate Blood is also good for{'\n'}
                 the donor&apos;s body
@@ -467,7 +470,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   headerLeft: {
-    paddingLeft: 20,
+    paddingLeft: 40,
     flexDirection: "row",
     alignItems: "center",
     flex: 1,

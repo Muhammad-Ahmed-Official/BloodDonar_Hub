@@ -1,4 +1,4 @@
-import { COLORS } from "@/constants/theme";
+import { COLORS, FONT_FAMILY } from "@/constants/theme";
 import { Text, StyleSheet } from "react-native";
 
 export default function Label({ title } : any) {
@@ -9,6 +9,7 @@ export default function Label({ title } : any) {
 
 const styles = StyleSheet.create({
   label: {
+    fontFamily: FONT_FAMILY,
     fontSize: 15,
     color: COLORS.text,
     marginBottom: 6,

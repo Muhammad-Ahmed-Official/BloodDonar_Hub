@@ -268,7 +268,13 @@ export default function InboxScreen() {
 
                 <View style={styles.chatInfo}>
                   <View style={styles.nameRow}>
-                    <Text style={styles.chatName}>{name}</Text>
+                    <Text style={styles.chatName} numberOfLines={1}>
+                      {name}
+                    </Text>
+
+                    <Text style={styles.chatTime}>
+                      {formatTime(item.createdAt)}
+                    </Text>
 
                     {(item.unreadCount ?? 0) > 0 && (
                       <View style={styles.badgeInline}>
@@ -278,22 +284,11 @@ export default function InboxScreen() {
                       </View>
                     )}
                   </View>
-
                   <Text style={styles.chatLast} numberOfLines={1}>
                     {item.message ?? ""}
                   </Text>
                 </View>
 
-                {/* <View style={styles.chatRight}>
-                  <Text style={styles.chatTime}>{formatTime(item.createdAt)}</Text>
-                  {(item.unreadCount ?? 0) > 0 && (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>
-                        {item.unreadCount! > 99 ? "99+" : item.unreadCount}
-                      </Text>
-                    </View>
-                  )}
-                </View> */}
               </TouchableOpacity>
             );
           }}
@@ -363,6 +358,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     overflow: "hidden",
   },
+  nameRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+},
   avatarImg: { width: 48, height: 48, borderRadius: 24 },
   chatInfo: { flex: 1 },
   chatName: { fontSize: 15, fontWeight: "600", color: COLORS.text },
@@ -381,11 +381,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 6,
-  },
-  nameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
   },
 
   badgeInline: {

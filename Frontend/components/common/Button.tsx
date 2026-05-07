@@ -1,5 +1,5 @@
 import { Pressable, Text, StyleSheet } from "react-native";
-import { COLORS, SIZES } from "../../constants/theme";
+import { COLORS, SIZES, FONT_FAMILY } from "../../constants/theme";
 
 interface ButtonProps {
   title: string;
@@ -40,6 +40,7 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   text: {
+    fontFamily: FONT_FAMILY,
     color: COLORS.white,
     fontWeight: "bold",
   },

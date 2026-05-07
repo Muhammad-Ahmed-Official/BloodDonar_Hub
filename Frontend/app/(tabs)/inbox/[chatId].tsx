@@ -376,11 +376,11 @@ export default function ChatScreen() {
   </TouchableOpacity>
 </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "padding"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={0}
+        >
         {/* Messages */}
         {loading ? (
           <ActivityIndicator size="large" color={COLORS.primary} style={{ flex: 1, marginTop: 24 }} />
@@ -600,8 +600,7 @@ callBtn: {
   },
 
   inputContainer: {
-    // paddingHorizontal: 16,
-    // paddingVertical: 8,
+    padding: 8,
     backgroundColor: COLORS.white,
     borderTopWidth: 1,
     borderTopColor: "#f0f0f0",
@@ -611,7 +610,7 @@ callBtn: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F5F5F8",
-    // borderRadius: 25,
+    borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 4,
   },

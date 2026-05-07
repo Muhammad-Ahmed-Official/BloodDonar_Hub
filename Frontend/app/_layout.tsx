@@ -170,7 +170,7 @@ export default function RootLayout() {
             headerShown: false,
             contentStyle: { backgroundColor: "white" },
             animation: "slide_from_right",
-            // navigationBarHidden: true,
+            navigationBarHidden: true,
           }}
           >
           <Stack.Screen name="(auth)" />
