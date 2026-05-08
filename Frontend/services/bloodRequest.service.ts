@@ -14,6 +14,8 @@ export interface CreateBloodRequestData {
     startTime: string;            // "HH:mm"  e.g. "09:00"
     endTime: string;              // "HH:mm"  e.g. "12:00"
   };
+  age?: number;
+  reason?: string;
 }
 
 export const createBloodRequest = async (data: CreateBloodRequestData) => {
@@ -61,6 +63,15 @@ export const confirmDonation = async (requestId: string, confirmed: boolean) => 
     return res.data;
   } catch (error: any) {
     throw error?.response?.data || { message: "Failed to confirm donation" };
+  }
+};
+
+export const getAssignedBloodRequests = async () => {
+  try {
+    const res = await api.get("bloodRequest/assigned");
+    return res.data;
+  } catch (error: any) {
+    throw error?.response?.data || { message: "Failed to fetch assigned requests" };
   }
 };
 

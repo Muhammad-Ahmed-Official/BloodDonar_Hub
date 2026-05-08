@@ -7,6 +7,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { Donar } from "../models/donar.models.js";
+import { sendPushNotification } from "../services/notification.service.js";
 import fs from "fs";
 import mongoose from "mongoose";
 
@@ -248,6 +249,31 @@ export const donationRequest = asyncHandler(async (req, res) => {
     );
 
     const created = (donar.requests ?? []).at(-1);
+
+    // Send push notifications to random users (up to `amount` units) — fire and forget
+    const unitsNeeded = Math.max(1, parseInt(String(amount), 10) || 1);
+    User.find({
+        _id: { $ne: userId },
+        expoPushToken: { $ne: null, $exists: true },
+    })
+        .select("_id expoPushToken")
+        .limit(unitsNeeded * 10) // over-fetch for random selection
+        .then((users) => {
+            const shuffled = users.sort(() => 0.5 - Math.random());
+            const selected = shuffled.slice(0, unitsNeeded);
+            selected.forEach((u) => {
+                if (u.expoPushToken) {
+                    sendPushNotification(
+                        u.expoPushToken,
+                        "🩸 Blood Donation Request",
+                        `${unitsNeeded} unit(s) of ${bloodGroup} blood needed urgently. Tap to view.`,
+                        { requestId: String(created._id), type: "BLOOD_REQUEST" }
+                    ).catch(() => {});
+                }
+            });
+        })
+        .catch(() => {});
+
     return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, ADD_SUCCESS_MESSAGES, plainSubdoc(created)));
 });
 

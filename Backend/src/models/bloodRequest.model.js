@@ -9,6 +9,7 @@ const donorAssignmentSchema = new Schema(
             default: "pending",
         },
         notificationSent: { type: Boolean, default: false },
+        reminderSent:     { type: Boolean, default: false },
         respondedAt: { type: Date },
         confirmedAt: { type: Date },
     },
@@ -35,6 +36,8 @@ const bloodRequestSchema = new mongoose.Schema(
         },
         requiredUnits: { type: Number, required: true, min: 1 },
         contactInfo: { type: String, required: true, trim: true },
+        age: { type: Number },
+        reason: { type: String, trim: true },
         createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
         status: {
             type: String,
@@ -47,10 +50,15 @@ const bloodRequestSchema = new mongoose.Schema(
             startTime: { type: String, required: true },
             endTime: { type: String, required: true },
         },
+        expiresAt: { type: Date, index: true },
         donors: { type: [donorAssignmentSchema], default: [] },
         reminderSent: { type: Boolean, default: false },
     },
     { timestamps: true }
 );
+
+bloodRequestSchema.virtual("donatedUnits").get(function () {
+    return this.donors.filter((d) => d.status === "completed").length;
+});
 
 export const BloodRequest = mongoose.model("BloodRequest", bloodRequestSchema);

@@ -12,7 +12,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const api = axios.create({
   baseURL: API_URL,
-  timeout: 3000,
+  timeout: 15000,
 });
 
 // ─── Request interceptor — attach token automatically ────────────────────────

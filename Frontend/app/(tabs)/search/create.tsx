@@ -6,20 +6,28 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
+  KeyboardAvoidingView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS, SIZES, PAKISTAN_CITIES } from "../../../constants/theme";
 import Input from "@/components/common/Input";
 import Button from "@/components/common/Button";
 import Label from "@/components/common/Label";
-import { donarRequest, getAllUserPushTokens } from "@/services/user.service";
-import { sendBloodRequestToAll } from "@/services/notifications";
+import { createBloodRequest } from "@/services/bloodRequest.service";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 
 const BLOOD_GROUPS = ["A+", "B+", "O+", "AB+", "A-", "B-", "O-", "AB-"];
+const URGENCY_LEVELS = [
+  { value: "low",      label: "Low",      color: "#4CAF50" },
+  { value: "medium",   label: "Medium",   color: "#FF9800" },
+  { value: "high",     label: "High",     color: "#F44336" },
+  { value: "critical", label: "Critical", color: "#9C27B0" },
+] as const;
 
+type UrgencyLevel = "low" | "medium" | "high" | "critical";
 type ActivePicker = null | "date" | "start" | "end";
 
 function makeTime(hours: number, minutes: number) {
@@ -28,18 +36,32 @@ function makeTime(hours: number, minutes: number) {
   return d;
 }
 
-function formatDateForApi(d: Date) {
+// Display format (used in the UI labels — user-friendly)
+function formatDateDisplay(d: Date): string {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
-
-function formatTimeForApi(d: Date) {
+function formatTimeDisplay(d: Date): string {
   return d.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true });
+}
+
+// API format — ISO date and HH:mm required by the backend
+function formatDateISO(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function formatHHMM(d: Date): string {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 export default function CreateRequestScreen() {
   const router = useRouter();
+  const { top } = useSafeAreaInsets();
   const [selectedGroup, setSelectedGroup] = useState("");
   const [showGroup, setShowGroup] = useState(false);
+  const [urgencyLevel, setUrgencyLevel] = useState<UrgencyLevel>("medium");
+  const [showUrgency, setShowUrgency] = useState(false);
   const [selectedCity, setSelectedCity] = useState("");
   const [showCity, setShowCity] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -61,23 +83,22 @@ export default function CreateRequestScreen() {
 
   const handleSubmit = async () => {
     setFormError("");
-    if (!patientName.trim()) {
-      setFormError("Patient name is required");
+
+    if (!patientName.trim()) { setFormError("Patient name is required"); return; }
+    if (!selectedGroup)       { setFormError("Blood group is required"); return; }
+
+    const unitsNum = parseInt(amountOfBlood.trim(), 10);
+    if (Number.isNaN(unitsNum) || unitsNum < 1) {
+      setFormError("Enter a valid number of units (e.g., 2)");
       return;
     }
-    if (!selectedGroup) {
-      setFormError("Blood group is required");
-      return;
-    }
-    if (!amountOfBlood.trim() || !age.trim()) {
-      setFormError("Amount and age are required");
-      return;
-    }
-    const ageNum = parseInt(age.trim(), 10);
-    if (Number.isNaN(ageNum) || ageNum < 1) {
+
+    const ageNum = age.trim() ? parseInt(age.trim(), 10) : undefined;
+    if (age.trim() && (Number.isNaN(ageNum!) || ageNum! < 1)) {
       setFormError("Enter a valid age");
       return;
     }
+
     if (!hospitalName.trim() || !selectedCity || !location.trim()) {
       setFormError("Hospital, city, and location are required");
       return;
@@ -86,35 +107,26 @@ export default function CreateRequestScreen() {
       setFormError("Contact person and mobile number are required");
       return;
     }
-    if (!reason.trim()) {
-      setFormError("Reason is required");
-      return;
-    }
 
     setSubmitting(true);
     try {
-      const newRequest = await donarRequest({
-        donarName: patientName.trim(),
-        bloodGroup: selectedGroup,
-        amount: amountOfBlood.trim(),
-        age: ageNum,
-        date: formatDateForApi(neededDate),
+      await createBloodRequest({
+        patientName:  patientName.trim(),
+        bloodGroup:   selectedGroup,
+        requiredUnits: unitsNum,
+        location:     location.trim(),
+        city:         selectedCity,
         hospitalName: hospitalName.trim(),
-        location: location.trim(),
-        contactPersonName: contactPerson.trim(),
-        mobileNumber: contactName.trim(),
-        city: selectedCity,
-        startTime: formatTimeForApi(startTimeDate),
-        endTime: formatTimeForApi(endTimeDate),
-        reason: reason.trim(),
+        contactInfo:  `${contactPerson.trim()}: ${contactName.trim()}`,
+        urgencyLevel,
+        donationDate: formatDateISO(neededDate),
+        donationWindow: {
+          startTime: formatHHMM(startTimeDate),
+          endTime:   formatHHMM(endTimeDate),
+        },
+        ...(ageNum !== undefined && { age: ageNum }),
+        ...(reason.trim() && { reason: reason.trim() }),
       });
-
-      // Notify all registered users about the new blood request
-      const requestId: string = newRequest?._id ?? newRequest?.id ?? "";
-      const tokens: string[] = await getAllUserPushTokens().catch(() => []);
-      if (tokens.length && requestId) {
-        sendBloodRequestToAll(tokens, requestId).catch(console.error);
-      }
 
       router.back();
     } catch (e: unknown) {
@@ -156,8 +168,12 @@ export default function CreateRequestScreen() {
   const pickerMode = activePicker === "date" ? "date" : "time";
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior="padding"
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+    >
+      <View style={[styles.header, { paddingTop: top + 12 }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
@@ -165,7 +181,7 @@ export default function CreateRequestScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -220,11 +236,42 @@ export default function CreateRequestScreen() {
           )}
         </View>
 
+        {/* Urgency Level */}
+        <View style={styles.fieldGroup}>
+          <Label title="Urgency Level" />
+          <TouchableOpacity
+            style={styles.dropdown}
+            onPress={() => setShowUrgency(!showUrgency)}
+          >
+            <Text style={styles.dropdownText}>
+              {URGENCY_LEVELS.find((u) => u.value === urgencyLevel)?.label ?? "Select urgency"}
+            </Text>
+            <Ionicons name="chevron-down" size={18} color="#888" />
+          </TouchableOpacity>
+          {showUrgency && (
+            <View style={styles.listContainer}>
+              {URGENCY_LEVELS.map((item) => (
+                <TouchableOpacity
+                  key={item.value}
+                  style={styles.option}
+                  onPress={() => { setUrgencyLevel(item.value); setShowUrgency(false); }}
+                >
+                  <View style={[styles.urgencyDot, { backgroundColor: item.color }]} />
+                  <Text style={styles.optionText}>{item.label}</Text>
+                  {urgencyLevel === item.value && (
+                    <Ionicons name="checkmark" size={18} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+
         {/* Amount of blood request */}
         <View style={styles.fieldGroup}>
-          <Label title="Amount of Blood Request" />
-          <Input 
-            placeholder="Enter amount (e.g., 2 units)" 
+          <Label title="Amount of Blood Request (units)" />
+          <Input
+            placeholder="Enter number of units (e.g., 2)"
             placeholderTextColor="#B0B0B0"
             keyboardType="numeric"
             value={amountOfBlood}
@@ -252,7 +299,7 @@ export default function CreateRequestScreen() {
             onPress={() => setActivePicker(activePicker === "date" ? null : "date")}
           >
             <Text style={styles.dropdownText}>
-              {formatDateForApi(neededDate)}
+              {formatDateDisplay(neededDate)}
             </Text>
             <Ionicons name="calendar-outline" size={18} color="#888" />
           </TouchableOpacity>
@@ -320,11 +367,15 @@ export default function CreateRequestScreen() {
         {/* Contact Person */}
         <View style={styles.fieldGroup}>
           <Label title="Contact Person" />
-          <Input 
-            placeholder="Enter contact person name" 
+          <Input
+            placeholder="Enter contact person name"
             placeholderTextColor="#B0B0B0"
             value={contactPerson}
-            onChangeText={setContactPerson}
+            onChangeText={(text:any) => {
+              const onlyText = text.replace(/[^a-zA-Z\s]/g, "");
+              setContactPerson(onlyText);
+            }}
+            keyboardType="default"
           />
         </View>
 
@@ -334,7 +385,7 @@ export default function CreateRequestScreen() {
           <Input 
             placeholder="Enter mobile number" 
             placeholderTextColor="#B0B0B0"
-            keyboardType="phone-pad"
+            keyboardType="numeric"
             value={contactName}
             onChangeText={setContactName}
           />
@@ -350,7 +401,7 @@ export default function CreateRequestScreen() {
             >
               <View style={styles.timeBoxText}>
                 <Text style={styles.timeLabel}>Start</Text>
-                <Text style={styles.timeValue}>{formatTimeForApi(startTimeDate)}</Text>
+                <Text style={styles.timeValue}>{formatTimeDisplay(startTimeDate)}</Text>
               </View>
               <Ionicons name="time-outline" size={18} color="#888" />
             </TouchableOpacity>
@@ -361,7 +412,7 @@ export default function CreateRequestScreen() {
             >
               <View style={styles.timeBoxText}>
                 <Text style={styles.timeLabel}>End</Text>
-                <Text style={styles.timeValue}>{formatTimeForApi(endTimeDate)}</Text>
+                <Text style={styles.timeValue}>{formatTimeDisplay(endTimeDate)}</Text>
               </View>
               <Ionicons name="time-outline" size={18} color="#888" />
             </TouchableOpacity>
@@ -410,28 +461,26 @@ export default function CreateRequestScreen() {
           )}
         </View>
 
-        <View style={{ height: 90 }} />
+        <View style={{ height: 150 }} />
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: COLORS.white 
+    backgroundColor: COLORS.white,
+    paddingVertical: 30,
   },
-  
+
   header: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: SIZES.padding,
-    paddingTop: 23,
-    paddingBottom: 23,
-    backgroundColor: COLORS.white,
+    paddingVertical: 40,
+    justifyContent: "space-around",
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#B8B8B8",
+    borderColor: "#B8B8B8",
   },
   headerTitle: {
     fontSize: 17,
@@ -488,7 +537,14 @@ const styles = StyleSheet.create({
   optionIcon: {
     marginRight: 10,
   },
-  
+
+  urgencyDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 10,
+  },
+
   optionText: {
     flex: 1,
     fontSize: 14,

@@ -14,12 +14,13 @@ export default function Card({
   isShow = true,
   donationRequestId,
   donateDisabled = false,
+  donated = false,
   isOwner = false,
   isDeleting = false,
   onDelete,
   onDonate,
 }: any) {
-  const isDonateDisabled = donateDisabled || isOwner;
+  const isDonateDisabled = donateDisabled || isOwner || donated;
 
   return (
     <View style={styles.wrapper}>
@@ -79,16 +80,18 @@ export default function Card({
                   style={[
                     styles.donateBtn,
                     !donationRequestId && styles.donateBtnFull,
-                    styles.donateBtnDisabled,
+                    donated ? styles.donateBtnDonated : styles.donateBtnDisabled,
                   ]}
                 >
-                  <Text style={[styles.donateText, styles.donateTextDisabled]}> Donate </Text>
+                  <Text style={[styles.donateText, donated ? styles.donateTextDonated : styles.donateTextDisabled]}>
+                    {donated ? "Donated" : "Donate"}
+                  </Text>
                 </View>
               ) : (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityState={{ disabled: false }}
-                  // onPress={onDonate ?? (() => router.push("/(tabs)/profile/medicalInfo"))}
+                  onPress={onDonate ?? (() => router.push("/(tabs)/profile/medicalInfo"))}
                   style={({ pressed }) => [
                     styles.donateBtn,
                     !donationRequestId && styles.donateBtnFull,
@@ -218,6 +221,11 @@ const styles = StyleSheet.create({
     borderColor: "#BDBDBD",
     opacity: 1,
   },
+  donateBtnDonated: {
+    backgroundColor: "#2E7D32",
+    borderWidth: 0,
+    opacity: 1,
+  },
   donateBtnPressed: {
     opacity: 0.88,
   },
@@ -229,6 +237,9 @@ const styles = StyleSheet.create({
   },
   donateTextDisabled: {
     color: "#616161",
+  },
+  donateTextDonated: {
+    color: "#FFFFFF",
   },
 
   viewBtn: {

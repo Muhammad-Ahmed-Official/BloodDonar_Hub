@@ -41,6 +41,18 @@ function shuffleArray(arr) {
     return a;
 }
 
+// Build a concrete UTC Date from donationDate + "HH:mm" endTime string.
+// Used to set expiresAt so cron jobs can query by a real Date field.
+function buildExpiresAt(donationDateObj, endTimeStr) {
+    const parts = String(endTimeStr).split(":");
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (isNaN(h) || isNaN(m)) return null;
+    const d = new Date(donationDateObj);
+    d.setHours(h, m, 0, 0);
+    return d;
+}
+
 // ─── CREATE BLOOD REQUEST ─────────────────────────────────────────────────────
 // POST /api/v1/bloodRequest
 export const createBloodRequest = asyncHandler(async (req, res) => {
@@ -49,6 +61,7 @@ export const createBloodRequest = asyncHandler(async (req, res) => {
     const {
         patientName, bloodGroup, requiredUnits, location, city,
         hospitalName, contactInfo, urgencyLevel, donationDate, donationWindow,
+        age, reason,
     } = req.body;
 
     const requiredFields = ["patientName", "bloodGroup", "requiredUnits", "location", "city", "hospitalName", "contactInfo", "urgencyLevel", "donationDate", "donationWindow"];
@@ -99,6 +112,9 @@ export const createBloodRequest = asyncHandler(async (req, res) => {
         notificationSent: false,
     }));
 
+    const donationDateObj = new Date(donationDate);
+    const expiresAt = buildExpiresAt(donationDateObj, donationWindow.endTime);
+
     const bloodRequest = await BloodRequest.create({
         patientName,
         bloodGroup,
@@ -108,11 +124,14 @@ export const createBloodRequest = asyncHandler(async (req, res) => {
         hospitalName,
         contactInfo,
         urgencyLevel: String(urgencyLevel).toLowerCase(),
-        donationDate: new Date(donationDate),
+        donationDate: donationDateObj,
         donationWindow: {
             startTime: donationWindow.startTime,
             endTime: donationWindow.endTime,
         },
+        ...(age !== undefined && !isNaN(Number(age)) && { age: Number(age) }),
+        ...(reason && { reason: String(reason).trim() }),
+        ...(expiresAt && { expiresAt }),
         createdBy: receiverId,
         donors: donorsArr,
     });
@@ -161,24 +180,38 @@ export const respondToRequest = asyncHandler(async (req, res) => {
     if (!["accept", "reject"].includes(action)) {
         throw new ApiError(StatusCodes.BAD_REQUEST, "action must be 'accept' or 'reject'");
     }
-
     if (!mongoose.isValidObjectId(id)) {
         throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid request id");
     }
 
-    const bloodRequest = await BloodRequest.findById(id);
-    if (!bloodRequest) throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
+    const newStatus = action === "accept" ? "accepted" : "rejected";
 
-    if (bloodRequest.status !== "in_progress") {
-        throw new ApiError(StatusCodes.CONFLICT, "This request is no longer active");
-    }
-
-    const donorEntry = bloodRequest.donors.find(
-        (d) => String(d.donor) === String(donorId)
+    // Atomic positional update — only succeeds when donor status is still "pending".
+    // Prevents race conditions from double-taps or simultaneous requests.
+    const bloodRequest = await BloodRequest.findOneAndUpdate(
+        {
+            _id: id,
+            status: "in_progress",
+            donors: { $elemMatch: { donor: donorId, status: "pending" } },
+        },
+        {
+            $set: {
+                "donors.$.status": newStatus,
+                "donors.$.respondedAt": new Date(),
+            },
+        },
+        { returnDocument: "after" }
     );
-    if (!donorEntry) throw new ApiError(StatusCodes.FORBIDDEN, UNAUTHORIZED_REQUEST);
 
-    if (donorEntry.status !== "pending") {
+    if (!bloodRequest) {
+        // Diagnose failure to return a helpful error
+        const existing = await BloodRequest.findById(id);
+        if (!existing) throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
+        if (existing.status !== "in_progress") {
+            throw new ApiError(StatusCodes.CONFLICT, "This request is no longer active");
+        }
+        const donorEntry = existing.donors.find((d) => String(d.donor) === String(donorId));
+        if (!donorEntry) throw new ApiError(StatusCodes.FORBIDDEN, UNAUTHORIZED_REQUEST);
         throw new ApiError(StatusCodes.CONFLICT, "You have already responded to this request");
     }
 
@@ -186,10 +219,6 @@ export const respondToRequest = asyncHandler(async (req, res) => {
     const receiverId = String(bloodRequest.createdBy);
 
     if (action === "accept") {
-        donorEntry.status = "accepted";
-        donorEntry.respondedAt = new Date();
-        await bloodRequest.save();
-
         io.to(receiverId).emit("requestUpdated", {
             requestId: String(bloodRequest._id),
             donorId: String(donorId),
@@ -201,20 +230,13 @@ export const respondToRequest = asyncHandler(async (req, res) => {
             donorStatus: "accepted",
             event: "donor_accepted",
         });
-
     } else {
-        donorEntry.status = "rejected";
-        donorEntry.respondedAt = new Date();
-        await bloodRequest.save();
-
         io.to(receiverId).emit("requestUpdated", {
             requestId: String(bloodRequest._id),
             donorId: String(donorId),
             donorStatus: "rejected",
             event: "donor_rejected",
         });
-
-        // Find replacement donor without awaiting — non-blocking
         findAndAssignReplacementDonor(bloodRequest, donorId, io).catch((err) => {
             console.error("[Replacement] Error:", err.message);
         });
@@ -241,6 +263,10 @@ export const confirmDonation = asyncHandler(async (req, res) => {
 
     const bloodRequest = await BloodRequest.findById(id);
     if (!bloodRequest) throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
+
+    if (bloodRequest.status !== "in_progress") {
+        throw new ApiError(StatusCodes.CONFLICT, "This request is no longer active");
+    }
 
     const donorEntry = bloodRequest.donors.find(
         (d) => String(d.donor) === String(donorId)
@@ -342,15 +368,52 @@ export const getMyAssignments = asyncHandler(async (req, res) => {
     const result = requests.map((r) => {
         const donorEntry = r.donors.find((d) => String(d.donor) === String(donorId));
         return {
-            _id: String(donorEntry._id),
+            _id: String(r._id),
             requestId: String(r._id),
+            patientName: r.patientName,
             receiverName: r.patientName,
             city: r.city,
             bloodGroup: r.bloodGroup,
             hospitalName: r.hospitalName,
+            location: r.location,
+            donationDate: r.donationDate,
+            donationWindow: r.donationWindow,
+            urgencyLevel: r.urgencyLevel,
             units: 1,
             status: mapDonorStatus(donorEntry.status),
             donorStatus: donorEntry.status,
+        };
+    });
+
+    return res.status(StatusCodes.OK).send(
+        new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, result)
+    );
+});
+
+
+// ─── GET DONOR'S PENDING ASSIGNED REQUESTS (for home-page card) ──────────────
+// GET /api/v1/bloodRequest/assigned
+export const getAssignedBloodRequests = asyncHandler(async (req, res) => {
+    const donorId = req.user._id;
+
+    const requests = await BloodRequest.find({
+        status: "in_progress",
+        donors: { $elemMatch: { donor: donorId, status: { $in: ["pending", "accepted"] } } },
+    }).sort({ createdAt: -1 });
+
+    const result = requests.map((r) => {
+        const donorEntry = r.donors.find((d) => String(d.donor) === String(donorId));
+        return {
+            _id: String(r._id),
+            patientName: r.patientName,
+            bloodGroup: r.bloodGroup,
+            city: r.city,
+            hospitalName: r.hospitalName,
+            location: r.location,
+            donationDate: r.donationDate,
+            donationWindow: r.donationWindow,
+            urgencyLevel: r.urgencyLevel,
+            donorStatus: donorEntry?.status ?? "pending",
         };
     });
 
@@ -371,6 +434,7 @@ function mapReceiverStatus(donorStatus, requestStatus) {
 
 function mapDonorStatus(donorStatus) {
     if (donorStatus === "completed") return "completed";
+    if (donorStatus === "cancelled" || donorStatus === "rejected") return "cancelled";
     return "in_progress";
 }
 

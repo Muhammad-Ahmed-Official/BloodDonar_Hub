@@ -1,4 +1,15 @@
+import { User } from "../models/user.model.js";
+
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
+
+async function clearStaleToken(token) {
+    try {
+        await User.updateMany({ expoPushToken: token }, { $set: { expoPushToken: null } });
+        console.warn("[Push] Cleared stale/invalid token:", token);
+    } catch (err) {
+        console.error("[Push] Failed to clear stale token:", err.message);
+    }
+}
 
 /**
  * Send a push notification via Expo's push service.
@@ -40,6 +51,9 @@ export async function sendPushNotification(token, title, body, data = {}) {
             result.data.forEach((ticket) => {
                 if (ticket.status === "error") {
                     console.error("[Push] Ticket error:", ticket.message, ticket.details);
+                    if (ticket.details?.error === "DeviceNotRegistered") {
+                        clearStaleToken(token);
+                    }
                 }
             });
         }

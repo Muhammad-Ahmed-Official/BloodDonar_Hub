@@ -172,9 +172,9 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "space-around",
     paddingHorizontal: SIZES.padding,
-    paddingVertical: 14,
+    paddingVertical: 30,
     borderBottomWidth: 1,
     borderBottomColor: "#F0F0F0",
     backgroundColor: "#fff",

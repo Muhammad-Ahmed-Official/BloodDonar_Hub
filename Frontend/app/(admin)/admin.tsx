@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, ActivityIndicator, Platform, type StyleProp, type ViewStyle } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SIZES, SHADOW } from "@/constants/theme";
 import Card from "@/components/common/Card";
@@ -169,6 +170,7 @@ function AdminModalSaveBtn({ activeKey, thisKey, onPress, label }: {
 }
 
 export default function AdminDashboard() {
+  const { top } = useSafeAreaInsets();
   const { logout } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
@@ -630,7 +632,7 @@ export default function AdminDashboard() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: top + 16 }]}>
       <Text style={styles.title}>Admin Dashboard</Text>
 
       <View style={{ flexDirection: "row", gap: 10 }}>
@@ -964,12 +966,13 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    padding: 16,
-    paddingVertical: 40,
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingBottom: 16,
   },
 
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "bold",
     color: COLORS.text,
   },

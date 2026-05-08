@@ -95,7 +95,6 @@ function PushNotificationSetup() {
 // listener fires in all three cases.
 
 type PendingNotif =
-  | { type: "BLOOD_REQUEST"; requestId: string }
   | { type: "DONATION_CONFIRMATION"; requestId: string }
   | null;
 
@@ -103,14 +102,16 @@ function NotificationHandler() {
   const router = useRouter();
   const [pending, setPending] = useState<PendingNotif>(null);
   const listenerRef = useRef<Notifications.EventSubscription | null>(null);
+  // Tracks the last handled notification identifier to prevent double-firing
+  // when getLastNotificationResponseAsync and the response listener both fire
+  // on a cold-start tap.
+  const handledIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Check if app was opened FROM a killed state by a notification tap
     Notifications.getLastNotificationResponseAsync().then((response) => {
       if (response) handleResponse(response);
     });
 
-    // Fires when notification is tapped while app is in foreground or background
     listenerRef.current = Notifications.addNotificationResponseReceivedListener(
       handleResponse
     );
@@ -121,6 +122,9 @@ function NotificationHandler() {
   }, []);
 
   function handleResponse(response: Notifications.NotificationResponse) {
+    const responseId = response.notification.request.identifier;
+    if (handledIdRef.current === responseId) return;
+    handledIdRef.current = responseId;
     const data = response.notification.request.content.data as {
       type?: string;
       requestId?: string;
@@ -129,8 +133,8 @@ function NotificationHandler() {
     if (!data?.type || !data?.requestId) return;
 
     if (data.type === "BLOOD_REQUEST") {
+      // Navigate to home — user sees the assigned request card and taps Donate there
       router.replace("/(tabs)");
-      setPending({ type: "BLOOD_REQUEST", requestId: data.requestId });
     } else if (data.type === "DONATION_CONFIRMATION") {
       router.replace("/(tabs)");
       setPending({ type: "DONATION_CONFIRMATION", requestId: data.requestId });

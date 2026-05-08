@@ -6,6 +6,7 @@ import {
     confirmDonation,
     getMyRequests,
     getMyAssignments,
+    getAssignedBloodRequests,
 } from "../controllers/bloodRequest.controller.js";
 
 const bloodRequestRouter = Router();
@@ -15,6 +16,7 @@ bloodRequestRouter.use(verifyJwt);
 bloodRequestRouter.route("/").post(createBloodRequest);
 bloodRequestRouter.route("/my-requests").get(getMyRequests);
 bloodRequestRouter.route("/my-assignments").get(getMyAssignments);
+bloodRequestRouter.route("/assigned").get(getAssignedBloodRequests);
 bloodRequestRouter.route("/:id/respond").patch(respondToRequest);
 bloodRequestRouter.route("/:id/confirm").patch(confirmDonation);
 

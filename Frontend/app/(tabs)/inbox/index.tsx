@@ -52,10 +52,16 @@ export default function InboxScreen() {
   const [searchError, setSearchError] = useState("");
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Clear search whenever user leaves this tab (WhatsApp-like behavior)
-  // Important: must memoize callback to avoid subscribe/unsubscribe loop.
+  // Reload conversations on focus so the unread counter clears when coming back from chatId
   useFocusEffect(
     useCallback(() => {
+      getConversations()
+        .then((res) => {
+          const raw = res?.data;
+          setList(Array.isArray(raw) ? raw : []);
+        })
+        .catch(() => {});
+
       return () => {
         setQuery("");
         setSearchResults([]);
@@ -268,21 +274,21 @@ export default function InboxScreen() {
 
                 <View style={styles.chatInfo}>
                   <View style={styles.nameRow}>
-                    <Text style={styles.chatName} numberOfLines={1}>
-                      {name}
-                    </Text>
-
+                    <View style={styles.nameWithBadge}>
+                      <Text style={styles.chatName} numberOfLines={1}>
+                        {name}
+                      </Text>
+                      {(item.unreadCount ?? 0) > 0 && (
+                        <View style={styles.badgeInline}>
+                          <Text style={styles.badgeText}>
+                            {item.unreadCount! > 99 ? "99+" : item.unreadCount}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={styles.chatTime}>
                       {formatTime(item.createdAt)}
                     </Text>
-
-                    {(item.unreadCount ?? 0) > 0 && (
-                      <View style={styles.badgeInline}>
-                        <Text style={styles.badgeText}>
-                          {item.unreadCount! > 99 ? "99+" : item.unreadCount}
-                        </Text>
-                      </View>
-                    )}
                   </View>
                   <Text style={styles.chatLast} numberOfLines={1}>
                     {item.message ?? ""}
@@ -305,9 +311,9 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    padding: 16,
     paddingVertical: 40,
+    justifyContent: "space-around",
+    padding: 16,
     borderBottomWidth: 1,
     borderColor: "#B8B8B8",
   },
@@ -359,13 +365,19 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   nameRow: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "space-between",
-},
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  nameWithBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+    marginRight: 8,
+  },
   avatarImg: { width: 48, height: 48, borderRadius: 24 },
   chatInfo: { flex: 1 },
-  chatName: { fontSize: 15, fontWeight: "600", color: COLORS.text },
+  chatName: { fontSize: 15, fontWeight: "600", color: COLORS.text, flexShrink: 1 },
   chatLast: { fontSize: 13,  marginTop: 4 },
   chatRight: { alignItems: "flex-end" },
   chatTime: { 

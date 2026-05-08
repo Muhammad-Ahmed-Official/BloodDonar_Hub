@@ -19,6 +19,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import Input from "@/components/common/Input";
 import { getAllRequests, getProfile, deleteRequest } from "@/services/user.service";
+import { getAssignedBloodRequests, getMyAssignments, getMyRequests, respondToRequest } from "@/services/bloodRequest.service";
+import { getRealtimeSocket } from "@/services/realtime";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -34,6 +36,19 @@ type RequestRow = {
   location?: string;
   reason?: string;
   userId?: { _id: string; userName?: string; email?: string } | string;
+};
+
+type AssignedRequest = {
+  _id: string;
+  patientName: string;
+  bloodGroup: string;
+  city: string;
+  hospitalName: string;
+  location: string;
+  donationDate: string;
+  donationWindow: { startTime: string; endTime: string };
+  urgencyLevel: string;
+  donorStatus: string;
 };
 
 function requestLooksEmergency(reason?: string) {
@@ -56,6 +71,15 @@ export default function HomeScreen() {
   const [canDonateBlood, setCanDonateBlood] = useState<"yes" | "no" | "">("");
   const [hasMedicalInfo, setHasMedicalInfo] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [assignedRequests, setAssignedRequests] = useState<AssignedRequest[]>([]);
+  const [donatingId, setDonatingId] = useState<string | null>(null);
+  const [donatedIds, setDonatedIds] = useState<Set<string>>(new Set());
+  const [activityStats, setActivityStats] = useState({
+    donorAssignments: 0,
+    completedDonations: 0,
+    ownRequests: 0,
+    ownDonarPosts: 0,
+  });
   const insets = useSafeAreaInsets();
 
   const loadFeed = useCallback(async () => {
@@ -65,17 +89,61 @@ export default function HomeScreen() {
     setAllRequests(reqs);
   }, []);
 
+  const loadAssigned = useCallback(async () => {
+    try {
+      const res = await getAssignedBloodRequests();
+      const list = Array.isArray(res?.data) ? res.data : [];
+      setAssignedRequests(list);
+      // Pre-populate already-accepted ones as donated
+      setDonatedIds((prev) => {
+        const next = new Set(prev);
+        list.forEach((r: AssignedRequest) => {
+          if (r.donorStatus === "accepted") next.add(r._id);
+        });
+        return next;
+      });
+    } catch {
+      // silently ignore — not critical
+    }
+  }, []);
+
   const loadHomeData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [prof] = await Promise.all([getProfile().catch(() => null), loadFeed()]);
+      const [prof, , , allAssignmentsRes, myRequestsRes] = await Promise.all([
+        getProfile().catch(() => null),
+        loadFeed(),
+        loadAssigned(),
+        getMyAssignments().catch(() => null),
+        getMyRequests().catch(() => null),
+      ]);
+
       const info = prof?.data?.userInfo;
       const medList = prof?.data?.medicalInfo;
+      const ownDonarPosts = Array.isArray(prof?.data?.donationRequests)
+        ? prof.data.donationRequests.length
+        : 0;
 
       if (info?.pic) setProfilePic(info.pic);
       setCanDonateBlood(info?.canDonateBlood === "yes" ? "yes" : "no");
       setHasMedicalInfo(Array.isArray(medList) ? medList.length > 0 : !!medList);
+
+      const allAssignments = Array.isArray(allAssignmentsRes?.data)
+        ? allAssignmentsRes.data
+        : [];
+      const myRequests = Array.isArray(myRequestsRes?.data)
+        ? myRequestsRes.data
+        : [];
+
+      setActivityStats({
+        donorAssignments: allAssignments.length,
+        completedDonations: allAssignments.filter(
+          (a: any) => a.donorStatus === "completed"
+        ).length,
+        ownRequests: myRequests.length,
+        ownDonarPosts,
+      });
     } catch (e: unknown) {
       const msg =
         typeof e === "object" && e !== null && "message" in e
@@ -85,17 +153,29 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
     }
-  }, [loadFeed]);
+  }, [loadFeed, loadAssigned]);
 
-  useEffect(() => {
-    loadHomeData();
-  }, [loadHomeData]);
-
+  // useFocusEffect already fires on initial mount — no separate useEffect needed.
   useFocusEffect(
     useCallback(() => {
       loadHomeData();
     }, [loadHomeData])
   );
+
+  // Realtime: refresh active assignments whenever a requestUpdated socket event arrives.
+  useEffect(() => {
+    const socket = getRealtimeSocket();
+    if (!socket || !user?._id) return;
+
+    const handleRequestUpdated = () => {
+      loadAssigned();
+    };
+
+    socket.on("requestUpdated", handleRequestUpdated);
+    return () => {
+      socket.off("requestUpdated", handleRequestUpdated);
+    };
+  }, [user?._id, loadAssigned]);
 
   const filteredRequests = useMemo(() => {
     const c = cityInput.trim().toLowerCase();
@@ -124,6 +204,20 @@ export default function HomeScreen() {
       Alert.alert("Error", msg);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleDonateBloodRequest = async (requestId: string) => {
+    if (donatingId) return;
+    setDonatingId(requestId);
+    try {
+      await respondToRequest(requestId, "accept");
+      setDonatedIds((prev) => new Set([...prev, requestId]));
+    } catch (err: any) {
+      const msg = err?.message || err?.error || "Failed to respond to request.";
+      Alert.alert("Error", msg);
+    } finally {
+      setDonatingId(null);
     }
   };
 
@@ -243,7 +337,9 @@ export default function HomeScreen() {
               />
               <View style={styles.activityContent}>
                 <Text style={styles.activityLabel}>{t("home.bloodDonor")}</Text>
-                <Text style={styles.activityCount}>0 posts</Text>
+                <Text style={styles.activityCount}>
+                  {activityStats.donorAssignments} assigned
+                </Text>
               </View>
             </View>
 
@@ -255,8 +351,10 @@ export default function HomeScreen() {
               />
               <View style={styles.activityContent}>
                 <Text style={styles.activityLabel}>{t("home.bloodRecipient")}</Text>
-                <Text style={styles.activityCount}>{allRequests.length} requests</Text>
-              </View> 
+                <Text style={styles.activityCount}>
+                  {activityStats.ownRequests} requests
+                </Text>
+              </View>
             </View>
 
             <View style={styles.activityCard}>
@@ -267,10 +365,12 @@ export default function HomeScreen() {
               />
               <View style={styles.activityContent}>
                 <Text style={styles.activityLabel}>{t("home.createPost")}</Text>
-                <Text style={styles.activityCount}>It&apos;s Easy! 3 Step</Text>
+                <Text style={styles.activityCount}>
+                  {activityStats.ownDonarPosts} posts
+                </Text>
               </View>
             </View>
-            
+
             <View style={styles.activityCard}>
               <Image
                 source={require("../../assets/projectImages/blood_transfusion.png")}
@@ -279,12 +379,38 @@ export default function HomeScreen() {
               />
               <View style={styles.activityContent}>
                 <Text style={styles.activityLabel}>{t("home.bloodGiven")}</Text>
-                <Text style={styles.activityCount}>It&apos;s Easy! 1 Step</Text>
+                <Text style={styles.activityCount}>
+                  {activityStats.completedDonations} donated
+                </Text>
               </View>
             </View>
-
-
           </View>
+
+          {assignedRequests.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>Assigned to You</Text>
+              {assignedRequests.map((r) => {
+                const isDonated = donatedIds.has(r._id);
+                const isDonating = donatingId === r._id;
+                return (
+                  <Card
+                    key={`assigned-${r._id}`}
+                    bloodGroup={r.bloodGroup}
+                    patientName={r.patientName}
+                    city={r.city}
+                    hospital={r.hospitalName}
+                    date={r.donationDate ? new Date(r.donationDate).toLocaleDateString() : "—"}
+                    address={r.location}
+                    isEmergency={r.urgencyLevel === "critical" || r.urgencyLevel === "high"}
+                    isShow={true}
+                    donated={isDonated}
+                    donateDisabled={isDonating}
+                    onDonate={!isDonated ? () => handleDonateBloodRequest(r._id) : undefined}
+                  />
+                );
+              })}
+            </>
+          )}
 
           {loading ? (
             <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} />
@@ -300,11 +426,12 @@ export default function HomeScreen() {
               {filteredRequests.map((r) => {
                 const isOwner = String(getRequestOwnerId(r)) === String(user?._id);
                 const handleDonate = () => {
-                  if (hasMedicalInfo) {
-                    // router.push("/(tabs)/search/create");
-                  } else {
+                  if (!hasMedicalInfo) {
                     router.push("/(tabs)/profile/medicalInfo");
+                    return;
                   }
+                  // Navigate to the request detail for contact / more info
+                  if (r._id) router.push(`/(stack)/request/${r._id}`);
                 };
                 return (
                   <Card
