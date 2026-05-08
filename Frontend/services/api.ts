@@ -3,8 +3,8 @@ import { Platform } from "react-native";
 import { getToken, clearSession } from "../storage/tokenStorage";
 
 // const API_URL = Platform.select({
-//   android: "http://10.0.2.2:3000/api/v1/",   // Android emulator → host machine
-//   ios: "http://localhost:3000/api/v1/",        // iOS simulator
+//   android: "http://10.0.2.2:3000/api/v1/",   
+//   ios: "http://localhost:3000/api/v1/",      
 //   default: "http://localhost:3000/api/v1/",
 // });
 

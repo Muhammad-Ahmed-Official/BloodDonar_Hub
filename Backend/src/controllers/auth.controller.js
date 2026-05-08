@@ -50,18 +50,12 @@ const generateAccessToken = async (userId) => {
 export const signup = asyncHandler(async (req, res) => {
     const { userName, email, password } = req.body;
 
-    if ([userName, email, password].some(
-        (field) => typeof field !== "string" || field.trim() === ""
-    )) {
+    if ([userName, email, password].some( (field) => typeof field !== "string" || field.trim() === "" )) {
         throw new ApiError(StatusCodes.BAD_REQUEST, MISSING_FIELDS);
     }
 
-    const normalizedUserName = userName.trim().toLowerCase();
-    const normalizedEmail = email.trim().toLowerCase();
 
-    const isUserExist = await User.findOne({
-        $or: [{ userName: normalizedUserName }, { email: normalizedEmail }]
-    });
+    const isUserExist = await User.findOne({ $or: [{ userName, email }] });
 
     if (isUserExist) {
         throw new ApiError(StatusCodes.CONFLICT, USER_EXISTS);
@@ -71,15 +65,16 @@ export const signup = asyncHandler(async (req, res) => {
     const otpExpiry = Date.now() + 600000;
 
     // try {
-    //     await sendEmailOTP(normalizedEmail, otp);
     // } catch (err) {
-    //     console.error("Email error:", err); // stop hiding real errors
+    //     console.error("Email error:", err);
     //     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, EMAIL_ERROR);
     // }
+    
+    await sendEmailOTP(email, otp);
 
     const user = await User.create({
-        userName: normalizedUserName,
-        email: normalizedEmail,
+        userName,
+        email,
         password,
         otp,
         expiresIn: otpExpiry,

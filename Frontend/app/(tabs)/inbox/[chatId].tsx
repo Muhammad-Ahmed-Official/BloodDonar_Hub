@@ -378,8 +378,8 @@ export default function ChatScreen() {
 
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={0}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
         >
         {/* Messages */}
         {loading ? (
@@ -401,7 +401,7 @@ export default function ChatScreen() {
         )}
 
         {/* Input Area */}
-        <View style={[styles.inputContainer, { paddingBottom: insets.bottom + 12 }]}>
+        <View style={[ styles.inputContainer, { paddingBottom: Platform.OS === "ios" ? insets.bottom + 8 : 8 } ]} >
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.input}
