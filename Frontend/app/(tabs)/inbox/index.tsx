@@ -45,6 +45,7 @@ export default function InboxScreen() {
   const { t } = useLanguage();
   const [query, setQuery] = useState("");
   const [list, setList] = useState<ConversationRow[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
@@ -104,7 +105,6 @@ export default function InboxScreen() {
     if (!s) return;
 
     const onNewMessage = () => {
-      // lightweight refresh
       getConversations()
         .then((res) => {
           const raw = res?.data;
@@ -308,16 +308,22 @@ export default function InboxScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.white },
-
   header: {
     flexDirection: "row",
-    paddingVertical: 40,
-    justifyContent: "space-around",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderColor: "#B8B8B8",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 40,
+    paddingBottom: 12,
+    borderBottomWidth: 0.5,
+    borderColor: "#E0E0E0",
   },
   headerTitle: {
+    position: "absolute",
+    left: 0,
+    bottom: 14,
+    right: 0,
+    textAlign: "center",
     fontSize: 18,
     fontWeight: "bold",
     color: COLORS.text,

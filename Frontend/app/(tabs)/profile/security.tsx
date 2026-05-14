@@ -206,20 +206,27 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white
   },
 
-
   header: {
     flexDirection: "row",
-    paddingVertical: 40,
-    justifyContent: "space-around",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderColor: "#B8B8B8",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 48,
+    paddingBottom: 12,
+    borderBottomWidth: 0.5,
+    borderColor: "#E0E0E0",
   },
   headerTitle: {
+    position: "absolute",
+    left: 0,
+    bottom: 14,
+    right: 0,
+    textAlign: "center",
     fontSize: 18,
     fontWeight: "bold",
     color: COLORS.text,
   },
+
 
   card: {
     backgroundColor: COLORS.white,

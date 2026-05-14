@@ -1,25 +1,38 @@
 import { Tabs, usePathname } from "expo-router";
-import { View, StyleSheet, Platform } from "react-native";
+import { StyleSheet, View, Text } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { COLORS } from "../../constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLanguage } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getConversations } from "@/services/chat.service";
+import { connectRealtime } from "@/services/realtime";
 
-function TabIcon({ name, focused, type = "ionicons" }: { name: any; focused: boolean; type?: "ionicons" | "material" }) {
+function TabIcon({
+  name,
+  focused,
+  color,
+  icon,
+  badgeCount,
+}: {
+  name: any;
+  focused: boolean;
+  color: string;
+  icon: "ionicon" | "material";
+  badgeCount?: number;
+}) {
+  const IconComponent = icon === "material" ? MaterialIcons : Ionicons;
+
   return (
-    <View style={[styles.iconWrap, focused && styles.activeWrap]}>
-      {type === "ionicons" ? (
-        <Ionicons
-          name={name}
-          size={22}
-          color={focused ? COLORS.primary : COLORS.white}
-        />
-      ) : (
-        <MaterialIcons
-          name={name}
-          size={22}
-          color={focused ? COLORS.primary : COLORS.white}
-        />
+    <View style={[styles.iconWrapper, focused && styles.iconWrapperActive]}>
+      <IconComponent name={name} size={22} color={color} />
+      {(badgeCount ?? 0) > 0 && (
+        <View style={styles.navBadge}>
+          <Text style={styles.navBadgeText}>
+            {badgeCount! > 99 ? "99+" : badgeCount}
+          </Text>
+        </View>
       )}
     </View>
   );
@@ -29,157 +42,220 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const { t } = useLanguage();
-  
-  // Hide tab bar on dynamic chat route (pathname is e.g. /inbox/hassnan, not /inbox/[chatId])
+  const { user } = useAuth();
+
+  // Per-conversation unread map: partnerId → unreadCount
+  // This lets us decrement only the read conversation without zeroing the rest
+  const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
+  const totalUnread = useMemo(
+    () => Object.values(unreadMap).reduce((a, b) => a + b, 0),
+    [unreadMap]
+  );
+
   const isChatScreen = /^\/inbox\/.+/.test(pathname);
-  const shouldHideTabBar = isChatScreen;
+
+  // Extract the active chat partner id when inside a conversation
+  const chatPartnerId = useMemo(() => {
+    const match = pathname.match(/^\/inbox\/(.+)/);
+    return match ? match[1] : null;
+  }, [pathname]);
+
+  // Ref so the socket handler always reads the latest chatPartnerId
+  const chatPartnerIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    chatPartnerIdRef.current = chatPartnerId;
+  }, [chatPartnerId]);
+
+  // Ref to detect the chat→non-chat transition
+  const wasInChatRef = useRef(false);
+
+  // Full API sync → rebuild the unread map from server data.
+  // Always zeroes the currently-open chat partner so a slow API response
+  // can never restore a count the user already cleared by opening the chat.
+  const refreshUnread = useCallback(() => {
+    getConversations()
+      .then((res) => {
+        const raw: any[] = Array.isArray(res?.data) ? res.data : [];
+        const map: Record<string, number> = {};
+        for (const c of raw) {
+          if (c.partner?._id) {
+            const pid = String(c.partner._id);
+            map[pid] = pid === chatPartnerIdRef.current ? 0 : (c.unreadCount ?? 0);
+          }
+        }
+        setUnreadMap(map);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Populate on mount
+  useEffect(() => {
+    refreshUnread();
+  }, [refreshUnread]);
+
+  // Zero out a conversation immediately when the user opens it (optimistic).
+  // No early-return guard — always zero so a slow refreshUnread() response
+  // can't restore the count after the user has already entered the chat.
+  useEffect(() => {
+    if (!chatPartnerId) return;
+    setUnreadMap((prev) => ({ ...prev, [chatPartnerId]: 0 }));
+  }, [chatPartnerId]);
+
+  // Re-sync from server the moment the user leaves a chat screen.
+  // emitSeen is called when the chat screen FOCUSES (before the user navigates
+  // back), so the server has already marked the messages as read by this point.
+  useEffect(() => {
+    if (wasInChatRef.current && !isChatScreen) {
+      refreshUnread();
+    }
+    wasInChatRef.current = isChatScreen;
+  }, [isChatScreen, refreshUnread]);
+
+  // Realtime: increment on new message from someone we're not currently chatting with
+  useEffect(() => {
+    if (!user?._id) return;
+    const s = connectRealtime(String(user._id));
+    if (!s) return;
+
+    const onNewMessage = (payload: any) => {
+      const senderId = String(payload?.sender ?? "");
+      if (!senderId) return;
+      if (senderId === chatPartnerIdRef.current) return;
+      setUnreadMap((prev) => ({
+        ...prev,
+        [senderId]: (prev[senderId] ?? 0) + 1,
+      }));
+    };
+
+    s.on("newMessage", onNewMessage);
+    return () => {
+      s.off("newMessage", onNewMessage);
+    };
+  }, [user?._id]);
+
+  const tabBarStyle = useMemo(() => ({
+    ...styles.tabBar,
+    height: 64 + insets.bottom,
+    paddingBottom: insets.bottom + 6,
+    display: (isChatScreen ? "none" : "flex") as "none" | "flex",
+  }), [isChatScreen, insets.bottom]);
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          ...styles.tabBar,
-          height: Platform.OS === "ios" ? 70 + insets.bottom : 70,
-          paddingBottom: Platform.OS === "ios" ? insets.bottom : 12,
-          display: shouldHideTabBar ? "none" : "flex", // Hide tab bar on chat
-        },
-        tabBarShowLabel: false,
+        tabBarStyle,
+        tabBarShowLabel: true,
+        tabBarActiveTintColor: COLORS.white,
+        tabBarInactiveTintColor: "rgba(255,255,255,0.50)",
+        tabBarLabelStyle: styles.label,
+        tabBarItemStyle: styles.tabItem,
         tabBarHideOnKeyboard: true,
       }}
     >
-      {/* HOME TAB */}
       <Tabs.Screen
         name="index"
         options={{
           title: t("tabs.home"),
-          tabBarAccessibilityLabel: t("tabs.home"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="home" focused={focused} type="ionicons" />
+            <TabIcon name="home" focused={focused} color={focused ? COLORS.white : "rgba(255,255,255,0.50)"} icon="ionicon" />
           ),
         }}
       />
-
-      {/* INBOX TAB - Using MaterialIcons chat icon */}
       <Tabs.Screen
         name="inbox/index"
         options={{
           title: t("tabs.messages"),
-          tabBarAccessibilityLabel: t("tabs.messages"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="chat" focused={focused} type="material" />
+            <TabIcon
+              name="chat"
+              focused={focused}
+              color={focused ? COLORS.white : "rgba(255,255,255,0.50)"}
+              icon="material"
+              badgeCount={totalUnread}
+            />
           ),
         }}
       />
-
-      {/* SEARCH TAB */}
       <Tabs.Screen
         name="search/index"
         options={{
           title: t("tabs.search"),
-          tabBarAccessibilityLabel: t("tabs.search"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="search" focused={focused} type="ionicons" />
+            <TabIcon name="search" focused={focused} color={focused ? COLORS.white : "rgba(255,255,255,0.50)"} icon="ionicon" />
           ),
         }}
       />
-
-      {/* PROFILE TAB */}
       <Tabs.Screen
         name="profile/index"
         options={{
           title: t("tabs.profile"),
-          tabBarAccessibilityLabel: t("tabs.profile"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="person" focused={focused} type="ionicons" />
+            <TabIcon name="person" focused={focused} color={focused ? COLORS.white : "rgba(255,255,255,0.50)"} icon="ionicon" />
           ),
         }}
       />
 
-      
-
-      {/* HIDE CHAT SCREEN FROM TABS */}
-      <Tabs.Screen
-        name="inbox/[chatId]"
-        options={{
-          href: null,
-        }}
-      />
-
-      <Tabs.Screen
-        name="profile/privacy"
-        options={{
-          href: null,
-        }}
-      />
-
-      <Tabs.Screen
-        name="profile/compatibility"
-        options={{
-          href: null,
-        }}
-      />
-
-      <Tabs.Screen
-        name="profile/medicalInfo"
-        options={{
-          href: null,
-        }}
-      />
-
-      <Tabs.Screen
-        name="profile/security"
-        options={{
-          href: null,
-        }}
-      />
-
-
-      {/* HIDE CREATE SCREEN FROM TABS */}
-      <Tabs.Screen
-        name="search/create"
-        options={{
-          href: null,
-        }}
-      />
+      {/* HIDDEN SCREENS */}
+      <Tabs.Screen name="inbox/[chatId]"        options={{ href: null }} />
+      <Tabs.Screen name="profile/privacy"       options={{ href: null }} />
+      <Tabs.Screen name="profile/compatibility" options={{ href: null }} />
+      <Tabs.Screen name="profile/medicalInfo"   options={{ href: null }} />
+      <Tabs.Screen name="profile/security"      options={{ href: null }} />
+      <Tabs.Screen name="search/create"         options={{ href: null }} />
     </Tabs>
   );
 }
+
 
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: COLORS.primary,
     borderTopWidth: 0,
-    marginBottom: 0,
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
+    paddingTop: 6,
+    elevation: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 10,
-    paddingTop: 8,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
+    shadowOpacity: 0.10,
+    shadowRadius: 8,
   },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 32,
+  tabItem: {
+    paddingVertical: 2,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  iconWrapper: {
+    paddingHorizontal: 18,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  iconWrapperActive: {
+    backgroundColor: "rgba(255,255,255,0.20)",
+  },
+  navBadge: {
+    position: "absolute",
+    top: -2,
+    right: 6,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: COLORS.white,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 10,
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
   },
-  activeWrap: {
-    backgroundColor: COLORS.white,
-    transform: [{ scale: 1.05 }],
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+  navBadgeText: {
+    color: COLORS.primary,
+    fontSize: 9,
+    fontWeight: "bold",
   },
 });

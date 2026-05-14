@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { loginUser, signUpUser, verifyEmail as verifyEmailService, logoutUser } from "../services/auth.service";
 import { saveToken, saveUser, getToken, getSavedUser, clearSession } from "../storage/tokenStorage";
 import { connectRealtime, disconnectRealtime } from "@/services/realtime";
+import { registerSessionExpiredHandler } from "@/services/authBridge";
 import type { Socket } from "socket.io-client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -55,6 +56,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
     restoreSession();
+  }, []);
+
+  // ── Handle JWT expiry from API interceptor ────────────────────────────────
+  useEffect(() => {
+    registerSessionExpiredHandler(() => {
+      disconnectRealtime();
+      setSocket(null);
+      setToken(null);
+      setUser(null);
+    });
   }, []);
 
   // ── Realtime socket lifecycle ──────────────────────────────────────────────

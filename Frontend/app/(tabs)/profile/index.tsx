@@ -287,13 +287,20 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: "row",
-    paddingVertical: 40,
-    justifyContent: "space-around",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderColor: "#B8B8B8",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 40,
+    paddingBottom: 12,
+    borderBottomWidth: 0.5,
+    borderColor: "#E0E0E0",
   },
   headerTitle: {
+    position: "absolute",
+    left: 0,
+    bottom: 14,
+    right: 0,
+    textAlign: "center",
     fontSize: 18,
     fontWeight: "bold",
     color: COLORS.text,
@@ -301,6 +308,7 @@ const styles = StyleSheet.create({
 
   content: {
     padding: SIZES.padding,
+    paddingBottom: 20
   },
 
   // Profile Card
@@ -308,7 +316,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderRadius: SIZES.radius,
     padding: 16,
-    marginTop: 24,
+    marginTop: 4,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",

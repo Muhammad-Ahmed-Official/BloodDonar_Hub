@@ -26,17 +26,24 @@ export const getMessages = asyncHandler(async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const messages = await Chat.find({
-        $or: [
-            { sender: senderId, receiver: receiverId },
-            { sender: receiverId, receiver: senderId },
-        ],
-    })
-        .sort({ createdAt: 1 })
-        .skip(skip)
-        .limit(parseInt(limit))
-        .populate({ path: "sender", select: "userName" })
-        .populate({ path: "receiver", select: "userName" });
+    const [messages] = await Promise.all([
+        Chat.find({
+            $or: [
+                { sender: senderId, receiver: receiverId },
+                { sender: receiverId, receiver: senderId },
+            ],
+        })
+            .sort({ createdAt: 1 })
+            .skip(skip)
+            .limit(parseInt(limit))
+            .populate({ path: "sender", select: "userName" })
+            .populate({ path: "receiver", select: "userName" }),
+        // Mark all unread messages from this partner as seen immediately
+        Chat.updateMany(
+            { sender: receiverId, receiver: senderId, seen: false },
+            { $set: { seen: true } }
+        ),
+    ]);
 
     return res.status(StatusCodes.OK).send(
         new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, messages)

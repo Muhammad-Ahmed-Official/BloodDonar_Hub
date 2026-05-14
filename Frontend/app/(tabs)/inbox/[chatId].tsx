@@ -66,6 +66,8 @@ export default function ChatScreen() {
   const [loadingPartner, setLoadingPartner] = useState(false);
   const [myPic, setMyPic] = useState<string | null>(null);
 
+  const TAB_BAR_HEIGHT = 60;
+
   const emitSeen = useCallback(() => {
     if (!socket || !receiverId || !user?._id) return;
     socket.emit("seenMsg", { sender: String(receiverId), receiver: String(user._id) });
@@ -116,12 +118,9 @@ export default function ChatScreen() {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [receiverId, user?._id]);
 
-  // When screen is focused, mark messages as seen
   useFocusEffect(
     useMemo(
       () => () => {
@@ -150,12 +149,9 @@ export default function ChatScreen() {
         if (!cancelled) setLoadingPartner(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [receiverId]);
 
-  // Fetch own profile pic once
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -164,13 +160,12 @@ export default function ChatScreen() {
         const pic = res?.data?.userInfo?.pic ?? null;
         if (!cancelled) setMyPic(pic);
       } catch {
-        // no-op — avatar just stays null
+        // no-op
       }
     })();
     return () => { cancelled = true; };
   }, []);
 
-  // Real-time receive — re-runs whenever the socket instance changes
   useEffect(() => {
     if (!socket || !receiverId || !user?._id) return;
 
@@ -208,9 +203,7 @@ export default function ChatScreen() {
     };
 
     socket.on("newMessage", onNewMessage);
-    return () => {
-      socket.off("newMessage", onNewMessage);
-    };
+    return () => { socket.off("newMessage", onNewMessage); };
   }, [socket, receiverId, user?._id]);
 
   const sendMessage = async () => {
@@ -232,7 +225,6 @@ export default function ChatScreen() {
     setInputText("");
     setSending(true);
     try {
-      // REST send persists message; backend emits realtime event to receiver
       const res = await sendMessageApi({ receiverId, message: text });
       const m = res?.data as ApiMessage | undefined;
       if (m?._id) {
@@ -272,9 +264,9 @@ export default function ChatScreen() {
     Linking.openURL(`tel:${raw}`);
   };
 
-  const renderMessage = ({ item } : any) => {
+  const renderMessage = ({ item }: any) => {
     const isMe = item.sender === "me";
-    const pic  = isMe ? myPic : partner?.pic;
+    const pic = isMe ? myPic : partner?.pic;
 
     return (
       <View style={[styles.messageRow, isMe ? styles.myRow : styles.theirRow]}>
@@ -313,75 +305,45 @@ export default function ChatScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea} >
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-      
+
       {/* Header */}
-<View style={styles.header}>
-  <TouchableOpacity
-    onPress={() => router.push("/(tabs)/inbox")}
-    style={styles.backBtn}
-  >
-    <Ionicons
-      name="chevron-back"
-      size={24}
-      color={COLORS.text}
-    />
-  </TouchableOpacity>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.push("/(tabs)/inbox")} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
+        </TouchableOpacity>
 
-  <View style={styles.headerInfo}>
-    <View style={styles.avatar}>
-      {partner?.pic ? (
-        <Image
-          source={{ uri: partner.pic }}
-          style={styles.avatarImg}
-        />
-      ) : (
-        <Ionicons
-          name="person"
-          size={22}
-          color={COLORS.white}
-        />
-      )}
-    </View>
-
-    <View style={styles.headerText}>
-      <Text
-  style={styles.headerName}
-  numberOfLines={1}
->
-  {(partner?.name ?? "Chat")
-    .charAt(0)
-    .toUpperCase() + (partner?.name ?? "Chat").slice(1)}
-</Text>
-
-      {/* {!!loadingPartner && (
-        <Text style={styles.headerStatus}>
-          Loading...
-        </Text>
-      )} */}
-    </View>
-  </View>
-
-  <TouchableOpacity
-    style={styles.callBtn}
-    onPress={handleCall}
-    disabled={!partner?.mobile}
-  >
-    <Ionicons
-      name="call-outline"
-      size={22}
-      color={partner?.mobile ? COLORS.primary : "#bbb"}
-    />
-  </TouchableOpacity>
-</View>
-
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        <TouchableOpacity
+          style={styles.headerInfo}
+          onPress={() => router.push(`/(stack)/request?userId=${receiverId}`)}
+          activeOpacity={0.7}
         >
-        {/* Messages */}
+          <View style={styles.avatar}>
+            {partner?.pic ? (
+              <Image source={{ uri: partner.pic }} style={styles.avatarImg} />
+            ) : (
+              <Ionicons name="person" size={22} color={COLORS.white} />
+            )}
+          </View>
+          <View style={styles.headerText}>
+            <Text style={styles.headerName} numberOfLines={1}>
+              {(partner?.name ?? "Chat").charAt(0).toUpperCase() +
+                (partner?.name ?? "Chat").slice(1)}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.callBtn} onPress={handleCall} disabled={!partner?.mobile}>
+          <Ionicons name="call-outline" size={22} color={partner?.mobile ? COLORS.primary : "#bbb"} />
+        </TouchableOpacity>
+      </View>
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
+      >
         {loading ? (
           <ActivityIndicator size="large" color={COLORS.primary} style={{ flex: 1, marginTop: 24 }} />
         ) : (
@@ -401,7 +363,7 @@ export default function ChatScreen() {
         )}
 
         {/* Input Area */}
-        <View style={[ styles.inputContainer, { paddingBottom: Platform.OS === "ios" ? insets.bottom + 8 : 8 } ]} >
+        <View>
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.input}
@@ -411,9 +373,8 @@ export default function ChatScreen() {
               onChangeText={setInputText}
               multiline
             />
-
             <TouchableOpacity style={styles.sendBtn} onPress={sendMessage} disabled={sending}>
-              <FontAwesome6 name="arrow-right" size={20} color={COLORS.white} />
+              <FontAwesome6 name="arrow-right" size={18} color={COLORS.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -422,100 +383,79 @@ export default function ChatScreen() {
   );
 }
 
+const TAB_BAR_HEIGHT = 60;
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.white,
   },
 
-header: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "space-between",
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: SIZES.padding,
+    paddingVertical: 10,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderColor: "#B8B8B8",
+  },
 
-  paddingHorizontal: SIZES.padding,
-  paddingTop: 18,
-  paddingBottom: 18,
+  backBtn: {
+    width: 42,
+    height: 42,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 
-  backgroundColor: COLORS.white,
+  headerInfo: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 10,
+  },
 
-  borderBottomWidth: 1,
-  borderColor: "#B8B8B8",
-},
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#ccc",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+    marginRight: 12,
+  },
 
-backBtn: {
-  width: 42,
-  height: 42,
+  avatarImg: {
+    width: "100%",
+    height: "100%",
+  },
 
-  justifyContent: "center",
-  alignItems: "center",
-},
+  headerText: {
+    justifyContent: "center",
+  },
 
-headerInfo: {
-  flex: 1,
+  headerName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: COLORS.text,
+    lineHeight: 20,
+  },
 
-  flexDirection: "row",
-  alignItems: "center",
-
-  marginHorizontal: 10,
-},
-
-avatar: {
-  width: 44,
-  height: 44,
-  borderRadius: 22,
-
-  backgroundColor: "#ccc",
-
-  justifyContent: "center",
-  alignItems: "center",
-
-  overflow: "hidden",
-
-  marginRight: 12,
-},
-
-headerText: {
-  // flex: 1,
-  fontSize: 30,
-  justifyContent: "center",
-},
-
-avatarImg: {
-  width: "100%",
-  height: "100%",
-},
-
-
-headerName: {
-  fontSize: 16,
-  fontWeight: "700",
-  color: COLORS.text,
-  lineHeight: 20,
-},
-
-headerStatus: {
-  fontSize: 12,
-  color: "#25D366",
-
-  marginTop: 2,
-
-  lineHeight: 16,
-},
-
-callBtn: {
-  width: 42,
-  height: 42,
-
-  justifyContent: "center",
-  alignItems: "center",
-},
+  callBtn: {
+    width: 42,
+    height: 42,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 
   messagesList: {
     paddingHorizontal: 16,
     paddingVertical: 16,
     paddingBottom: 20,
   },
+
   errorText: {
     color: "#E53935",
     paddingHorizontal: 16,
@@ -611,22 +551,23 @@ callBtn: {
     alignItems: "center",
     backgroundColor: "#F5F5F8",
     borderRadius: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 4,
+    marginHorizontal: 10
   },
 
   input: {
     flex: 1,
     fontSize: 15,
     color: COLORS.text,
-    paddingVertical: 10,
-    paddingHorizontal: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 2,
     maxHeight: 100,
   },
 
   sendBtn: {
-    width: 42,
-    height: 42,
+    width: 36,
+    height: 36,
     borderRadius: 21,
     backgroundColor: COLORS.primary,
     justifyContent: "center",

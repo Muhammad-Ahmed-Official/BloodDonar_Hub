@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
-import * as Notifications from "expo-notifications";
+import { ActivityIndicator, StyleSheet, View, Platform } from "react-native";
+import * as NavigationBar from "expo-navigation-bar";
+// TEMPORARILY DISABLED — expo-notifications not supported in Expo Go SDK 55
+// import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import "react-native-reanimated";
 import AppProvider from "@/context/AppProvider";
@@ -10,8 +12,8 @@ import { useAuth } from "@/context/AuthContext";
 import { COLORS } from "@/constants/theme";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { saveExpoPushTokenToBackend } from "@/services/notifications";
-import BloodRequestModal from "@/components/BloodRequestModal";
-import ConfirmDonationModal from "@/components/ConfirmDonationModal";
+// import BloodRequestModal from "@/components/BloodRequestModal";
+// import ConfirmDonationModal from "@/components/ConfirmDonationModal";
 
 // ─── Route Guard ──────────────────────────────────────────────────────────────
 //
@@ -89,92 +91,70 @@ function PushNotificationSetup() {
   return null;
 }
 
-// ─── Notification Tap Handler ─────────────────────────────────────────────────
-// Handles taps on push notifications whether the app is foregrounded,
-// backgrounded, or was completely killed. The Expo notification response
-// listener fires in all three cases.
+// TEMPORARILY DISABLED — expo-notifications not supported in Expo Go SDK 55
+// type PendingNotif =
+//   | { type: "DONATION_CONFIRMATION"; requestId: string }
+//   | null;
 
-type PendingNotif =
-  | { type: "DONATION_CONFIRMATION"; requestId: string }
-  | null;
-
-function NotificationHandler() {
-  const router = useRouter();
-  const [pending, setPending] = useState<PendingNotif>(null);
-  const listenerRef = useRef<Notifications.EventSubscription | null>(null);
-  // Tracks the last handled notification identifier to prevent double-firing
-  // when getLastNotificationResponseAsync and the response listener both fire
-  // on a cold-start tap.
-  const handledIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response) handleResponse(response);
-    });
-
-    listenerRef.current = Notifications.addNotificationResponseReceivedListener(
-      handleResponse
-    );
-
-    return () => {
-      listenerRef.current?.remove();
-    };
-  }, []);
-
-  function handleResponse(response: Notifications.NotificationResponse) {
-    const responseId = response.notification.request.identifier;
-    if (handledIdRef.current === responseId) return;
-    handledIdRef.current = responseId;
-    const data = response.notification.request.content.data as {
-      type?: string;
-      requestId?: string;
-    };
-
-    if (!data?.type || !data?.requestId) return;
-
-    if (data.type === "BLOOD_REQUEST") {
-      // Navigate to home — user sees the assigned request card and taps Donate there
-      router.replace("/(tabs)");
-    } else if (data.type === "DONATION_CONFIRMATION") {
-      router.replace("/(tabs)");
-      setPending({ type: "DONATION_CONFIRMATION", requestId: data.requestId });
-    }
-  }
-
-  function clearPending() {
-    setPending(null);
-  }
-
-  return (
-    <>
-      <BloodRequestModal
-        visible={pending?.type === "BLOOD_REQUEST"}
-        requestId={pending?.requestId ?? ""}
-        onClose={clearPending}
-      />
-      <ConfirmDonationModal
-        visible={pending?.type === "DONATION_CONFIRMATION"}
-        requestId={pending?.requestId ?? ""}
-        onClose={clearPending}
-      />
-    </>
-  );
-}
+// function NotificationHandler() {
+//   const router = useRouter();
+//   const [pending, setPending] = useState<PendingNotif>(null);
+//   const listenerRef = useRef<Notifications.EventSubscription | null>(null);
+//   const handledIdRef = useRef<string | null>(null);
+//
+//   useEffect(() => {
+//     Notifications.getLastNotificationResponseAsync().then((response) => {
+//       if (response) handleResponse(response);
+//     });
+//     listenerRef.current = Notifications.addNotificationResponseReceivedListener(handleResponse);
+//     return () => { listenerRef.current?.remove(); };
+//   }, []);
+//
+//   function handleResponse(response: Notifications.NotificationResponse) {
+//     const responseId = response.notification.request.identifier;
+//     if (handledIdRef.current === responseId) return;
+//     handledIdRef.current = responseId;
+//     const data = response.notification.request.content.data as { type?: string; requestId?: string };
+//     if (!data?.type || !data?.requestId) return;
+//     if (data.type === "BLOOD_REQUEST") {
+//       router.replace("/(tabs)");
+//     } else if (data.type === "DONATION_CONFIRMATION") {
+//       router.replace("/(tabs)");
+//       setPending({ type: "DONATION_CONFIRMATION", requestId: data.requestId });
+//     }
+//   }
+//
+//   function clearPending() { setPending(null); }
+//
+//   return (
+//     <>
+//       <BloodRequestModal visible={pending?.type === "BLOOD_REQUEST"} requestId={pending?.requestId ?? ""} onClose={clearPending} />
+//       <ConfirmDonationModal visible={pending?.type === "DONATION_CONFIRMATION"} requestId={pending?.requestId ?? ""} onClose={clearPending} />
+//     </>
+//   );
+// }
 
 // ─── Root Layout ──────────────────────────────────────────────────────────────
 
 export default function RootLayout() {
+  useEffect(() => {
+    if (Platform.OS === "android") {
+      NavigationBar.setBackgroundColorAsync("#FD1313").catch(() => {});
+      NavigationBar.setButtonStyleAsync("light").catch(() => {});
+    }
+  }, []);
+
   return (
     <AppProvider>
         <RouteGuard />
         <PushNotificationSetup />
-        <NotificationHandler />
+        {/* <NotificationHandler /> DISABLED — expo-notifications not supported in Expo Go SDK 55 */}
         <Stack
           screenOptions={{
             headerShown: false,
             contentStyle: { backgroundColor: "white" },
             animation: "slide_from_right",
-            navigationBarHidden: true,
+            // navigationBarHidden: true,
           }}
           >
           <Stack.Screen name="(auth)" />

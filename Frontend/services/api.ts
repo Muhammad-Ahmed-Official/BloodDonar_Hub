@@ -1,12 +1,6 @@
 import axios from "axios";
-import { Platform } from "react-native";
 import { getToken, clearSession } from "../storage/tokenStorage";
-
-// const API_URL = Platform.select({
-//   android: "http://10.0.2.2:3000/api/v1/",   
-//   ios: "http://localhost:3000/api/v1/",      
-//   default: "http://localhost:3000/api/v1/",
-// });
+import { notifySessionExpired } from "./authBridge";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -35,7 +29,7 @@ api.interceptors.response.use(
   async (error) => {
     if (error.response?.status === 401) {
       await clearSession();
-      // AuthContext listens for token removal and redirects automatically
+      notifySessionExpired();
     }
     return Promise.reject(error);
   }

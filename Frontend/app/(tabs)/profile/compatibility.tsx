@@ -57,16 +57,15 @@ export default function CompatibilityScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.safeArea}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push("/(tabs)/profile")} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={20} color="#333" />
+        <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
+          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Compatibility</Text>
-        <View style={{ width: 36 }} />
+        <View style={{ width: 24 }} />
       </View>
-
       <ScrollView 
         contentContainerStyle={[
           styles.scroll,
@@ -161,23 +160,31 @@ export default function CompatibilityScreen() {
         {/* Extra bottom spacing */}
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#fff" },
-
-  /* HEADER */
+  safeArea: { flex: 1, backgroundColor: COLORS.white },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
-    paddingHorizontal: SIZES.padding,
-    paddingVertical: 30,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
-    backgroundColor: "#fff",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 40,
+    paddingBottom: 12,
+    borderBottomWidth: 0.5,
+    borderColor: "#E0E0E0",
+  },
+  headerTitle: {
+    position: "absolute",
+    left: 0,
+    bottom: 14,
+    right: 0,
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "bold",
+    color: COLORS.text,
   },
   backBtn: {
     width: 36, 
@@ -186,11 +193,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F5F5",
     alignItems: "center", 
     justifyContent: "center",
-  },
-  headerTitle: { 
-    fontSize: 17, 
-    fontWeight: "700", 
-    color: "#1A1A1A" 
   },
 
   scroll: {

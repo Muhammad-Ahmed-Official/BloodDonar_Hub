@@ -3,6 +3,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   Platform,
@@ -63,6 +64,7 @@ export default function CreateRequestScreen() {
   const [urgencyLevel, setUrgencyLevel] = useState<UrgencyLevel>("medium");
   const [showUrgency, setShowUrgency] = useState(false);
   const [selectedCity, setSelectedCity] = useState("");
+  const [citySearch, setCitySearch] = useState("");
   const [showCity, setShowCity] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
@@ -168,18 +170,19 @@ export default function CreateRequestScreen() {
   const pickerMode = activePicker === "date" ? "date" : "time";
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior="padding"
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-    >
-      <View style={[styles.header, { paddingTop: top + 12 }]}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create Request</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Create Request</Text>
+          <View style={{ width: 24 }} />
+        </View>
+  
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -321,7 +324,7 @@ export default function CreateRequestScreen() {
           <Label title="City" />
           <TouchableOpacity
             style={styles.dropdown}
-            onPress={() => setShowCity(!showCity)}
+            onPress={() => { setShowCity(!showCity); setCitySearch(""); }}
           >
             <Text style={[styles.dropdownText, !selectedCity && styles.placeholderText]}>
               {selectedCity || "Select city"}
@@ -330,15 +333,26 @@ export default function CreateRequestScreen() {
           </TouchableOpacity>
 
           {showCity && (
-            <View style={[styles.listContainer, { maxHeight: 250 }]}>
-              <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 250 }}>
-                {PAKISTAN_CITIES.map((item) => (
+            <View style={[styles.listContainer, { maxHeight: 300 }]}>
+              <TextInput
+                style={styles.citySearchInput}
+                placeholder="Search city..."
+                placeholderTextColor="#B0B0B0"
+                value={citySearch}
+                onChangeText={setCitySearch}
+                autoCorrect={false}
+              />
+              <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 240 }}>
+                {PAKISTAN_CITIES.filter((c) =>
+                  c.toLowerCase().includes(citySearch.toLowerCase())
+                ).map((item) => (
                   <TouchableOpacity
                     key={item}
                     style={styles.option}
                     onPress={() => {
                       setSelectedCity(item);
                       setShowCity(false);
+                      setCitySearch("");
                     }}
                   >
                     <Text style={styles.optionText}>{item}</Text>
@@ -468,22 +482,24 @@ export default function CreateRequestScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: COLORS.white,
-    paddingVertical: 30,
-  },
-
+  container: { flex: 1, backgroundColor: COLORS.white, paddingHorizontal: 10 },
   header: {
     flexDirection: "row",
-    paddingVertical: 40,
-    justifyContent: "space-around",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderColor: "#B8B8B8",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 40,
+    paddingBottom: 12,
+    borderBottomWidth: 0.5,
+    borderColor: "#E0E0E0",
   },
   headerTitle: {
-    fontSize: 17,
+    position: "absolute",
+    left: 0,
+    bottom: 14,
+    right: 0,
+    textAlign: "center",
+    fontSize: 18,
     fontWeight: "bold",
     color: COLORS.text,
   },
@@ -525,7 +541,15 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: COLORS.white,
   },
-  
+  citySearchInput: {
+    height: 40,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+    paddingHorizontal: 14,
+    fontSize: 14,
+    color: COLORS.text,
+    backgroundColor: "#FAFAFA",
+  },
   option: {
     padding: 14,
     flexDirection: "row",

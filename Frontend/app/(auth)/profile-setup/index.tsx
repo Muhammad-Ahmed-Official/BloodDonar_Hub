@@ -1,4 +1,4 @@
-import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ScrollView, Alert, Linking } from "react-native";
+import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ScrollView, Alert, Linking, TextInput } from "react-native";
 import { useRouter } from "expo-router";
 import { COLORS, PAKISTAN_CITIES } from "../../../constants/theme";
 import Input from "@/components/common/Input";
@@ -18,6 +18,7 @@ export default function ProfileSetup1() {
   const { user } = useAuth();
 
   const [selectedCity, setSelectedCity] = useState("");
+  const [citySearch, setCitySearch] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
   const [showGroup, setShowGroup] = useState(false);
   const [showCity, setShowCity] = useState(false);
@@ -130,7 +131,7 @@ export default function ProfileSetup1() {
   return (
     <KeyboardAvoidingView
       style={styles.keyboardView}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior="padding"
       keyboardVerticalOffset={0}
     >
       <ScrollView
@@ -229,7 +230,7 @@ export default function ProfileSetup1() {
         <Label title="City" />
         <TouchableOpacity
           style={styles.dropdown}
-          onPress={() => setShowCity(!showCity)}
+          onPress={() => { setShowCity(!showCity); setCitySearch(""); }}
         >
           <Text style={[styles.dropdownText, !selectedCity && styles.placeholderText]}>
             {selectedCity || "Select city"}
@@ -238,15 +239,26 @@ export default function ProfileSetup1() {
         </TouchableOpacity>
 
         {showCity && (
-          <View style={[styles.listContainer, { maxHeight: 250 }]}>
-            <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 250 }}>
-              {PAKISTAN_CITIES.map((item) => (
+          <View style={[styles.listContainer, { maxHeight: 300 }]}>
+            <TextInput
+              style={styles.citySearchInput}
+              placeholder="Search city..."
+              placeholderTextColor="#B0B0B0"
+              value={citySearch}
+              onChangeText={setCitySearch}
+              autoCorrect={false}
+            />
+            <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 240 }}>
+              {PAKISTAN_CITIES.filter((c) =>
+                c.toLowerCase().includes(citySearch.toLowerCase())
+              ).map((item) => (
                 <TouchableOpacity
                   key={item}
                   style={styles.option}
                   onPress={() => {
                     setSelectedCity(item);
                     setShowCity(false);
+                    setCitySearch("");
                   }}
                 >
                   <Text style={styles.optionText}>{item}</Text>
@@ -415,9 +427,8 @@ const styles = StyleSheet.create({
   backBtn: {
     width: 40,
     height: 40,
-    justifyContent: "center",
     alignItems: "flex-start",
-    marginBottom: 10,
+    marginVertical: 10,
   },
     ageContainer: {
     marginBottom: 16,
@@ -487,6 +498,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     overflow: "hidden",
     backgroundColor: COLORS.white,
+  },
+  citySearchInput: {
+    height: 40,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+    paddingHorizontal: 14,
+    fontSize: 14,
+    color: COLORS.text,
+    backgroundColor: "#FAFAFA",
   },
   dropdown: {
     height: 50,

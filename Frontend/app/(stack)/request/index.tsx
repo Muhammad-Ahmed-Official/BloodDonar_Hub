@@ -1,16 +1,6 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Linking,
-  Image,
-  ActivityIndicator,
-  Alert,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Image, ActivityIndicator, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, SIZES, SHADOW } from "@/constants/theme";
+import { COLORS, SIZES } from "@/constants/theme";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useEffect, useState, type ComponentProps } from "react";
 import { getPublicUserProfile } from "@/services/user.service";
@@ -28,6 +18,7 @@ type PublicPayload = {
     age?: string;
   } | null;
 };
+
 
 export default function PosterProfileScreen() {
   const router = useRouter();
@@ -96,7 +87,7 @@ export default function PosterProfileScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color={COLORS.primary} />
       ) : err ? (
         <Text style={styles.errorText}>{err}</Text>
       ) : !data ? (
@@ -131,20 +122,21 @@ export default function PosterProfileScreen() {
             </View>
           </View>
 
-          <View style={styles.aboutCard}>
-            <Text style={styles.aboutTitle}>ABOUT</Text>
+            <View style={styles.aboutCardWrapper}>
+              <View style={styles.aboutCard}>
+                <Text style={styles.aboutTitle}>ABOUT</Text>
 
-            <AboutRow icon="person-outline" label="Age" value={data.userInfo?.age ?? "—"} />
-            <AboutRow
-              icon="male-outline"
-              label="Gender"
-              value={data.userInfo?.gender ? capitalize(data.userInfo.gender) : "—"}
-            />
-            <AboutRow icon="location-outline" label="City" value={data.userInfo?.city ?? "—"} />
-            {/* <AboutRow icon="globe-outline" label="Country" value={data.userInfo?.country ?? "—"} /> */}
-            <AboutRow icon="call-outline" label="Mobile" value={data.userInfo?.mobileNumber ?? "—"} />
-            <AboutRow icon="mail-outline" label="Email" value={data.user?.email ?? "—"} isLast />
-          </View>
+                <AboutRow icon="person-outline" label="Age" value={data.userInfo?.age ?? "—"} />
+                <AboutRow
+                  icon="male-outline"
+                  label="Gender"
+                  value={data.userInfo?.gender ? capitalize(data.userInfo.gender) : "—"}
+                />
+                <AboutRow icon="location-outline" label="City" value={data.userInfo?.city ?? "—"} />
+                <AboutRow icon="call-outline" label="Mobile" value={data.userInfo?.mobileNumber ?? "—"} />
+                <AboutRow icon="mail-outline" label="Email" value={data.user?.email ?? "—"} isLast />
+              </View>
+            </View>
         </>
       )}
 
@@ -198,16 +190,22 @@ const styles = StyleSheet.create({
     color: "#333",
     lineHeight: 20,
   },
-
   header: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    padding: 16,
-    paddingVertical: 40,
-    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 48,
+    paddingBottom: 12,
+    borderBottomWidth: 0.5,
     borderColor: "#B8B8B8",
   },
   headerTitle: {
+    position: "absolute",
+    left: 0,
+    bottom: 14,
+    right: 0,
+    textAlign: "center",
     fontSize: 18,
     fontWeight: "bold",
     color: COLORS.text,
@@ -224,16 +222,15 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   avatarPlaceholder: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 75,
+    height: 75,
     backgroundColor: "#F0F0F0",
     alignItems: "center",
     justifyContent: "center",
   },
   avatar: {
-    width: 90,
-    height: 90,
+    width: 75,
+    height: 75,
     borderRadius: 45,
   },
   name: {
@@ -254,7 +251,6 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: "row",
     gap: 42,
-    paddingVertical: 20
   },
   chatBtn: {
     borderWidth: 1,
@@ -262,35 +258,41 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     paddingHorizontal: 20,
     paddingVertical: 5,
-    borderRadius: 5,
+    borderRadius: 4,
   },
   chatBtnText: {
     color: COLORS.white,
     fontWeight: "600",
-    fontSize: 14,
+    fontSize: 15,
   },
   callBtn: {
     borderWidth: 1,
     borderColor: COLORS.primary,
-    paddingHorizontal: 30,
-    paddingVertical: 6,
-    borderRadius: 5,
+    paddingHorizontal: 35,
+    paddingVertical: 5,
+    borderRadius: 4,
   },
   callBtnText: {
     color: COLORS.primary,
     fontWeight: "600",
-    fontSize: 14,
+    fontSize: 15,
   },
-
+  aboutCardWrapper: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
   aboutCard: {
     backgroundColor: "#fff",
-    marginHorizontal: SIZES.padding,
-    borderRadius: 14,
     padding: 16,
-    ...SHADOW,
+
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   aboutTitle: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "bold",
     textAlign: "center",
     letterSpacing: 1,
@@ -300,12 +302,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingHorizontal: 20,
     paddingVertical: 11,
     gap: 8,
   },
   aboutRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: "#F5F5F5",
+    borderBottomColor: "#B8B8B8",
   },
   aboutLeft: {
     flexDirection: "row",

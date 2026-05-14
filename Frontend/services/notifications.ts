@@ -1,7 +1,8 @@
+// TEMPORARILY DISABLED — expo-notifications not supported in Expo Go SDK 55
 import api from "./api";
-import * as Notifications from "expo-notifications";
-import * as Device from "expo-device";
-import Constants from "expo-constants";
+// import * as Notifications from "expo-notifications";
+// import * as Device from "expo-device";
+// import Constants from "expo-constants";
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
@@ -18,11 +19,6 @@ export interface BloodRequestPayload {
   channelId: string;
 }
 
-/**
- * Persist the device's Expo push token to the backend.
- * The backend uses this token to send server-side push notifications
- * that work even when the app is closed.
- */
 export const saveExpoPushTokenToBackend = async (
   token: string,
   _userId: string
@@ -35,25 +31,24 @@ export const saveExpoPushTokenToBackend = async (
   }
 };
 
-/** Clear the push token on the backend (used when user disables notifications) */
 export const clearExpoPushToken = async (): Promise<void> => {
   await api.patch("user/push-token", { expoPushToken: null });
 };
 
-/** Get the device's current Expo push token without setting up any listeners */
+// DISABLED — requires expo-notifications
 export const getLocalPushToken = async (): Promise<string | null> => {
-  if (!Device.isDevice) return null;
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
-  if (!projectId) return null;
-  try {
-    const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
-    return data;
-  } catch {
-    return null;
-  }
+  return null;
+  // if (!Device.isDevice) return null;
+  // const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
+  // if (!projectId) return null;
+  // try {
+  //   const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
+  //   return data;
+  // } catch {
+  //   return null;
+  // }
 };
 
-/** Send a blood donation request notification to a single device */
 export const sendBloodRequestNotification = async (
   expoPushToken: string,
   requestId: string
@@ -85,14 +80,12 @@ export const sendBloodRequestNotification = async (
   }
 };
 
-/** Send blood request notification to all registered devices */
 export const sendBloodRequestToAll = async (
   expoPushTokens: string[],
   requestId: string
 ): Promise<void> => {
   if (!expoPushTokens.length) return;
 
-  // Expo supports batching — send up to 100 per request
   const chunks: string[][] = [];
   for (let i = 0; i < expoPushTokens.length; i += 100) {
     chunks.push(expoPushTokens.slice(i, i + 100));

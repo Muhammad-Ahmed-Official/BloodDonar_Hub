@@ -1,13 +1,9 @@
 import { io, type Socket } from "socket.io-client";
-import { Platform } from "react-native";
 
-// export const SOCKET_URL = Platform.select({
-//   android: "http://192.168.0.104:3000",
-//   ios:     "http://192.168.0.104:3000",
-//   default: "http://localhost:3000",
-// });
-
-const SOCKET_URL = "https://blooddonar-hub.onrender.com";
+// Strip "/api/v1/" suffix from the REST base URL to get the socket server origin.
+// Keeps socket in sync with whatever is set in EXPO_PUBLIC_API_URL.
+const SOCKET_URL = (process.env.EXPO_PUBLIC_API_URL ?? "")
+  .replace(/\/api\/v1\/?$/, "");
 
 let socket: Socket | null = null;
 let currentUserId: string | null = null;

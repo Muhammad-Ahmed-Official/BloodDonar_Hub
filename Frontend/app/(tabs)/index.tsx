@@ -9,13 +9,14 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
+  Dimensions,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SIZES, SHADOW } from "../../constants/theme";
 import Button from "@/components/common/Button";
 import Card from "@/components/common/Card";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import Input from "@/components/common/Input";
 import { getAllRequests, getProfile, deleteRequest } from "@/services/user.service";
@@ -25,6 +26,13 @@ import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 
 const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+
+const BANNERS = [
+  require("../../assets/projectImages/banner1.png"),
+  require("../../assets/projectImages/banner2.png"),
+  require("../../assets/projectImages/banner3.png"),
+];
+const BANNER_WIDTH = Dimensions.get("window").width - SIZES.padding * 2;
 
 type RequestRow = {
   _id: string;
@@ -80,7 +88,20 @@ export default function HomeScreen() {
     ownRequests: 0,
     ownDonarPosts: 0,
   });
-  const insets = useSafeAreaInsets();
+
+  const bannerRef = useRef<FlatList>(null);
+  const [activeBanner, setActiveBanner] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveBanner((prev) => {
+        const next = (prev + 1) % BANNERS.length;
+        bannerRef.current?.scrollToIndex({ index: next, animated: true });
+        return next;
+      });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const loadFeed = useCallback(async () => {
     setError("");
@@ -245,7 +266,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.header, { paddingTop: 0 + insets.top }]}>
+        <View style={[styles.header, { paddingTop: 10 }]}>
           <View style={styles.headerLeft}>
             <View style={styles.avatar}>
               {profilePic ? (
@@ -286,11 +307,23 @@ export default function HomeScreen() {
 
           <TouchableOpacity style={styles.dropdown} onPress={() => setShowGroup(!showGroup)}>
             <Text style={styles.dropdownText}>{selectedGroup || t("home.selectGroup")}</Text>
-            <Image
-              source={require("../../assets/projectImages/homeIcon.png")}
-              style={styles.dropdownIcon}
-              resizeMode="contain"
-            />
+            {selectedGroup ? (
+              <TouchableOpacity
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => {
+                  setSelectedGroup("");
+                  setShowGroup(false);
+                }}
+              >
+                <Ionicons name="close-circle" size={20} color={COLORS.primary} />
+              </TouchableOpacity>
+            ) : (
+              <Image
+                source={require("../../assets/projectImages/homeIcon.png")}
+                style={styles.dropdownIcon}
+                resizeMode="contain"
+              />
+            )}
           </TouchableOpacity>
 
           {showGroup && (
@@ -301,13 +334,13 @@ export default function HomeScreen() {
                 scrollEnabled={false}
                 renderItem={({ item }) => (
                   <TouchableOpacity
-                    style={styles.option}
+                    style={[styles.option, selectedGroup === item && styles.selectedOption]}
                     onPress={() => {
                       setSelectedGroup(item);
                       setShowGroup(false);
                     }}
                   >
-                    <Text>{item}</Text>
+                    <Text style={selectedGroup === item && styles.selectedOptionText}>{item}</Text>
                   </TouchableOpacity>
                 )}
               />
@@ -319,11 +352,42 @@ export default function HomeScreen() {
           {!!error && <Text style={styles.errorText}>{error}</Text>}
 
           <View style={styles.bannerContainer}>
-            <Image
-              source={require("../../assets/projectImages/banner1.png")}
-              style={styles.bannerImage}
-              resizeMode="contain"
-            />
+            <View style={styles.bannerSlider}>
+              <FlatList
+                ref={bannerRef}
+                data={BANNERS}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(_, i) => String(i)}
+                getItemLayout={(_, index) => ({
+                  length: BANNER_WIDTH,
+                  offset: BANNER_WIDTH * index,
+                  index,
+                })}
+                onMomentumScrollEnd={(e) => {
+                  const index = Math.round(
+                    e.nativeEvent.contentOffset.x / BANNER_WIDTH
+                  );
+                  setActiveBanner(index);
+                }}
+                renderItem={({ item }) => (
+                  <Image
+                    source={item}
+                    style={styles.bannerImage}
+                    resizeMode="cover"
+                  />
+                )}
+              />
+            </View>
+            <View style={styles.dotsRow}>
+              {BANNERS.map((_, i) => (
+                <View
+                  key={i}
+                  style={[styles.dot, i === activeBanner && styles.dotActive]}
+                />
+              ))}
+            </View>
           </View>
 
           <Text style={styles.sectionTitle}>{t("home.activityAs")}</Text>
@@ -333,7 +397,7 @@ export default function HomeScreen() {
               <Image
                 source={require("../../assets/projectImages/infused_blood.png")}
                 style={styles.activityImage}
-                resizeMode="contain"
+                // resizeMode=""
               />
               <View style={styles.activityContent}>
                 <Text style={styles.activityLabel}>{t("home.bloodDonor")}</Text>
@@ -360,7 +424,7 @@ export default function HomeScreen() {
             <View style={styles.activityCard}>
               <Image
                 source={require("../../assets/projectImages/drop.png")}
-                style={styles.activityImage}
+                style={styles.activityImageDrop}
                 resizeMode="contain"
               />
               <View style={styles.activityContent}>
@@ -541,15 +605,34 @@ const styles = StyleSheet.create({
 
   bannerContainer: {
     width: "100%",
+    marginVertical: 10,
+  },
+  bannerSlider: {
+    width: "100%",
     height: 120,
     borderRadius: 12,
     overflow: "hidden",
-    marginVertical: 10,
   },
-
   bannerImage: {
-    width: "100%",
-    height: "100%",
+    width: BANNER_WIDTH,
+    height: 120,
+  },
+  dotsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 7,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#ddd",
+  },
+  dotActive: {
+    backgroundColor: COLORS.primary,
+    width: 18,
   },
 
   listContainer: {
@@ -586,6 +669,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: "#eee",
     backgroundColor: "#fafafa",
+  },
+  selectedOption: {
+    backgroundColor: "#FFE8E8",
+  },
+  selectedOptionText: {
+    color: COLORS.primary,
+    fontWeight: "bold",
   },
 
   header: {
@@ -649,6 +739,11 @@ const styles = StyleSheet.create({
   },
   activityImage: {
     width: 30,
+    height: 30,
+    marginRight: 10,
+  },
+  activityImageDrop: {
+    width: 23,
     height: 30,
     marginRight: 10,
   },
