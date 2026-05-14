@@ -17,6 +17,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { connectRealtime } from "@/services/realtime";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 type Partner = { _id: string; userName?: string; pic?: string };
 type SearchUser = { _id: string; userName?: string; email?: string; pic?: string; city?: string };
@@ -180,6 +181,7 @@ export default function InboxScreen() {
   const showSearchMode = query.trim().length >= 2;
 
   return (
+    <SafeAreaView style={styles.safeArea}>
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -303,20 +305,24 @@ export default function InboxScreen() {
 
       <View style={{ height: 90 }} />
     </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: { flex: 1, backgroundColor: COLORS.white },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 40,
+    paddingTop: 20,
     paddingBottom: 12,
     borderBottomWidth: 0.5,
-    borderColor: "#E0E0E0",
+    borderColor: "#B8B8B8",
   },
   headerTitle: {
     position: "absolute",

@@ -19,10 +19,10 @@ function TabIcon({
   name: any;
   focused: boolean;
   color: string;
-  icon: "ionicon" | "material";
+  icon: "ionicon";
   badgeCount?: number;
 }) {
-  const IconComponent = icon === "material" ? MaterialIcons : Ionicons;
+  const IconComponent = Ionicons;
 
   return (
     <View style={[styles.iconWrapper, focused && styles.iconWrapperActive]}>
@@ -168,10 +168,10 @@ export default function TabsLayout() {
           title: t("tabs.messages"),
           tabBarIcon: ({ focused }) => (
             <TabIcon
-              name="chat"
+              name="chatbox-outline"
               focused={focused}
               color={focused ? COLORS.white : "rgba(255,255,255,0.50)"}
-              icon="material"
+              icon="ionicon"
               badgeCount={totalUnread}
             />
           ),

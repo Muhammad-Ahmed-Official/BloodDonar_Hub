@@ -19,6 +19,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getProfile, updateProfile } from "@/services/user.service";
 import { useLanguage } from "@/context/LanguageContext";
 import { saveExpoPushTokenToBackend, clearExpoPushToken, getLocalPushToken } from "@/services/notifications";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -148,6 +149,7 @@ export default function ProfileScreen() {
   };
 
   return (
+    <SafeAreaView style={styles.safeArea}>
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -182,9 +184,9 @@ export default function ProfileScreen() {
             value={isNotif}
             onValueChange={onNotifChange}
             disabled={savingNotif || profileLoading}
-            trackColor={{ true: '#f38e8e', false: "#E0E0E0" }}
+            trackColor={{ true: '#f38e8e', false: "#B8B8B8" }}
             thumbColor={COLORS.white}
-            ios_backgroundColor="#E0E0E0"
+            ios_backgroundColor="#B8B8B8"
           />
         </View>
 
@@ -209,7 +211,7 @@ export default function ProfileScreen() {
             value={isAvailable}
             onValueChange={onAvailChange}
             disabled={savingAvail || profileLoading}
-            trackColor={{ true: COLORS.primary, false: "#E0E0E0" }}
+            trackColor={{ true: COLORS.primary, false: "#B8B8B8" }}
             thumbColor={COLORS.white}
           />
         </View>
@@ -276,10 +278,14 @@ export default function ProfileScreen() {
         </Pressable>
       </Modal>
     </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.white,
@@ -290,10 +296,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 40,
+    paddingTop: 20,
     paddingBottom: 12,
     borderBottomWidth: 0.5,
-    borderColor: "#E0E0E0",
+    borderColor: "#B8B8B8",
   },
   headerTitle: {
     position: "absolute",

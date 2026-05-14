@@ -60,7 +60,7 @@ export default function CompatibilityScreen() {
     <View style={styles.safeArea}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
+        <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Compatibility</Text>
@@ -171,10 +171,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 40,
+    paddingTop: 56,
     paddingBottom: 12,
     borderBottomWidth: 0.5,
-    borderColor: "#E0E0E0",
+    borderColor: "#B8B8B8",
   },
   headerTitle: {
     position: "absolute",

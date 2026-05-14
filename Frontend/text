@@ -252,7 +252,7 @@
 //   dropdown: {
 //     height: 50,
 //     borderWidth: 1,
-//     borderColor: "#E0E0E0",
+//     borderColor: "#B8B8B8",
 //     borderRadius: 12,
 //     flexDirection: "row",
 //     justifyContent: "space-between",
@@ -270,7 +270,7 @@
 //   },
 //   listContainer: {
 //     borderWidth: 1,
-//     borderColor: "#E0E0E0",
+//     borderColor: "#B8B8B8",
 //     borderRadius: 12,
 //     marginBottom: 16,
 //     overflow: "hidden",

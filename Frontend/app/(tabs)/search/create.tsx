@@ -475,23 +475,23 @@ export default function CreateRequestScreen() {
           )}
         </View>
 
-        <View style={{ height: 150 }} />
+        <View style={{ height: 70 }} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.white, paddingHorizontal: 10 },
+  container: { flex: 1, backgroundColor: COLORS.white},
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 40,
+    paddingTop: 56,
     paddingBottom: 12,
     borderBottomWidth: 0.5,
-    borderColor: "#E0E0E0",
+    borderColor: "#B8B8B8",
   },
   headerTitle: {
     position: "absolute",
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   dropdown: {
     backgroundColor: COLORS.white,
     borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderColor: "#B8B8B8",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 14,
@@ -535,7 +535,7 @@ const styles = StyleSheet.create({
   
   listContainer: {
     borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderColor: "#B8B8B8",
     borderRadius: 12,
     marginTop: 8,
     overflow: "hidden",
@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
   citySearchInput: {
     height: 40,
     borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
+    borderBottomColor: "#B8B8B8",
     paddingHorizontal: 14,
     fontSize: 14,
     color: COLORS.text,
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.white,
     borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderColor: "#B8B8B8",
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,

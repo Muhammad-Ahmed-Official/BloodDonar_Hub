@@ -10,6 +10,7 @@ import { AntDesign, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { COLORS, SIZES } from "../../../constants/theme";
 import { useLanguage } from "@/context/LanguageContext";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function PrivacyPolicyScreen() {
   const router = useRouter();
@@ -51,11 +52,11 @@ export default function PrivacyPolicyScreen() {
   ];
 
   return (
+  <SafeAreaView style={styles.safeArea}>
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-      
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
+        <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={22} color="#222" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t("privacy.title")}</Text>
@@ -92,10 +93,14 @@ export default function PrivacyPolicyScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.white,
@@ -105,10 +110,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 48,
+    paddingTop: 20,
     paddingBottom: 12,
     borderBottomWidth: 0.5,
-    borderColor: "#E0E0E0",
+    borderColor: "#B8B8B8",
   },
   headerTitle: {
     position: "absolute",

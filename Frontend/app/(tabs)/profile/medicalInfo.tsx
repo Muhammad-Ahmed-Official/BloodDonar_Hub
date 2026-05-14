@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SIZES, SHADOW } from "@/constants/theme";
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   medicalInfo as submitMedicalInfo,
   getMedicalInfo,
@@ -101,10 +101,11 @@ export default function BecomeDonor() {
   };
 
   return (
+  <SafeAreaView style={styles.safeArea}>
     <View style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
+        <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t("medical.title")}</Text>
@@ -185,6 +186,7 @@ export default function BecomeDonor() {
         </ScrollView>
       )}
     </View>
+  </SafeAreaView>
   );
 }
 
@@ -214,6 +216,9 @@ function RadioOption({
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: "#fff",
@@ -228,10 +233,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 48,
+    paddingTop: 20,
     paddingBottom: 12,
     borderBottomWidth: 0.5,
-    borderColor: "#E0E0E0",
+    borderColor: "#B8B8B8",
   },
   headerTitle: {
     position: "absolute",

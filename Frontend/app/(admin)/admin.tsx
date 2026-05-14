@@ -1222,7 +1222,7 @@ const styles = StyleSheet.create({
 
   input: {
     borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderColor: "#B8B8B8",
     borderRadius: 10,
     padding: 12,
     marginBottom: 12,
@@ -1233,7 +1233,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderColor: "#B8B8B8",
     borderRadius: 10,
     marginBottom: 12,
   },
@@ -1283,7 +1283,7 @@ const styles = StyleSheet.create({
   },
 
   toggleBtn: {
-    backgroundColor: "#E0E0E0",
+    backgroundColor: "#B8B8B8",
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 8,

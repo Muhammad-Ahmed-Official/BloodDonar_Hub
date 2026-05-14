@@ -13,10 +13,6 @@
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
-      "navigationBar": {
-        "backgroundColor": "#FD1313",
-        "barStyle": "light-content"
-      },
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

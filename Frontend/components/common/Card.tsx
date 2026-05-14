@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   donateBtnDisabled: {
-    backgroundColor: "#E0E0E0",
+    backgroundColor: "#B8B8B8",
     borderWidth: 1,
     borderColor: "#BDBDBD",
     opacity: 1,

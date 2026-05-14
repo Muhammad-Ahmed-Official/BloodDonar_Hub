@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderColor: "#B8B8B8",
     borderRadius: 12,
     marginBottom: 16,
     overflow: "hidden",
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   citySearchInput: {
     height: 40,
     borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
+    borderBottomColor: "#B8B8B8",
     paddingHorizontal: 14,
     fontSize: 14,
     color: COLORS.text,
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
   dropdown: {
     height: 50,
     borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderColor: "#B8B8B8",
     borderRadius: 12,
     flexDirection: "row",
     justifyContent: "space-between",

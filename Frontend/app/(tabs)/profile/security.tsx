@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import { COLORS, SIZES } from "@/constants/theme";
 import { changeNumber } from "@/services/user.service";
 import { useLanguage } from "@/context/LanguageContext";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function AccountSecurityScreen() {
   const router = useRouter();
@@ -51,9 +52,10 @@ export default function AccountSecurityScreen() {
   };
 
   return (
+    <SafeAreaView style={styles.safeArea}>
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
+        <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t("security.title")}</Text>
@@ -197,24 +199,27 @@ export default function AccountSecurityScreen() {
         </View>
       </Modal>
     </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.white
   },
-
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 48,
+    paddingTop: 20,
     paddingBottom: 12,
     borderBottomWidth: 0.5,
-    borderColor: "#E0E0E0",
+    borderColor: "#B8B8B8",
   },
   headerTitle: {
     position: "absolute",
@@ -304,7 +309,7 @@ const styles = StyleSheet.create({
 
   input: {
     borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderColor: "#B8B8B8",
     borderRadius: 10,
     padding: 12,
     marginBottom: 16,

@@ -17,6 +17,7 @@ import Button from "@/components/common/Button";
 import { getAllRequests, getProfile } from "@/services/user.service";
 import Card from "@/components/common/Card";
 import { useLanguage } from "@/context/LanguageContext";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const BLOOD_GROUPS = ["A+", "B+", "O+", "AB+", "A-", "B-", "O-", "AB-"];
 
@@ -106,6 +107,7 @@ export default function SearchScreen() {
   }, [requests, selectedGroup, searchQuery]);
 
   return (
+    <SafeAreaView style={styles.safeArea}>
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -181,10 +183,14 @@ export default function SearchScreen() {
         <View style={{ height: 90 }} />
       </ScrollView>
     </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.white,
@@ -194,10 +200,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 40,
+    paddingTop: 20,
     paddingBottom: 12,
     borderBottomWidth: 0.5,
-    borderColor: "#E0E0E0",
+    borderColor: "#B8B8B8",
   },
   headerTitle: {
     position: "absolute",

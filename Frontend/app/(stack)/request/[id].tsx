@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import { getRequestById } from "@/services/user.service";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function RequestDetails() {
   const router = useRouter();
@@ -49,7 +50,6 @@ export default function RequestDetails() {
 
   return (
     <ScrollView style={styles.container}>
-      
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -131,7 +131,6 @@ export default function RequestDetails() {
       >
         <Text style={styles.donateText}>Donate</Text>
       </Pressable>
-
     </ScrollView>
   );
 }
@@ -183,24 +182,27 @@ function DetailRow2({
 
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: "#fff",
-  },
-
+ container: { flex: 1, backgroundColor: COLORS.white },
   header: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    padding: 16,
-    paddingVertical: 40,
-    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 56,
+    paddingBottom: 12,
+    borderBottomWidth: 0.5,
     borderColor: "#B8B8B8",
   },
-
   headerTitle: {
-    fontWeight: "bold",
+    position: "absolute",
+    left: 0,
+    bottom: 14,
+    right: 0,
+    textAlign: "center",
     fontSize: 18,
+    fontWeight: "bold",
+    color: COLORS.text,
   },
-
   profileRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -326,7 +328,7 @@ const styles = StyleSheet.create({
     margin: 10
   },
   donateBtnDisabled: {
-    backgroundColor: "#E0E0E0",
+    backgroundColor: "#B8B8B8",
     borderWidth: 1,
     borderColor: "#BDBDBD",
     opacity: 1,

@@ -89,11 +89,10 @@ export default function ActivityScreen() {
   }, [fetchAll]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-
         {/* ── Header ── */}
-        <View style={styles.headerBlock}>
+        <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
@@ -256,7 +255,7 @@ const styles = StyleSheet.create({
   },
 
   // Header
-  headerBlock: {
+  header: {
     backgroundColor: COLORS.primary,
     flexDirection: "row",
     alignItems: "center",
@@ -272,19 +271,18 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 8,
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
   headerTitle: {
     color: "#fff",
     fontSize: 20,
     fontWeight: "700",
     letterSpacing: 0.5,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerSpacer: {
     width: 40,

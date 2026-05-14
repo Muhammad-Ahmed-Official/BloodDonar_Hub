@@ -3,6 +3,8 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, StyleSheet, View, Platform } from "react-native";
 import * as NavigationBar from "expo-navigation-bar";
+import { useFonts } from "expo-font";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 // TEMPORARILY DISABLED — expo-notifications not supported in Expo Go SDK 55
 // import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -137,17 +139,30 @@ function PushNotificationSetup() {
 // ─── Root Layout ──────────────────────────────────────────────────────────────
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    ...Ionicons.font,
+    ...MaterialIcons.font,
+  });
+
   useEffect(() => {
     if (Platform.OS === "android") {
-      NavigationBar.setBackgroundColorAsync("#FD1313").catch(() => {});
-      NavigationBar.setButtonStyleAsync("light").catch(() => {});
+      NavigationBar.setStyle("light");
     }
   }, []);
+
+  if (!fontsLoaded && !fontError) {
+    return (
+      <View style={styles.loadingOverlay}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
 
   return (
     <AppProvider>
         <RouteGuard />
         <PushNotificationSetup />
+        
         {/* <NotificationHandler /> DISABLED — expo-notifications not supported in Expo Go SDK 55 */}
         <Stack
           screenOptions={{
@@ -169,7 +184,7 @@ export default function RootLayout() {
 
 const styles = StyleSheet.create({
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: COLORS.white,
