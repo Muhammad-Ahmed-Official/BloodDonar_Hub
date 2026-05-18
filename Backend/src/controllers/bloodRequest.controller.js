@@ -96,14 +96,9 @@ export const createBloodRequest = asyncHandler(async (req, res) => {
 
     const eligible = eligibleUserInfos.filter((ui) => ui.user != null);
 
-    if (eligible.length === 0) {
-        throw new ApiError(
-            StatusCodes.NOT_FOUND,
-            `No eligible donors found for blood group ${bloodGroup}`
-        );
-    }
-
     // Randomly select up to requiredUnits donors (max 1 unit per donor)
+    // If no eligible donors exist right now the request is still saved with an
+    // empty donors array; getMyRequests shows it as "Searching for donors…".
     const selected = shuffleArray(eligible).slice(0, units);
 
     const donorsArr = selected.map((ui) => ({

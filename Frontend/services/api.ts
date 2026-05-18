@@ -5,7 +5,7 @@ import { API_BASE_URL } from "../utils/apiConfig";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 5000,
+  timeout: 15000,
 });
 
 // ─── Request interceptor — attach token automatically ────────────────────────
