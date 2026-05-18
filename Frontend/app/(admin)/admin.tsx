@@ -29,9 +29,8 @@ interface DonorRequestRow {
   id: string;
   donorUserName: string;
   donorEmail: string;
-  donarName: string;
-  bloodGroup: string;
   patientName: string;
+  bloodGroup: string;
   city: string;
   hospital: string;
   date: string;
@@ -39,17 +38,13 @@ interface DonorRequestRow {
   isEmergency: boolean;
   amount: string;
   age: string;
-  contactPersonName: string;
-  mobileNumber: string;
+  contactInfo: string;
   startTime: string;
   endTime: string;
   reason: string;
+  urgencyLevel: string;
 }
 
-function donorRequestLooksEmergency(reason?: string) {
-  if (!reason) return false;
-  return /emergency|urgent|critical/i.test(reason);
-}
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BLOOD_GROUPS = new Set(["A+", "B+", "O+", "AB+", "A-", "B-", "O-", "AB-"]);
@@ -170,9 +165,11 @@ function AdminModalSaveBtn({ activeKey, thisKey, onPress, label }: {
 }
 
 export default function AdminDashboard() {
-  const { top } = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
+  const top = insets.top;
   const { logout } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [activeSection, setActiveSection] = useState<"users" | "posts">("users");
   const [pageLoading, setPageLoading] = useState(true);
   const [actionKey, setActionKey] = useState<string | null>(null);
   const [stats, setStats] = useState({ totalUsers: 0, totalDonorRequests: 0 });
@@ -203,30 +200,30 @@ export default function AdminDashboard() {
   });
 
   const [donorRequestForm, setDonorRequestForm] = useState({
-    donarName: "",
+    patientName: "",
     bloodGroup: "",
     amount: "",
     age: "",
     date: "",
     hospitalName: "",
     location: "",
-    contactPersonName: "",
-    mobileNumber: "",
+    contactInfo: "",
     city: "",
     startTime: "",
     endTime: "",
     reason: "",
+    urgencyLevel: "",
   });
 
   const loadDashboard = async () => {
-    try {
-      const [statsRes, usersRes, requestsRes] = await Promise.all([
-        getAdminStats(),
-        getAdminUsers({ page: 1, limit: 200 }),
-        getAdminRequests({ page: 1, limit: 200 }),
-      ]);
+    const [statsRes, usersRes, requestsRes] = await Promise.allSettled([
+      getAdminStats(),
+      getAdminUsers({ page: 1, limit: 200 }),
+      getAdminRequests({ page: 1, limit: 200 }),
+    ]);
 
-      const mappedUsers: User[] = (usersRes?.data?.users || []).map((u: any) => {
+    if (usersRes.status === "fulfilled") {
+      const mappedUsers: User[] = (usersRes.value?.data?.users || []).map((u: any) => {
         const age =
           u.userInfo?.dateOfBirth
             ? String(Math.max(0, new Date().getFullYear() - new Date(u.userInfo.dateOfBirth).getFullYear()))
@@ -247,42 +244,49 @@ export default function AdminDashboard() {
           status: u.suspended ? "suspended" : "active",
         };
       });
+      setUsers(mappedUsers);
+    } else {
+      console.error("[Admin] Failed to load users:", usersRes.reason);
+    }
 
-      const mappedDonorRequests: DonorRequestRow[] = (requestsRes?.data?.requests || []).map((r: any) => {
-        const u = r.user;
+    if (requestsRes.status === "fulfilled") {
+      const raw: any[] = requestsRes.value?.data?.requests || [];
+      console.log("[Admin] Blood requests from API:", raw.length, raw);
+      const mappedDonorRequests: DonorRequestRow[] = raw.map((r: any) => {
+        const u = r.createdBy;
         const donorUserName = typeof u === "object" && u?.userName ? u.userName : "—";
         const donorEmail = typeof u === "object" && u?.email ? u.email : "—";
-        const dn = r.donarName ?? "";
         return {
           id: r._id,
           donorUserName,
           donorEmail,
-          donarName: dn,
+          patientName: r.patientName ?? "Patient",
           bloodGroup: r.bloodGroup ?? "—",
-          patientName: dn.trim() ? dn : "Patient",
           city: r.city ?? "—",
           hospital: r.hospitalName ?? "—",
-          date: r.date ?? "—",
+          date: r.donationDate ? new Date(r.donationDate).toLocaleDateString() : "—",
           address: r.location ?? "—",
-          isEmergency: donorRequestLooksEmergency(r.reason),
-          amount: r.amount != null ? String(r.amount) : "",
+          isEmergency: r.urgencyLevel === "critical" || r.urgencyLevel === "high",
+          amount: r.requiredUnits != null ? String(r.requiredUnits) : "",
           age: r.age != null && r.age !== "" ? String(r.age) : "",
-          contactPersonName: r.contactPersonName ?? "",
-          mobileNumber: r.mobileNumber ?? "",
-          startTime: r.startTime ?? "",
-          endTime: r.endTime ?? "",
+          contactInfo: r.contactInfo ?? "",
+          startTime: r.donationWindow?.startTime ?? "",
+          endTime: r.donationWindow?.endTime ?? "",
           reason: r.reason ?? "",
+          urgencyLevel: r.urgencyLevel ?? "low",
         };
       });
-
-      setUsers(mappedUsers);
       setDonorRequests(mappedDonorRequests);
+    } else {
+      console.error("[Admin] Failed to load blood requests:", requestsRes.reason);
+      adminNotify("Error", requestsRes.reason?.message || "Failed to load blood requests");
+    }
+
+    if (statsRes.status === "fulfilled") {
       setStats({
-        totalUsers: statsRes?.data?.totalUsers ?? mappedUsers.length,
-        totalDonorRequests: statsRes?.data?.totalRequests ?? mappedDonorRequests.length,
+        totalUsers: statsRes.value?.data?.totalUsers ?? 0,
+        totalDonorRequests: statsRes.value?.data?.totalRequests ?? 0,
       });
-    } catch (error: any) {
-      adminNotify("Error", error?.message || "Failed to load admin dashboard");
     }
   };
 
@@ -497,19 +501,19 @@ export default function AdminDashboard() {
   const handleUpdateDonorRequest = (row: DonorRequestRow) => {
     setSelectedDonorRequest(row);
     setDonorRequestForm({
-      donarName: row.donarName,
+      patientName: row.patientName,
       bloodGroup: row.bloodGroup === "—" ? "" : row.bloodGroup,
       amount: row.amount,
       age: row.age,
       date: row.date === "—" ? "" : row.date,
       hospitalName: row.hospital === "—" ? "" : row.hospital,
       location: row.address === "—" ? "" : row.address,
-      contactPersonName: row.contactPersonName,
-      mobileNumber: row.mobileNumber,
+      contactInfo: row.contactInfo,
       city: row.city === "—" ? "" : row.city,
       startTime: row.startTime,
       endTime: row.endTime,
       reason: row.reason,
+      urgencyLevel: row.urgencyLevel,
     });
     setDonorRequestModalVisible(true);
   };
@@ -518,57 +522,51 @@ export default function AdminDashboard() {
     if (!selectedDonorRequest) return;
     const f = donorRequestForm;
     const ageNum = Number(f.age);
+    const amountNum = Number(f.amount);
     if (
-      !f.donarName?.trim() ||
+      !f.patientName?.trim() ||
       !f.bloodGroup?.trim() ||
-      !f.amount?.trim() ||
-      !Number.isFinite(ageNum) ||
-      ageNum <= 0 ||
-      ageNum > 120 ||
+      !Number.isFinite(amountNum) || amountNum <= 0 ||
+      !Number.isFinite(ageNum) || ageNum <= 0 || ageNum > 120 ||
       !f.date?.trim() ||
       !f.hospitalName?.trim() ||
       !f.location?.trim() ||
-      !f.contactPersonName?.trim() ||
-      !f.mobileNumber?.trim() ||
+      !f.contactInfo?.trim() ||
       !f.city?.trim() ||
       !f.startTime?.trim() ||
       !f.endTime?.trim() ||
       !f.reason?.trim()
     ) {
-      adminNotify("Error", "Please fill all donation request fields (same as app form).");
+      adminNotify("Error", "Please fill all donation request fields.");
       return;
     }
     if (!isValidBloodGroup(f.bloodGroup)) {
       adminNotify("Error", "Enter a valid blood group (e.g. A+, O-)");
       return;
     }
-    if (trimVal(f.mobileNumber).length < 10) {
-      adminNotify("Error", "Enter a valid mobile number (at least 10 digits)");
-      return;
-    }
     try {
       setActionKey("save-donor-request");
       await updateAdminDonationRequest(selectedDonorRequest.id, {
-        donarName: f.donarName.trim(),
+        patientName: f.patientName.trim(),
         bloodGroup: normalizeBloodGroup(f.bloodGroup),
-        amount: f.amount.trim(),
+        requiredUnits: amountNum,
         age: ageNum,
-        date: f.date.trim(),
+        donationDate: f.date.trim(),
         hospitalName: f.hospitalName.trim(),
         location: f.location.trim(),
-        contactPersonName: f.contactPersonName.trim(),
-        mobileNumber: f.mobileNumber.trim(),
+        contactInfo: f.contactInfo.trim(),
         city: f.city.trim(),
         startTime: f.startTime.trim(),
         endTime: f.endTime.trim(),
         reason: f.reason.trim(),
+        urgencyLevel: f.urgencyLevel.trim() || "low",
       });
       await loadDashboard();
       setDonorRequestModalVisible(false);
       setSelectedDonorRequest(null);
-      adminNotify("Success", "Donation request updated");
+      adminNotify("Success", "Blood request updated");
     } catch (error: any) {
-      adminNotify("Error", error?.message || "Failed to update donation request");
+      adminNotify("Error", error?.message || "Failed to update blood request");
     } finally {
       setActionKey(null);
     }
@@ -631,30 +629,11 @@ export default function AdminDashboard() {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <View style={{ flex: 1, backgroundColor: "#F8F8F8" }}>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
       <View style={[styles.header, { paddingTop: top + 16 }]}>
-      <Text style={styles.title}>Admin Dashboard</Text>
-
-      <View style={{ flexDirection: "row", gap: 10 }}>
-        <TouchableOpacity style={styles.addBtn} onPress={handleInsertUser}>
-          <Ionicons name="add" size={20} color="#fff" />
-          <Text style={styles.addBtnText}>Add User</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.logoutBtn}
-          onPress={handleLogout}
-          disabled={loggingOut}
-          accessibilityLabel="Log out"
-        >
-          {loggingOut ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Ionicons name="log-out-outline" size={18} color="#fff" />
-          )}
-        </TouchableOpacity>
+        <Text style={styles.title}>Admin Dashboard</Text>
       </View>
-    </View>
 
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
@@ -670,6 +649,8 @@ export default function AdminDashboard() {
         </View>
       </View>
 
+      {activeSection === "users" && (
+        <>
       <Text style={styles.sectionTitle}>
         <Ionicons name="people-outline" size={18} /> Users
       </Text>
@@ -729,13 +710,14 @@ export default function AdminDashboard() {
           </View>
         </View>
       ))}
+        </>
+      )}
 
+      {activeSection === "posts" && (
+        <>
       <Text style={styles.sectionTitle}>
         <Ionicons name="water-outline" size={18} /> Donor requests
       </Text>
-      {/* <Text style={styles.sectionHint}>
-        Blood requests users create via the app are stored on the Donar document. Listed below with the donor account.
-      </Text> */}
 
       {donorRequests.length === 0 ? (
         <Text style={styles.emptyDonorRequests}>No donor-created requests yet.</Text>
@@ -777,8 +759,8 @@ export default function AdminDashboard() {
           </View>
         ))
       )}
-
-      <View style={{ height: 50 }} />
+        </>
+      )}
 
       <Modal visible={updateModalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
@@ -848,13 +830,13 @@ export default function AdminDashboard() {
       <Modal visible={donorRequestModalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
-            <Text style={styles.modalTitle}>Update donor request</Text>
+            <Text style={styles.modalTitle}>Update Blood Request</Text>
 
             <TextInput
               style={styles.input}
               placeholder="Patient name"
-              value={donorRequestForm.donarName}
-              onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, donarName: text })}
+              value={donorRequestForm.patientName}
+              onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, patientName: text })}
             />
             <TextInput
               style={styles.input}
@@ -864,20 +846,21 @@ export default function AdminDashboard() {
             />
             <TextInput
               style={styles.input}
-              placeholder="Amount (units)"
+              placeholder="Required units"
               value={donorRequestForm.amount}
               onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, amount: text })}
+              keyboardType="numeric"
             />
             <TextInput
               style={styles.input}
-              placeholder="Age"
+              placeholder="Patient age"
               value={donorRequestForm.age}
               onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, age: text })}
               keyboardType="numeric"
             />
             <TextInput
               style={styles.input}
-              placeholder="Date"
+              placeholder="Donation date (YYYY-MM-DD)"
               value={donorRequestForm.date}
               onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, date: text })}
             />
@@ -896,16 +879,9 @@ export default function AdminDashboard() {
             />
             <TextInput
               style={styles.input}
-              placeholder="Contact person name"
-              value={donorRequestForm.contactPersonName}
-              onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, contactPersonName: text })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Mobile number"
-              value={donorRequestForm.mobileNumber}
-              onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, mobileNumber: text })}
-              keyboardType="phone-pad"
+              placeholder="Contact info"
+              value={donorRequestForm.contactInfo}
+              onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, contactInfo: text })}
             />
             <TextInput
               style={styles.input}
@@ -924,6 +900,12 @@ export default function AdminDashboard() {
               placeholder="End time"
               value={donorRequestForm.endTime}
               onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, endTime: text })}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Urgency level (low/medium/high/critical)"
+              value={donorRequestForm.urgencyLevel}
+              onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, urgencyLevel: text })}
             />
             <TextInput
               style={styles.input}
@@ -952,7 +934,42 @@ export default function AdminDashboard() {
           </ScrollView>
         </View>
       </Modal>
-    </ScrollView>
+      </ScrollView>
+
+      <View style={[styles.adminTabBar, { paddingBottom: insets.bottom + 6, height: 64 + insets.bottom }]}>
+        <TouchableOpacity style={styles.adminTabItem} onPress={() => setActiveSection("users")}>
+          <View style={[styles.adminTabIcon, activeSection === "users" && styles.adminTabIconActive]}>
+            <Ionicons name="people" size={22} color="#fff" />
+          </View>
+          <Text style={styles.adminTabLabel}>User</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.adminTabItem} onPress={() => setActiveSection("posts")}>
+          <View style={[styles.adminTabIcon, activeSection === "posts" && styles.adminTabIconActive]}>
+            <Ionicons name="water" size={22} color="#fff" />
+          </View>
+          <Text style={styles.adminTabLabel}>Post</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.adminTabItem} onPress={handleInsertUser}>
+          <View style={styles.adminTabIcon}>
+            <Ionicons name="person-add" size={22} color="#fff" />
+          </View>
+          <Text style={styles.adminTabLabel}>Add User</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.adminTabItem} onPress={handleLogout} disabled={loggingOut}>
+          <View style={styles.adminTabIcon}>
+            {loggingOut ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Ionicons name="log-out-outline" size={22} color="#fff" />
+            )}
+          </View>
+          <Text style={styles.adminTabLabel}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
@@ -1298,12 +1315,40 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  logoutBtn: {
-    backgroundColor: "#FF3B30",
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    justifyContent: "center",
+  adminTabBar: {
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingTop: 6,
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 8,
+  },
+  adminTabItem: {
+    flex: 1,
     alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 2,
+  },
+  adminTabIcon: {
+    minWidth: 52,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  adminTabIconActive: {
+    backgroundColor: "rgba(255,255,255,0.22)",
+  },
+  adminTabLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#fff",
+    marginTop: 2,
   },
 });

@@ -284,154 +284,76 @@ export const getAllDonationRequests = asyncHandler(async (req, res) => {
     const { page = 1, limit = 20, bloodGroup, city } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const filter = {
-        requests: { $elemMatch: { donarName: { $exists: true, $nin: [null, ""] } } },
-    };
+    const filter = {};
+    if (bloodGroup) filter.bloodGroup = bloodGroup;
+    if (city) filter.city = { $regex: city, $options: "i" };
 
-    const donars = await Donar.find(filter).populate({ path: "user", select: "userName email" }).sort({ updatedAt: -1 });
-
-    const flat = [];
-    for (const d of donars) {
-        for (const r of d.requests ?? []) {
-            if (!r.donarName || !String(r.donarName).trim()) continue;
-            if (bloodGroup && r.bloodGroup !== bloodGroup) continue;
-            if (city && !String(r.city ?? "").toLowerCase().includes(String(city).toLowerCase())) continue;
-            flat.push({
-                _id: r._id,
-                donarDocumentId: d._id,
-                user: d.user,
-                status: r.status,
-                ...plainSubdoc(r),
-            });
-        }
-    }
-
-    const total = flat.length;
-    const requests = flat.slice(skip, skip + parseInt(limit));
+    const [requests, total] = await Promise.all([
+        BloodRequest.find(filter)
+            .populate({ path: "createdBy", select: "userName email" })
+            .skip(skip)
+            .limit(parseInt(limit))
+            .sort({ createdAt: -1 }),
+        BloodRequest.countDocuments(filter),
+    ]);
 
     return res.status(StatusCodes.OK).send(
         new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, { requests, total, page: parseInt(page), limit: parseInt(limit) })
     );
 });
 
-// @desc    Update a donor's embedded donation request (Donar.requests)
+// @desc    Update a blood request
 // @route   PATCH /api/v1/admin/requests/:id
 // @access  Admin
 export const updateDonationRequest = asyncHandler(async (req, res) => {
-    const paramId = req.params.id;
-
-    let donar = await Donar.findOne({ "requests._id": paramId });
-    let targetId = paramId;
-
-    if (!donar) {
-        donar = await Donar.findById(paramId);
-        if (!donar) {
-            throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
-        }
-        const list = donar.requests ?? [];
-        const active = list.find((r) => r.status === "in_progress" && r.donarName?.trim());
-        const target = active || list.find((r) => r.donarName?.trim());
-        if (!target) {
-            throw new ApiError(StatusCodes.NOT_FOUND, "No donation request on this record");
-        }
-        targetId = target._id;
-    }
-
-    const sub = donar.requests.id(targetId);
-    if (!sub) {
+    const request = await BloodRequest.findById(req.params.id);
+    if (!request) {
         throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
     }
 
-    const allowed = [
-        "donarName",
-        "bloodGroup",
-        "amount",
-        "age",
-        "date",
-        "hospitalName",
-        "location",
-        "contactPersonName",
-        "mobileNumber",
-        "city",
-        "startTime",
-        "endTime",
-        "reason",
-        "status",
-    ];
-    for (const f of allowed) {
-        if (!(f in req.body)) continue;
-        const v = req.body[f];
-        if (v === null) continue;
-        if (f === "age") {
-            const n = Number(v);
-            if (Number.isFinite(n) && n > 0) sub.age = n;
-        } else if (f === "status") {
-            if (["in_progress", "completed", "cancelled"].includes(v)) sub.status = v;
-        } else {
-            sub[f] = v;
-        }
+    const scalarFields = ["patientName", "bloodGroup", "location", "city", "hospitalName", "contactInfo", "reason"];
+    for (const f of scalarFields) {
+        if (req.body[f] !== undefined) request[f] = String(req.body[f]).trim();
     }
 
-    const next = plainSubdoc(sub);
-    const requiredFields = [
-        "donarName",
-        "bloodGroup",
-        "amount",
-        "date",
-        "hospitalName",
-        "location",
-        "contactPersonName",
-        "mobileNumber",
-        "city",
-        "startTime",
-        "endTime",
-        "reason",
-    ];
-    for (const f of requiredFields) {
-        const val = next[f];
-        if (val === undefined || val === null || String(val).trim() === "") {
-            throw new ApiError(StatusCodes.BAD_REQUEST, `${f} is required`);
-        }
+    if (req.body.age !== undefined) {
+        const n = Number(req.body.age);
+        if (Number.isFinite(n) && n > 0) request.age = n;
     }
-    if (!next.age || next.age <= 0) {
-        throw new ApiError(StatusCodes.BAD_REQUEST, "age is required");
+    if (req.body.requiredUnits !== undefined) {
+        const n = Number(req.body.requiredUnits);
+        if (Number.isFinite(n) && n > 0) request.requiredUnits = n;
     }
+    if (req.body.urgencyLevel !== undefined) {
+        const valid = ["low", "medium", "high", "critical"];
+        const v = String(req.body.urgencyLevel).toLowerCase();
+        if (valid.includes(v)) request.urgencyLevel = v;
+    }
+    if (req.body.status !== undefined) {
+        const valid = ["in_progress", "completed", "cancelled"];
+        if (valid.includes(req.body.status)) request.status = req.body.status;
+    }
+    if (req.body.donationDate !== undefined) {
+        const d = new Date(req.body.donationDate);
+        if (!isNaN(d.getTime())) request.donationDate = d;
+    }
+    if (req.body.startTime !== undefined) request.donationWindow.startTime = req.body.startTime;
+    if (req.body.endTime !== undefined) request.donationWindow.endTime = req.body.endTime;
 
-    await donar.save();
+    await request.save();
 
-    const refreshed = await Donar.findById(donar._id).populate({ path: "user", select: "userName email" });
-    const updatedSub = refreshed.requests.id(targetId);
-    const reqObj = plainSubdoc(updatedSub);
-    const payload = {
-        _id: reqObj._id,
-        donarDocumentId: refreshed._id,
-        user: refreshed.user,
-        ...reqObj,
-    };
-    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, UPDATE_SUCCESS_MESSAGES, payload));
+    const updated = await BloodRequest.findById(request._id).populate({ path: "createdBy", select: "userName email" });
+    return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, UPDATE_SUCCESS_MESSAGES, updated));
 });
 
-// @desc    Remove donor donation request (clears Donar.requests)
+// @desc    Delete a blood request
 // @route   DELETE /api/v1/admin/requests/:id
 // @access  Admin
 export const deleteDonationRequest = asyncHandler(async (req, res) => {
-    const paramId = req.params.id;
-
-    const pulled = await Donar.findOneAndUpdate(
-        { "requests._id": paramId },
-        { $pull: { requests: { _id: paramId } } },
-        { returnDocument: "after" }
-    );
-
-    if (pulled) {
-        return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, DELETED_SUCCESS_MESSAGES, {}));
-    }
-
-    const donar = await Donar.findById(paramId);
-    if (!donar) {
+    const request = await BloodRequest.findByIdAndDelete(req.params.id);
+    if (!request) {
         throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
     }
-    await Donar.findByIdAndUpdate(paramId, { $set: { requests: [] } });
     return res.status(StatusCodes.OK).send(new ApiResponse(StatusCodes.OK, DELETED_SUCCESS_MESSAGES, {}));
 });
 
@@ -508,14 +430,11 @@ export const createBloodRequest = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/admin/stats
 // @access  Admin
 export const getStats = asyncHandler(async (req, res) => {
-    const [totalUsers, totalDonors, totalRequests, suspendedUsers, totalAdminBloodRequests] = await Promise.all([
+    const [totalUsers, totalDonors, totalRequests, suspendedUsers] = await Promise.all([
         User.countDocuments({ role: "user" }),
         UserInfo.countDocuments({ canDonateBlood: "yes" }),
-        Donar.countDocuments({
-            requests: { $elemMatch: { donarName: { $exists: true, $nin: [null, ""] } } },
-        }),
-        User.countDocuments({ suspended: true }),
         BloodRequest.countDocuments(),
+        User.countDocuments({ suspended: true }),
     ]);
 
     return res.status(StatusCodes.OK).send(
@@ -524,7 +443,6 @@ export const getStats = asyncHandler(async (req, res) => {
             totalDonors,
             totalRequests,
             suspendedUsers,
-            totalAdminBloodRequests,
         })
     );
 });

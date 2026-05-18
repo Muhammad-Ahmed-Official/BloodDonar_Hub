@@ -39,19 +39,19 @@ export const getAdminRequests = async (params?: { page?: number; limit?: number;
 export const updateAdminDonationRequest = async (
   id: string,
   data: {
-    donarName: string;
-    bloodGroup: string;
-    amount: string;
-    age: number;
-    date: string;
-    hospitalName: string;
-    location: string;
-    contactPersonName: string;
-    mobileNumber: string;
-    city: string;
-    startTime: string;
-    endTime: string;
-    reason: string;
+    patientName?: string;
+    bloodGroup?: string;
+    requiredUnits?: number;
+    age?: number;
+    donationDate?: string;
+    hospitalName?: string;
+    location?: string;
+    contactInfo?: string;
+    city?: string;
+    startTime?: string;
+    endTime?: string;
+    reason?: string;
+    urgencyLevel?: string;
   }
 ) => {
   try {
