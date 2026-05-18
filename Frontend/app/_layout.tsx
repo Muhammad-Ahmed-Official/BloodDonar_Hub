@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import { ActivityIndicator, StyleSheet, View, Platform } from "react-native";
+import { ActivityIndicator, StyleSheet, View, Platform, StatusBar } from "react-native";
 import * as NavigationBar from "expo-navigation-bar";
 // TEMPORARILY DISABLED — expo-notifications not supported in Expo Go SDK 55
 // import * as Notifications from "expo-notifications";
@@ -138,10 +137,14 @@ function PushNotificationSetup() {
 
 export default function RootLayout() {
   useEffect(() => {
-    // if (Platform.OS === "android") {
-      NavigationBar.setBackgroundColorAsync("#ff0000"); 
-      NavigationBar.setStyle("light");
-    // }
+    async function configureNavBar() {
+      if (Platform.OS === "android") {
+        await NavigationBar.setBackgroundColorAsync("#ff0000");
+        await NavigationBar.setButtonStyleAsync("light");
+        await NavigationBar.setVisibilityAsync("visible");
+      }
+    }
+    configureNavBar();
   }, []);
 
   return (
@@ -163,7 +166,7 @@ export default function RootLayout() {
           <Stack.Screen name="(admin)" />
           <Stack.Screen name="(stack)" />
         </Stack>
-        <StatusBar style="light" />
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} translucent={false} />
     </AppProvider>
   );
 }

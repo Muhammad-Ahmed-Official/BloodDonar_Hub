@@ -12,9 +12,24 @@ import { COLORS } from "@/constants/theme";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { getRequestById } from "@/services/user.service";
+import { getBloodRequestById } from "@/services/bloodRequest.service";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+// Normalizes a BloodRequest API response to the Donar shape expected by this screen
+function normalizeBloodRequest(raw: any) {
+  if (!raw || !raw.createdBy) return raw; // already Donar shape
+  return {
+    ...raw,
+    userId: raw.createdBy,
+    donarName: raw.patientName ?? raw.donarName,
+    amount: raw.requiredUnits != null ? String(raw.requiredUnits) : raw.amount,
+    startTime: raw.donationWindow?.startTime ?? raw.startTime,
+    endTime: raw.donationWindow?.endTime ?? raw.endTime,
+    date: raw.donationDate ? new Date(raw.donationDate).toLocaleDateString() : raw.date,
+  };
+}
 
 export default function RequestDetails() {
   const router = useRouter();
@@ -30,10 +45,18 @@ export default function RequestDetails() {
     if (!requestId) return;
     (async () => {
       try {
-        const res = await getRequestById(requestId);
-        setData(res?.data ?? null);
+        // Try BloodRequest (new system) first
+        const res = await getBloodRequestById(requestId);
+        const raw = res?.data ?? null;
+        setData(raw ? normalizeBloodRequest(raw) : null);
       } catch {
-        setData(null);
+        // Fall back to old Donar system
+        try {
+          const res = await getRequestById(requestId);
+          setData(res?.data ?? null);
+        } catch {
+          setData(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -49,14 +72,15 @@ export default function RequestDetails() {
   }
 
   return (
+    <SafeAreaView style={styles.safeArea}>
     <ScrollView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t("requestDetails.title")}</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.backBtn} />
       </View>
 
       {/* Profile */}
@@ -132,6 +156,7 @@ export default function RequestDetails() {
         <Text style={styles.donateText}>Donate</Text>
       </Pressable>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -182,22 +207,25 @@ function DetailRow2({
 
 
 const styles = StyleSheet.create({
- container: { flex: 1, backgroundColor: COLORS.white },
+  safeArea: {
+    flex: 1,
+  },
+  container: { flex: 1, backgroundColor: COLORS.white },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 56,
-    paddingBottom: 12,
+    paddingTop: 20,
+    paddingBottom: 8,
     borderBottomWidth: 0.5,
     borderColor: "#B8B8B8",
   },
+  backBtn: {
+    width: 24,
+  },
   headerTitle: {
-    position: "absolute",
-    left: 0,
-    bottom: 14,
-    right: 0,
+    flex: 1,
     textAlign: "center",
     fontSize: 18,
     fontWeight: "bold",

@@ -12,7 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS, SIZES, PAKISTAN_CITIES } from "../../../constants/theme";
 import Input from "@/components/common/Input";
 import Button from "@/components/common/Button";
@@ -170,17 +170,18 @@ export default function CreateRequestScreen() {
   const pickerMode = activePicker === "date" ? "date" : "time";
 
   return (
-      <KeyboardAvoidingView
+    <KeyboardAvoidingView
         style={styles.container}
         behavior="padding"
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
+    <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={24} color={COLORS.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Create Request</Text>
-          <View style={{ width: 24 }} />
+          <View style={styles.backBtn} />
         </View>
   
 
@@ -477,27 +478,31 @@ export default function CreateRequestScreen() {
 
         <View style={{ height: 70 }} />
       </ScrollView>
+    </SafeAreaView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: { flex: 1, backgroundColor: COLORS.white},
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 56,
-    paddingBottom: 12,
+    paddingTop: 20,
+    paddingBottom: 8,
     borderBottomWidth: 0.5,
     borderColor: "#B8B8B8",
   },
+  backBtn: {
+    width: 24,
+  },
   headerTitle: {
-    position: "absolute",
-    left: 0,
-    bottom: 14,
-    right: 0,
+    flex: 1,
     textAlign: "center",
     fontSize: 18,
     fontWeight: "bold",

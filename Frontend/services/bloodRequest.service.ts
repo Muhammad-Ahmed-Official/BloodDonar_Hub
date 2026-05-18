@@ -75,6 +75,33 @@ export const getAssignedBloodRequests = async () => {
   }
 };
 
+export const getBloodRequestFeed = async (params?: { bloodGroup?: string; city?: string }) => {
+  try {
+    const res = await api.get("bloodRequest/feed", { params });
+    return res.data;
+  } catch (error: any) {
+    throw error?.response?.data || { message: "Failed to fetch blood request feed" };
+  }
+};
+
+export const deleteBloodRequest = async (id: string) => {
+  try {
+    const res = await api.delete(`bloodRequest/${id}`);
+    return res.data;
+  } catch (error: any) {
+    throw error?.response?.data || { message: "Failed to delete blood request" };
+  }
+};
+
+export const getBloodRequestById = async (id: string) => {
+  try {
+    const res = await api.get(`bloodRequest/${id}`);
+    return res.data;
+  } catch (error: any) {
+    throw error?.response?.data || { message: "Failed to fetch blood request" };
+  }
+};
+
 export const savePushToken = async (token: string) => {
   try {
     const res = await api.patch("user/push-token", { expoPushToken: token });

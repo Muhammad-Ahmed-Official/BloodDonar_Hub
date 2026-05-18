@@ -8,15 +8,18 @@ import {
   Image,
   ActivityIndicator,
   Keyboard,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { COLORS, SIZES } from "../../../constants/theme";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Button from "@/components/common/Button";
-import { getAllRequests, getProfile } from "@/services/user.service";
+import { getAllRequests, getProfile, deleteRequest } from "@/services/user.service";
+import { getBloodRequestFeed, deleteBloodRequest } from "@/services/bloodRequest.service";
 import Card from "@/components/common/Card";
 import { useLanguage } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const BLOOD_GROUPS = ["A+", "B+", "O+", "AB+", "A-", "B-", "O-", "AB-"];
@@ -30,6 +33,8 @@ type RequestRow = {
   date?: string;
   location?: string;
   reason?: string;
+  userId?: { _id: string; userName?: string; email?: string } | string;
+  source?: "donar" | "bloodRequest";
 };
 
 function requestLooksEmergency(reason?: string) {
@@ -37,9 +42,13 @@ function requestLooksEmergency(reason?: string) {
   return /emergency|urgent|critical/i.test(reason);
 }
 
+const getRequestOwnerId = (r: RequestRow) =>
+  typeof r.userId === "object" ? r.userId?._id : r.userId;
+
 export default function SearchScreen() {
   const router = useRouter();
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [requests, setRequests] = useState<RequestRow[]>([]);
@@ -47,6 +56,8 @@ export default function SearchScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [listError, setListError] = useState("");
   const [canDonateBlood, setCanDonateBlood] = useState<"yes" | "no" | "">("");
+  const [hasMedicalInfo, setHasMedicalInfo] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -61,15 +72,19 @@ export default function SearchScreen() {
     else setSubmitting(true);
     setListError("");
     try {
-      const [reqRes, profRes] = await Promise.all([
+      const [reqRes, brRes, profRes] = await Promise.all([
         getAllRequests({ page: 1, limit: 200 }),
+        getBloodRequestFeed().catch(() => null),
         getProfile().catch(() => null),
       ]);
       if (!mountedRef.current) return;
-      const reqRaw = reqRes?.data;
       const info = profRes?.data?.userInfo;
+      const medList = profRes?.data?.medicalInfo;
       setCanDonateBlood(info?.canDonateBlood === "yes" ? "yes" : "no");
-      setRequests(Array.isArray(reqRaw) ? (reqRaw as RequestRow[]) : []);
+      setHasMedicalInfo(Array.isArray(medList) ? medList.length > 0 : !!medList);
+      const donarReqs = Array.isArray(reqRes?.data) ? (reqRes.data as RequestRow[]) : [];
+      const bloodReqs = Array.isArray(brRes?.data) ? (brRes.data as RequestRow[]) : [];
+      setRequests([...donarReqs, ...bloodReqs]);
     } catch (e: unknown) {
       if (!mountedRef.current) return;
       const msg =
@@ -87,6 +102,24 @@ export default function SearchScreen() {
   useEffect(() => {
     loadLists("initial");
   }, [loadLists]);
+
+  const handleDelete = async (requestId: string, source?: string) => {
+    if (deletingId) return;
+    try {
+      setDeletingId(requestId);
+      if (source === "bloodRequest") {
+        await deleteBloodRequest(requestId);
+      } else {
+        await deleteRequest(requestId);
+      }
+      setRequests((prev) => prev.filter((r) => String(r._id) !== String(requestId)));
+    } catch (err: any) {
+      const msg = err?.message || err?.error || "Failed to delete request.";
+      Alert.alert("Error", msg);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleSearchSubmit = () => {
     Keyboard.dismiss();
@@ -110,11 +143,11 @@ export default function SearchScreen() {
     <SafeAreaView style={styles.safeArea}>
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t("search.createRequest")}</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.backBtn} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -160,23 +193,40 @@ export default function SearchScreen() {
         ) : listError ? (
           <Text style={styles.errorText}>{listError}</Text>
         ) : filteredRequests.length === 0 ? (
-          <Text style={styles.emptyText}>{t("search.noCards")}</Text>
+          <View style={styles.emptyContainer}>
+            <Ionicons name="search-outline" size={48} color="#ddd" />
+            <Text style={styles.emptyText}>{t("search.noCards")}</Text>
+          </View>
         ) : (
           <>
-            {filteredRequests.map((r) => (
-              <Card
-                key={`req-${r._id}`}
-                bloodGroup={r.bloodGroup ?? "—"}
-                patientName={r.donarName ?? "Patient"}
-                city={r.city ?? "—"}
-                hospital={r.hospitalName ?? "—"}
-                date={r.date ?? "—"}
-                address={r.location ?? "—"}
-                isEmergency={requestLooksEmergency(r.reason)}
-                donationRequestId={r._id}
-                donateDisabled={canDonateBlood !== "yes"}
-              />
-            ))}
+            {filteredRequests.map((r) => {
+              const isOwner = String(getRequestOwnerId(r)) === String(user?._id);
+              const handleDonate = () => {
+                if (!hasMedicalInfo) {
+                  router.push("/(tabs)/profile/medicalInfo");
+                  return;
+                }
+                if (r._id) router.push(`/(stack)/request/${r._id}`);
+              };
+              return (
+                <Card
+                  key={`req-${r._id}`}
+                  bloodGroup={r.bloodGroup ?? "—"}
+                  patientName={r.donarName ?? "Patient"}
+                  city={r.city ?? "—"}
+                  hospital={r.hospitalName ?? "—"}
+                  date={r.date ?? "—"}
+                  address={r.location ?? "—"}
+                  isEmergency={requestLooksEmergency(r.reason)}
+                  donationRequestId={r._id}
+                  donateDisabled={canDonateBlood !== "yes"}
+                  isOwner={isOwner}
+                  onDelete={isOwner ? () => handleDelete(r._id, r.source) : undefined}
+                  isDeleting={deletingId === r._id}
+                  onDonate={!isOwner ? handleDonate : undefined}
+                />
+              );
+            })}
           </>
         )}
 
@@ -201,23 +251,23 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingTop: 20,
-    paddingBottom: 12,
+    paddingBottom: 8,
     borderBottomWidth: 0.5,
     borderColor: "#B8B8B8",
   },
   headerTitle: {
-    position: "absolute",
-    left: 0,
-    bottom: 14,
-    right: 0,
+    flex: 1,
     textAlign: "center",
     fontSize: 18,
     fontWeight: "bold",
     color: COLORS.text,
   },
+  backBtn: {
+    width: 24,
+  },
 
 
-  content: { padding: SIZES.padding },
+  content: { padding: SIZES.padding, flexGrow: 1 },
   searchWrap: {
     flexDirection: "row",
     alignItems: "center",
@@ -273,9 +323,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 12,
   },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+    gap: 12,
+  },
   emptyText: {
     color: "#777",
-    fontSize: 14,
-    marginTop: 12,
+    fontSize: 15,
+    textAlign: "center",
   },
 });

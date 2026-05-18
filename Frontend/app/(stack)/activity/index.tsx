@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
+  Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SIZES, SHADOW } from "@/constants/theme";
@@ -125,7 +126,11 @@ export default function ActivityScreen() {
             data={donorItems}
             keyExtractor={(item) => item._id}
             contentContainerStyle={styles.listContent}
-            renderItem={({ item }) => <DonorCard item={item} />}
+            renderItem={({ item }) => (
+              <Pressable onPress={() => router.push(`/(stack)/request/${item.requestId}`)}>
+                <DonorCard item={item} />
+              </Pressable>
+            )}
             ListEmptyComponent={<Text style={styles.emptyText}>No donation assignments yet.</Text>}
           />
         ) : (
@@ -133,7 +138,11 @@ export default function ActivityScreen() {
             data={receiverItems}
             keyExtractor={(item) => item._id}
             contentContainerStyle={styles.listContent}
-            renderItem={({ item }) => <ReceiverCard item={item} />}
+            renderItem={({ item }) => (
+              <Pressable onPress={() => router.push(`/(stack)/request/${item.requestId}`)}>
+                <ReceiverCard item={item} />
+              </Pressable>
+            )}
             ListEmptyComponent={<Text style={styles.emptyText}>No blood requests yet.</Text>}
           />
         )}
@@ -261,8 +270,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: SIZES.padding,
-    paddingTop: 20,
-    paddingBottom: 28,
+    paddingTop: 18  ,
+    paddingBottom: 16,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
     shadowColor: COLORS.primary,

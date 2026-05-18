@@ -321,26 +321,30 @@ export const getMyRequests = asyncHandler(async (req, res) => {
 
     // One card per donor assignment so the receiver sees each donor separately
     const result = requests.flatMap((r) => {
+        const base = {
+            requestId: String(r._id),
+            patientName: r.patientName,
+            city: r.city,
+            bloodGroup: r.bloodGroup,
+            hospitalName: r.hospitalName,
+            location: r.location,
+            donationDate: r.donationDate,
+            urgencyLevel: r.urgencyLevel,
+            reason: r.reason ?? "",
+            units: 1,
+        };
         if (r.donors.length === 0) {
             return [{
                 _id: String(r._id),
-                requestId: String(r._id),
+                ...base,
                 donarName: "Searching for donors…",
-                city: r.city,
-                bloodGroup: r.bloodGroup,
-                hospitalName: r.hospitalName,
-                units: 1,
                 status: "pending",
             }];
         }
         return r.donors.map((d) => ({
             _id: String(d._id),
-            requestId: String(r._id),
+            ...base,
             donarName: d.donor?.userName ?? "Unknown",
-            city: r.city,
-            bloodGroup: r.bloodGroup,
-            hospitalName: r.hospitalName,
-            units: 1,
             status: mapReceiverStatus(d.status, r.status),
         }));
     });
@@ -432,6 +436,84 @@ function mapDonorStatus(donorStatus) {
     if (donorStatus === "cancelled" || donorStatus === "rejected") return "cancelled";
     return "in_progress";
 }
+
+// ─── PUBLIC FEED OF ALL IN-PROGRESS BLOOD REQUESTS ───────────────────────────
+// GET /api/v1/bloodRequest/feed
+export const getBloodRequestFeed = asyncHandler(async (req, res) => {
+    const { bloodGroup, city } = req.query;
+
+    const filter = { status: "in_progress" };
+    if (bloodGroup) filter.bloodGroup = bloodGroup;
+    if (city) filter.city = { $regex: city, $options: "i" };
+
+    const requests = await BloodRequest.find(filter)
+        .populate({ path: "createdBy", select: "_id userName" })
+        .sort({ createdAt: -1 })
+        .limit(100);
+
+    const result = requests.map((r) => ({
+        _id: String(r._id),
+        donarName: r.patientName,
+        bloodGroup: r.bloodGroup,
+        city: r.city,
+        hospitalName: r.hospitalName,
+        location: r.location,
+        date: r.donationDate ? r.donationDate.toISOString().split("T")[0] : "",
+        reason: r.reason ?? "",
+        urgencyLevel: r.urgencyLevel,
+        userId: r.createdBy,
+        source: "bloodRequest",
+        status: r.status,
+    }));
+
+    return res.status(StatusCodes.OK).send(
+        new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, result)
+    );
+});
+
+
+// ─── DELETE BLOOD REQUEST (creator only) ─────────────────────────────────────
+// DELETE /api/v1/bloodRequest/:id
+export const deleteBloodRequest = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    if (!mongoose.isValidObjectId(id)) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid request id");
+    }
+
+    const request = await BloodRequest.findOneAndDelete({ _id: id, createdBy: userId });
+    if (!request) {
+        throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
+    }
+
+    return res.status(StatusCodes.OK).send(
+        new ApiResponse(StatusCodes.OK, DELETED_SUCCESS_MESSAGES, null)
+    );
+});
+
+
+// ─── GET SINGLE BLOOD REQUEST BY ID ──────────────────────────────────────────
+// GET /api/v1/bloodRequest/:id
+export const getBloodRequestById = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid request id");
+    }
+
+    const request = await BloodRequest.findById(id)
+        .populate({ path: "createdBy", select: "userName email" })
+        .populate({ path: "donors.donor", select: "userName" });
+
+    if (!request) {
+        throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
+    }
+
+    return res.status(StatusCodes.OK).send(
+        new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, request)
+    );
+});
+
 
 async function findAndAssignReplacementDonor(bloodRequest, rejectedDonorId, io) {
     const compatibleGroups = COMPATIBLE_DONORS[bloodRequest.bloodGroup];

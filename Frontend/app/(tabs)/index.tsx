@@ -20,7 +20,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import Input from "@/components/common/Input";
 import { getAllRequests, getProfile, deleteRequest } from "@/services/user.service";
-import { getAssignedBloodRequests, getMyAssignments, getMyRequests, respondToRequest } from "@/services/bloodRequest.service";
+import { getAssignedBloodRequests, getMyAssignments, getMyRequests, respondToRequest, getBloodRequestFeed, deleteBloodRequest } from "@/services/bloodRequest.service";
 import { getRealtimeSocket } from "@/services/realtime";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -44,6 +44,7 @@ type RequestRow = {
   location?: string;
   reason?: string;
   userId?: { _id: string; userName?: string; email?: string } | string;
+  source?: "donar" | "bloodRequest";
 };
 
 type AssignedRequest = {
@@ -105,9 +106,19 @@ export default function HomeScreen() {
 
   const loadFeed = useCallback(async () => {
     setError("");
-    const reqRes = await getAllRequests({ page: 1, limit: 100 });
-    const reqs = Array.isArray(reqRes?.data) ? reqRes.data : [];
-    setAllRequests(reqs);
+    const [reqRes, brRes] = await Promise.allSettled([
+      getAllRequests({ page: 1, limit: 100 }),
+      getBloodRequestFeed(),
+    ]);
+    const donarReqs =
+      reqRes.status === "fulfilled" && Array.isArray(reqRes.value?.data)
+        ? reqRes.value.data
+        : [];
+    const bloodReqs =
+      brRes.status === "fulfilled" && Array.isArray(brRes.value?.data)
+        ? brRes.value.data
+        : [];
+    setAllRequests([...donarReqs, ...bloodReqs]);
   }, []);
 
   const loadAssigned = useCallback(async () => {
@@ -157,12 +168,16 @@ export default function HomeScreen() {
         ? myRequestsRes.data
         : [];
 
+      const uniqueRequestCount = new Set(
+        myRequests.map((item: any) => item.requestId).filter(Boolean)
+      ).size;
+
       setActivityStats({
         donorAssignments: allAssignments.length,
         completedDonations: allAssignments.filter(
           (a: any) => a.donorStatus === "completed"
         ).length,
-        ownRequests: myRequests.length,
+        ownRequests: uniqueRequestCount,
         ownDonarPosts,
       });
     } catch (e: unknown) {
@@ -214,11 +229,15 @@ export default function HomeScreen() {
   const getRequestOwnerId = (r: RequestRow) =>
     typeof r.userId === "object" ? r.userId?._id : r.userId;
 
-  const handleDelete = async (requestId: string) => {
+  const handleDelete = async (requestId: string, source?: string) => {
     if (deletingId) return;
     try {
       setDeletingId(requestId);
-      await deleteRequest(requestId);
+      if (source === "bloodRequest") {
+        await deleteBloodRequest(requestId);
+      } else {
+        await deleteRequest(requestId);
+      }
       setAllRequests((prev) => prev.filter((r) => String(r._id) !== String(requestId)));
     } catch (err: any) {
       const msg = err?.message || err?.error || "Failed to delete request.";
@@ -494,7 +513,6 @@ export default function HomeScreen() {
                     router.push("/(tabs)/profile/medicalInfo");
                     return;
                   }
-                  // Navigate to the request detail for contact / more info
                   if (r._id) router.push(`/(stack)/request/${r._id}`);
                 };
                 return (
@@ -510,7 +528,7 @@ export default function HomeScreen() {
                     donationRequestId={r._id}
                     donateDisabled={canDonateBlood !== "yes"}
                     isOwner={isOwner}
-                    onDelete={isOwner ? () => handleDelete(r._id) : undefined}
+                    onDelete={isOwner ? () => handleDelete(r._id, r.source) : undefined}
                     isDeleting={deletingId === r._id}
                     onDonate={!isOwner ? handleDonate : undefined}
                   />

@@ -57,19 +57,20 @@ export default function CompatibilityScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Compatibility</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.backBtn} />
       </View>
       <ScrollView 
         contentContainerStyle={[
           styles.scroll,
-          { paddingBottom: insets.bottom + 80 } // Add bottom padding for tab bar
+          { paddingBottom: insets.bottom + 40 } // Add bottom padding for tab bar
         ]} 
         showsVerticalScrollIndicator={false}
         horizontal={false}
@@ -161,43 +162,42 @@ export default function CompatibilityScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: COLORS.white },
+  safeArea: {
+    flex: 1,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 56,
-    paddingBottom: 12,
+    paddingTop: 20,
+    paddingBottom: 8,
     borderBottomWidth: 0.5,
     borderColor: "#B8B8B8",
   },
+  backBtn: {
+    width: 24,
+  },
   headerTitle: {
-    position: "absolute",
-    left: 0,
-    bottom: 14,
-    right: 0,
+    flex: 1,
     textAlign: "center",
     fontSize: 18,
     fontWeight: "bold",
     color: COLORS.text,
   },
-  backBtn: {
-    width: 36, 
-    height: 36, 
-    borderRadius: 18,
-    backgroundColor: "#F5F5F5",
-    alignItems: "center", 
-    justifyContent: "center",
-  },
 
   scroll: {
     padding: SIZES.padding,
-    backgroundColor: "#FAFAFA",
+    backgroundColor: COLORS.white,
   },
 
   /* ── GRID CARD ── */
@@ -206,11 +206,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: CARD_PADDING,
     marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
-    elevation: 3,
   },
   acceptLabel: {
     fontSize: 14,

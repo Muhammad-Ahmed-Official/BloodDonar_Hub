@@ -105,11 +105,11 @@ export default function BecomeDonor() {
     <View style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t("medical.title")}</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.backBtn} />
       </View>
 
       {loadingExisting ? (
@@ -234,15 +234,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingTop: 20,
-    paddingBottom: 12,
+    paddingBottom: 8,
     borderBottomWidth: 0.5,
     borderColor: "#B8B8B8",
   },
+  backBtn: {
+    width: 24,
+  },
   headerTitle: {
-    position: "absolute",
-    left: 0,
-    bottom: 14,
-    right: 0,
+    flex: 1,
     textAlign: "center",
     fontSize: 18,
     fontWeight: "bold",

@@ -4,6 +4,7 @@ import { COLORS, SIZES } from "@/constants/theme";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useEffect, useState, type ComponentProps } from "react";
 import { getPublicUserProfile } from "@/services/user.service";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 type PublicPayload = {
   user?: { userName?: string; email?: string };
@@ -77,13 +78,14 @@ export default function PosterProfileScreen() {
   const blood = data?.userInfo?.bloodGroup;
 
   return (
+    <SafeAreaView style={styles.safeArea}>
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={22} color="#222" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile Details</Text>
-        <View style={{ width: 40 }} />
+        <View style={styles.backBtn} />
       </View>
 
       {loading ? (
@@ -142,6 +144,7 @@ export default function PosterProfileScreen() {
 
       <View style={{ height: 20 }} />
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -176,6 +179,9 @@ function AboutRow({
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.white,
@@ -195,16 +201,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 56,
-    paddingBottom: 12,
+    paddingTop: 20,
+    paddingBottom: 8,
     borderBottomWidth: 0.5,
     borderColor: "#B8B8B8",
   },
+  backBtn: {
+    width: 40,
+  },
   headerTitle: {
-    position: "absolute",
-    left: 0,
-    bottom: 14,
-    right: 0,
+    flex: 1,
     textAlign: "center",
     fontSize: 18,
     fontWeight: "bold",

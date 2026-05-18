@@ -4,7 +4,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
 } from "react-native";
 import { AntDesign, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -54,14 +53,15 @@ export default function PrivacyPolicyScreen() {
   return (
   <SafeAreaView style={styles.safeArea}>
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} translucent={false} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={22} color="#222" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t("privacy.title")}</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <Ionicons name="chevron-back" size={22} color="#222" />
+      </TouchableOpacity>
+
+      <Text style={styles.headerTitle}>
+        {t("privacy.title")}
+      </Text>
+    </View>
 
       <ScrollView 
         style={styles.content}
@@ -112,25 +112,19 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingTop: 20,
-    paddingBottom: 12,
+    paddingBottom: 8,
     borderBottomWidth: 0.5,
     borderColor: "#B8B8B8",
   },
+  backBtn: {
+    width: 24,
+  },
   headerTitle: {
-    position: "absolute",
-    left: 0,
-    bottom: 14,
-    right: 0,
+    flex: 1,
     textAlign: "center",
     fontSize: 18,
     fontWeight: "bold",
     color: COLORS.text,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
   },
 
   content: {
