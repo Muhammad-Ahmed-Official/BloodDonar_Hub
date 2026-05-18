@@ -112,6 +112,19 @@ export const updateProfile = async (
   }
 };
 
+export const updateAccountInfo = async (data: {
+  userName?: string;
+  city?: string;
+  about?: string;
+}) => {
+  try {
+    const res = await api.put("user/account-info", data);
+    return res.data;
+  } catch (error: any) {
+    throw error?.response?.data || { message: "Account info update failed" };
+  }
+};
+
 export const changeNumber = async (mobileNumber: string) => {
   try {
     const res = await api.put("user/changeNumber", { mobileNumber });

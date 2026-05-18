@@ -449,6 +449,52 @@ export const getPublicUserProfile = asyncHandler(async (req, res) => {
 });
 
 
+// @desc    Update account info (userName, city, about)
+// @route   PUT /api/v1/user/account-info
+// @access  Private
+export const updateAccountInfo = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const { userName, city, about } = req.body;
+
+    if (!userName && city === undefined && about === undefined) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "No fields to update");
+    }
+
+    let updatedUser = null;
+    if (userName) {
+        const duplicate = await User.findOne({ userName, _id: { $ne: userId } });
+        if (duplicate) {
+            throw new ApiError(StatusCodes.CONFLICT, "Username already taken");
+        }
+        updatedUser = await User.findOneAndUpdate(
+            { _id: userId },
+            { $set: { userName } },
+            { returnDocument: "after", runValidators: true }
+        ).select("-password -otp -expiresIn");
+    }
+
+    const infoUpdates = {};
+    if (city !== undefined) infoUpdates.city = city;
+    if (about !== undefined) infoUpdates.about = about;
+
+    let updatedInfo = null;
+    if (Object.keys(infoUpdates).length > 0) {
+        updatedInfo = await UserInfo.findOneAndUpdate(
+            { user: userId },
+            { $set: infoUpdates },
+            { returnDocument: "after", runValidators: true }
+        );
+    }
+
+    return res.status(StatusCodes.OK).send(
+        new ApiResponse(StatusCodes.OK, UPDATE_SUCCESS_MESSAGES, {
+            user: updatedUser,
+            userInfo: updatedInfo,
+        })
+    );
+});
+
+
 // ─── PUSH TOKEN ──────────────────────────────────────────────────────────────
 
 // @desc    Save / update Expo push token for this device

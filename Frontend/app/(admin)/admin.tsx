@@ -629,7 +629,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#F8F8F8" }}>
+    <View style={{ flex: 1, backgroundColor: COLORS.white }}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
       <View style={[styles.header, { paddingTop: top + 16 }]}>
         <Text style={styles.title}>Admin Dashboard</Text>
@@ -936,7 +936,7 @@ export default function AdminDashboard() {
       </Modal>
       </ScrollView>
 
-      <View style={[styles.adminTabBar, { paddingBottom: insets.bottom + 6, height: 64 + insets.bottom }]}>
+      <View style={[styles.adminTabBar]}>
         <TouchableOpacity style={styles.adminTabItem} onPress={() => setActiveSection("users")}>
           <View style={[styles.adminTabIcon, activeSection === "users" && styles.adminTabIconActive]}>
             <Ionicons name="people" size={22} color="#fff" />
@@ -976,7 +976,7 @@ export default function AdminDashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8F8F8",
+    backgroundColor: COLORS.white,
     padding: SIZES.padding,
   },
 
@@ -1344,6 +1344,7 @@ const styles = StyleSheet.create({
   },
   adminTabIconActive: {
     backgroundColor: "rgba(255,255,255,0.22)",
+    borderRadius: 20,
   },
   adminTabLabel: {
     fontSize: 11,

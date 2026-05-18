@@ -24,6 +24,11 @@ export const translations: Record<AppLanguage, Record<string, string>> = {
     "security.phoneModalTitle": "Change Phone Number",
     "security.phonePlaceholder": "Enter new phone number",
     "security.phoneUpdated": "Mobile number updated",
+    "security.accountInfoModalTitle": "Account Info",
+    "security.usernamePlaceholder": "Enter username",
+    "security.cityPlaceholder": "Enter city",
+    "security.aboutPlaceholder": "Tell something about yourself",
+    "security.accountInfoUpdated": "Account info updated",
 
     "home.searchLocation": "Search Location",
     "home.selectGroup": "Select group",
@@ -128,6 +133,11 @@ export const translations: Record<AppLanguage, Record<string, string>> = {
     "security.phoneModalTitle": "فون نمبر تبدیل کریں",
     "security.phonePlaceholder": "نیا فون نمبر درج کریں",
     "security.phoneUpdated": "موبائل نمبر اپڈیٹ ہو گیا",
+    "security.accountInfoModalTitle": "اکاؤنٹ معلومات",
+    "security.usernamePlaceholder": "صارف نام درج کریں",
+    "security.cityPlaceholder": "شہر درج کریں",
+    "security.aboutPlaceholder": "اپنے بارے میں بتائیں",
+    "security.accountInfoUpdated": "اکاؤنٹ معلومات اپڈیٹ ہو گئی",
 
     "home.searchLocation": "شہر تلاش کریں",
     "home.selectGroup": "بلڈ گروپ منتخب کریں",

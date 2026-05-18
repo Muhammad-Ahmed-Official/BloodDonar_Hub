@@ -26,6 +26,7 @@ interface AuthContextValue {
   signup: (userName: string, email: string, password: string) => Promise<void>;
   verifyOtp: (otp: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (updates: Partial<User>) => void;
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -120,6 +121,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // ── Update local user fields ───────────────────────────────────────────────
+  const updateUser = useCallback((updates: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...updates };
+      saveUser(updated);
+      return updated;
+    });
+  }, []);
+
   // ── Logout ─────────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
     logoutUser(); // notify server (fire-and-forget)
@@ -142,6 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signup,
         verifyOtp,
         logout,
+        updateUser,
       }}
     >
       {children}
