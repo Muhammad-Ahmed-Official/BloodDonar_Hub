@@ -12,21 +12,25 @@ import { connectRealtime } from "@/services/realtime";
 function TabIcon({
   name,
   focused,
-  color,
-  icon,
   badgeCount,
 }: {
   name: any;
   focused: boolean;
-  color: string;
-  icon: "ionicon";
   badgeCount?: number;
 }) {
-  const IconComponent = Ionicons;
-
   return (
-    <View style={[styles.iconWrapper, focused && styles.iconWrapperActive]}>
-      <IconComponent name={name} size={22} color={color} />
+    <View
+      style={[
+        styles.iconWrapper,
+        focused && styles.iconWrapperActive,
+      ]}
+    >
+      <Ionicons
+        name={name}
+        size={22}
+        color="#fff"
+      />
+
       {(badgeCount ?? 0) > 0 && (
         <View style={styles.navBadge}>
           <Text style={styles.navBadgeText}>
@@ -146,8 +150,8 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarStyle,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: COLORS.white,
-        tabBarInactiveTintColor: "rgba(255,255,255,0.50)",
+        tabBarActiveTintColor: "#fff",
+        tabBarInactiveTintColor: "rgba(255,255,255,0.6)",
         tabBarLabelStyle: styles.label,
         tabBarItemStyle: styles.tabItem,
         tabBarHideOnKeyboard: true,
@@ -158,7 +162,7 @@ export default function TabsLayout() {
         options={{
           title: t("tabs.home"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="home" focused={focused} color={focused ? COLORS.white : "rgba(255,255,255,0.50)"} icon="ionicon" />
+            <TabIcon name="home" focused={focused} />
           ),
         }}
       />
@@ -167,13 +171,8 @@ export default function TabsLayout() {
         options={{
           title: t("tabs.messages"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon
-              name="chatbox-outline"
-              focused={focused}
-              color={focused ? COLORS.white : "rgba(255,255,255,0.50)"}
-              icon="ionicon"
-              badgeCount={totalUnread}
-            />
+            <TabIcon name="chatbox-outline" focused={focused} badgeCount={totalUnread}
+          />
           ),
         }}
       />
@@ -182,7 +181,7 @@ export default function TabsLayout() {
         options={{
           title: t("tabs.search"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="search" focused={focused} color={focused ? COLORS.white : "rgba(255,255,255,0.50)"} icon="ionicon" />
+            <TabIcon name="search" focused={focused} />
           ),
         }}
       />
@@ -191,7 +190,7 @@ export default function TabsLayout() {
         options={{
           title: t("tabs.profile"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="person" focused={focused} color={focused ? COLORS.white : "rgba(255,255,255,0.50)"} icon="ionicon" />
+            <TabIcon name="person" focused={focused} />
           ),
         }}
       />
@@ -231,17 +230,17 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 2,
   },
-  iconWrapper: {
-    paddingHorizontal: 18,
-    paddingVertical: 4,
-    borderRadius: 20,
-    overflow: "visible",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  iconWrapperActive: {
-    backgroundColor: "rgba(255,255,255,0.20)",
-  },
+iconWrapper: {
+  minWidth: 52,
+  height: 32,
+  borderRadius: 16,
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+iconWrapperActive: {
+  backgroundColor: "rgba(255,255,255,0.22)",
+},
   navBadge: {
     position: "absolute",
     top: -2,
