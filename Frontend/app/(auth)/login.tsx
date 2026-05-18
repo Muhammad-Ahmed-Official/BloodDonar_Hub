@@ -134,8 +134,9 @@ const styles = StyleSheet.create({
     paddingTop: 50,
   },
   backButton: {
-    marginBottom: 40,
+    marginBottom: 35,
     alignSelf: "flex-start",
+    marginLeft: -12
   },
   header: {
     alignItems: "flex-start",

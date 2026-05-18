@@ -208,6 +208,7 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     width: 40,
+    marginLeft: -12,
   },
   headerTitle: {
     flex: 1,

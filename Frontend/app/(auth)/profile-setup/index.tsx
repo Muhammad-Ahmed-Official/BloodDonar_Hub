@@ -429,6 +429,7 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: "flex-start",
     marginVertical: 10,
+    marginLeft: -12,
   },
     ageContainer: {
     marginBottom: 16,

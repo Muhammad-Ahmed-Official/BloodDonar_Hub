@@ -326,6 +326,7 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     width: 24,
+    marginLeft: -12,
   },
   headerTitle: {
     flex: 1,

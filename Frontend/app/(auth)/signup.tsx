@@ -120,7 +120,11 @@ export default function SignupScreen() {
 
 const styles = StyleSheet.create({
   container:   { flex: 1, backgroundColor: COLORS.white, paddingHorizontal: 24, paddingTop: 50 },
-  backButton:  { marginBottom: 40, alignSelf: "flex-start" },
+  backButton: {
+    marginBottom: 35,
+    alignSelf: "flex-start",
+    marginLeft: -12
+  },
   header:      { alignItems: "flex-start", marginBottom: 30 },
   subtitle:    { fontSize: 20, fontWeight: "700", color: COLORS.black, marginBottom: 12 },
   description: { fontSize: 15, color: "#666", lineHeight: 22 },
