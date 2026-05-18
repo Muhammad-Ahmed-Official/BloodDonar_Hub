@@ -1,12 +1,11 @@
 import axios from "axios";
 import { getToken, clearSession } from "../storage/tokenStorage";
 import { notifySessionExpired } from "./authBridge";
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+import { API_BASE_URL } from "../utils/apiConfig";
 
 const api = axios.create({
-  baseURL: API_URL,
-  timeout: 15000,
+  baseURL: API_BASE_URL,
+  timeout: 5000,
 });
 
 // ─── Request interceptor — attach token automatically ────────────────────────

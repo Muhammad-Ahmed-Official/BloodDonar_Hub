@@ -235,6 +235,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 4,
     borderRadius: 20,
+    overflow: "visible",
+    alignItems: "center",
+    justifyContent: "center",
   },
   iconWrapperActive: {
     backgroundColor: "rgba(255,255,255,0.20)",

@@ -54,7 +54,7 @@ export default function PrivacyPolicyScreen() {
   return (
   <SafeAreaView style={styles.safeArea}>
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} translucent={false} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={22} color="#222" />
@@ -100,6 +100,7 @@ export default function PrivacyPolicyScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: COLORS.white,
   },
   container: {
     flex: 1,

@@ -3,8 +3,6 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, StyleSheet, View, Platform } from "react-native";
 import * as NavigationBar from "expo-navigation-bar";
-import { useFonts } from "expo-font";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 // TEMPORARILY DISABLED — expo-notifications not supported in Expo Go SDK 55
 // import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -139,24 +137,12 @@ function PushNotificationSetup() {
 // ─── Root Layout ──────────────────────────────────────────────────────────────
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts({
-    ...Ionicons.font,
-    ...MaterialIcons.font,
-  });
-
   useEffect(() => {
-    if (Platform.OS === "android") {
+    // if (Platform.OS === "android") {
+      NavigationBar.setBackgroundColorAsync("#ff0000"); 
       NavigationBar.setStyle("light");
-    }
+    // }
   }, []);
-
-  if (!fontsLoaded && !fontError) {
-    return (
-      <View style={styles.loadingOverlay}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
-  }
 
   return (
     <AppProvider>
@@ -167,7 +153,7 @@ export default function RootLayout() {
         <Stack
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: "white" },
+            contentStyle: { backgroundColor: COLORS.primary },
             animation: "slide_from_right",
             // navigationBarHidden: true,
           }}

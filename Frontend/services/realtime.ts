@@ -1,9 +1,5 @@
 import { io, type Socket } from "socket.io-client";
-
-// Strip "/api/v1/" suffix from the REST base URL to get the socket server origin.
-// Keeps socket in sync with whatever is set in EXPO_PUBLIC_API_URL.
-const SOCKET_URL = (process.env.EXPO_PUBLIC_API_URL ?? "")
-  .replace(/\/api\/v1\/?$/, "");
+import { SOCKET_BASE_URL } from "../utils/apiConfig";
 
 let socket: Socket | null = null;
 let currentUserId: string | null = null;
@@ -14,10 +10,11 @@ export function connectRealtime(userId: string): Socket {
   disconnectRealtime();
 
   currentUserId = userId;
-  socket = io(SOCKET_URL, {
-    transports: ["websocket", "polling"],
+  socket = io(SOCKET_BASE_URL, {
+    transports: ["polling", "websocket"],
     query: { userId },
     autoConnect: true,
+    reconnectionAttempts: 5,
   });
 
   socket.on("connect",       () => console.log("[Socket] connected:", socket?.id));
