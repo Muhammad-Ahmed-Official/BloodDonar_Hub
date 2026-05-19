@@ -172,6 +172,7 @@ function AdminInput(props: React.ComponentProps<typeof TextInput>) {
 export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
   const top = insets.top;
+  const bottom = insets.bottom;
   const { logout } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const [activeSection, setActiveSection] = useState<"users" | "posts">("users");
@@ -640,7 +641,7 @@ export default function AdminDashboard() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.white }}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 64 + bottom + 10 }}>
       <View style={[styles.header, { paddingTop: top + 16 }]}>
         <Text style={styles.title}>Admin Dashboard</Text>
       </View>
@@ -969,7 +970,7 @@ export default function AdminDashboard() {
       </Modal>
       </ScrollView>
 
-      <View style={[styles.adminTabBar]}>
+      <View style={[styles.adminTabBar, { height: 64 + bottom, paddingBottom: bottom + 6 }]}>
         <TouchableOpacity style={styles.adminTabItem} onPress={() => setActiveSection("users")}>
           <View style={[styles.adminTabIcon, activeSection === "users" && styles.adminTabIconActive]}>
             <Ionicons name="people" size={22} color="#fff" />
