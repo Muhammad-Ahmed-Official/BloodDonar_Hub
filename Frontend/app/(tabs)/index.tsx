@@ -29,8 +29,8 @@ const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
 const BANNERS = [
   require("../../assets/projectImages/banner1.png"),
-  require("../../assets/projectImages/banner2.png"),
-  require("../../assets/projectImages/banner3.png"),
+  require("../../assets/projectImages/banner2.jpeg"),
+  require("../../assets/projectImages/banner3.jpeg"),
 ];
 const BANNER_WIDTH = Dimensions.get("window").width - SIZES.padding * 2;
 

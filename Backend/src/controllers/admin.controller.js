@@ -37,7 +37,7 @@ export const getAllUsers = asyncHandler(async (req, res) => {
     const { page = 1, limit = 20, search } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const filter = { role: { $ne: "admin" } };
+    const filter = {};
     if (search) {
         filter.$or = [
             { userName: { $regex: search, $options: "i" } },
@@ -223,13 +223,13 @@ export const updateUserByAdmin = asyncHandler(async (req, res) => {
         throw new ApiError(StatusCodes.NOT_FOUND, NO_USER);
     }
 
-    if (user.role === "admin") {
-        throw new ApiError(StatusCodes.FORBIDDEN, "Cannot update another admin");
-    }
-
     const userUpdates = {};
     if (req.body.userName !== undefined) userUpdates.userName = String(req.body.userName).trim().toLowerCase();
     if (req.body.email !== undefined) userUpdates.email = String(req.body.email).trim().toLowerCase();
+    if (req.body.role !== undefined) {
+        const r = String(req.body.role).trim().toLowerCase();
+        if (r === "user" || r === "admin") userUpdates.role = r;
+    }
 
     if (Object.keys(userUpdates).length > 0) {
         await User.findByIdAndUpdate(id, { $set: userUpdates }, { returnDocument: "after", runValidators: true });

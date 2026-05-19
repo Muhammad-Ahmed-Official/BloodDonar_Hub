@@ -159,11 +159,13 @@ export default function ProfileScreen() {
         <View style={styles.backBtn} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {profileLoading ? (
-          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 24 }} />
-        ) : null}
+      {profileLoading ? (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : null}
 
+      {!profileLoading && <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.profileCard}>
           <View style={styles.profileLeft}>
             <View style={styles.profileAvatar}>
@@ -202,19 +204,6 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.menuList}>
-            <View style={styles.menuItem}>
-          <Text style={styles.menuLabel}>
-            {t("profile.availableToggle")}
-          </Text>
-
-          <Switch
-            value={isAvailable}
-            onValueChange={onAvailChange}
-            disabled={savingAvail || profileLoading}
-            trackColor={{ true: COLORS.primary, false: "#B8B8B8" }}
-            thumbColor={COLORS.white}
-          />
-        </View>
           {MENU_ITEMS.map((item) => (
             <TouchableOpacity
               key={item.id}
@@ -239,7 +228,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={{ height: 90 }} />
-      </ScrollView>
+      </ScrollView>}
 
       {/* Logout Confirmation Modal */}
       <Modal
@@ -311,6 +300,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: COLORS.text,
+  },
+
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   content: {

@@ -133,6 +133,7 @@ export const updateAdminUser = async (
     canDonateBlood?: "yes" | "no";
     age?: string;
     about?: string;
+    role?: "user" | "admin";
   }
 ) => {
   try {

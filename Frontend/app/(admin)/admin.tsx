@@ -13,6 +13,7 @@ interface User {
   name: string;
   email: string;
   password?: string;
+  role: "user" | "admin";
   bloodGroup: string;
   city: string;
   country: string;
@@ -164,6 +165,10 @@ function AdminModalSaveBtn({ activeKey, thisKey, onPress, label }: {
   );
 }
 
+function AdminInput(props: React.ComponentProps<typeof TextInput>) {
+  return <TextInput placeholderTextColor="#9CA3AF" {...props} />;
+}
+
 export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
   const top = insets.top;
@@ -197,6 +202,7 @@ export default function AdminDashboard() {
     canDonateBlood: "",
     age: "",
     about: "",
+    role: "user" as "user" | "admin",
   });
 
   const [donorRequestForm, setDonorRequestForm] = useState({
@@ -232,6 +238,7 @@ export default function AdminDashboard() {
           id: u._id,
           name: u.userName || "",
           email: u.email || "",
+          role: (u.role === "admin" ? "admin" : "user") as "user" | "admin",
           mobileNumber: u.userInfo?.mobileNumber || "",
           bloodGroup: u.userInfo?.bloodGroup || "-",
           city: u.userInfo?.city || "-",
@@ -313,6 +320,7 @@ export default function AdminDashboard() {
       canDonateBlood: user.canDonateBlood || "",
       age: user.age,
       about: user.about,
+      role: user.role,
     });
     setUpdateModalVisible(true);
   };
@@ -331,6 +339,7 @@ export default function AdminDashboard() {
       canDonateBlood: "",
       age: "",
       about: "",
+      role: "user",
     });
     setInsertModalVisible(true);
   };
@@ -384,6 +393,7 @@ export default function AdminDashboard() {
         canDonateBlood: cdb as "yes" | "no",
         age: trimVal(formData.age),
         about: trimVal(formData.about) || undefined,
+        role: formData.role,
       });
       await loadDashboard();
       setUpdateModalVisible(false);
@@ -662,7 +672,12 @@ export default function AdminDashboard() {
               <Text style={styles.avatarText}>{user.name?.charAt(0)?.toUpperCase() || "U"}</Text>
             </View>
             <View style={styles.userInfo}>
-              <Text style={styles.name}>{user.name}</Text>
+              <View style={styles.nameBadgeRow}>
+                <Text style={styles.name}>{user.name}</Text>
+                <Text style={[styles.roleBadge, user.role === "admin" ? styles.adminRoleBadge : styles.userRoleBadge]}>
+                  {user.role === "admin" ? "Admin" : "User"}
+                </Text>
+              </View>
               <Text style={[styles.statusBadge, user.status === "active" ? styles.activeBadge : styles.suspendedBadge]}>
                 {user.status === "active" ? "Active" : "Suspended"}
               </Text>
@@ -767,16 +782,34 @@ export default function AdminDashboard() {
           <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
             <Text style={styles.modalTitle}>Update User</Text>
 
-            <TextInput style={styles.input} placeholder="Name" value={formData.name} onChangeText={(text) => setFormData({...formData, name: text})} />
-            <TextInput style={styles.input} placeholder="Email" value={formData.email} onChangeText={(text) => setFormData({...formData, email: text})} keyboardType="email-address" />
-            <TextInput style={styles.input} placeholder="Blood Group" value={formData.bloodGroup} onChangeText={(text) => setFormData({...formData, bloodGroup: text})} />
-            <TextInput style={styles.input} placeholder="City" value={formData.city} onChangeText={(text) => setFormData({...formData, city: text})} />
-            <TextInput style={styles.input} placeholder="Country" value={formData.country} onChangeText={(text) => setFormData({...formData, country: text})} />
-            <TextInput style={styles.input} placeholder="Gender" value={formData.gender} onChangeText={(text) => setFormData({...formData, gender: text})} />
-            <TextInput style={styles.input} placeholder="Date of Birth (YYYY-MM-DD)" value={formData.dateOfBirth} onChangeText={(text) => setFormData({...formData, dateOfBirth: text})} />
-            <TextInput style={styles.input} placeholder="Can Donate Blood (yes/no)" value={formData.canDonateBlood} onChangeText={(text) => setFormData({...formData, canDonateBlood: text})} />
-            <TextInput style={styles.input} placeholder="Age" value={formData.age} onChangeText={(text) => setFormData({...formData, age: text})} keyboardType="numeric" />
-            <TextInput style={styles.input} placeholder="About" value={formData.about} onChangeText={(text) => setFormData({...formData, about: text})} multiline />
+            <AdminInput style={styles.input} placeholder="Name" value={formData.name} onChangeText={(text) => setFormData({...formData, name: text})} />
+            <AdminInput style={styles.input} placeholder="Email" value={formData.email} onChangeText={(text) => setFormData({...formData, email: text})} keyboardType="email-address" />
+            <AdminInput style={styles.input} placeholder="Blood Group" value={formData.bloodGroup} onChangeText={(text) => setFormData({...formData, bloodGroup: text})} />
+            <AdminInput style={styles.input} placeholder="City" value={formData.city} onChangeText={(text) => setFormData({...formData, city: text})} />
+            <AdminInput style={styles.input} placeholder="Country" value={formData.country} onChangeText={(text) => setFormData({...formData, country: text})} />
+            <AdminInput style={styles.input} placeholder="Gender" value={formData.gender} onChangeText={(text) => setFormData({...formData, gender: text})} />
+            <AdminInput style={styles.input} placeholder="Date of Birth (YYYY-MM-DD)" value={formData.dateOfBirth} onChangeText={(text) => setFormData({...formData, dateOfBirth: text})} />
+            <AdminInput style={styles.input} placeholder="Can Donate Blood (yes/no)" value={formData.canDonateBlood} onChangeText={(text) => setFormData({...formData, canDonateBlood: text})} />
+            <AdminInput style={styles.input} placeholder="Age" value={formData.age} onChangeText={(text) => setFormData({...formData, age: text})} keyboardType="numeric" />
+            <AdminInput style={styles.input} placeholder="About" value={formData.about} onChangeText={(text) => setFormData({...formData, about: text})} multiline />
+
+            <View style={styles.roleRow}>
+              <Text style={styles.roleLabel}>Role</Text>
+              <View style={styles.roleToggleRow}>
+                <TouchableOpacity
+                  style={[styles.roleToggleBtn, formData.role === "user" && styles.roleToggleBtnActive]}
+                  onPress={() => setFormData({ ...formData, role: "user" })}
+                >
+                  <Text style={[styles.roleToggleBtnText, formData.role === "user" && styles.roleToggleBtnTextActive]}>User</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.roleToggleBtn, formData.role === "admin" && styles.roleToggleBtnActive]}
+                  onPress={() => setFormData({ ...formData, role: "admin" })}
+                >
+                  <Text style={[styles.roleToggleBtnText, formData.role === "admin" && styles.roleToggleBtnTextActive]}>Admin</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
             <AdminModalSaveBtn activeKey={actionKey} thisKey="save-user-update" onPress={saveUserUpdate} label="Save Changes" />
 
@@ -792,11 +825,11 @@ export default function AdminDashboard() {
           <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
             <Text style={styles.modalTitle}>Add New User</Text>
 
-            <TextInput style={styles.input} placeholder="Name" value={formData.name} onChangeText={(text) => setFormData({...formData, name: text})} />
-            <TextInput style={styles.input} placeholder="Email" value={formData.email} onChangeText={(text) => setFormData({...formData, email: text})} keyboardType="email-address" />
+            <AdminInput style={styles.input} placeholder="Name" value={formData.name} onChangeText={(text) => setFormData({...formData, name: text})} />
+            <AdminInput style={styles.input} placeholder="Email" value={formData.email} onChangeText={(text) => setFormData({...formData, email: text})} keyboardType="email-address" />
 
             <View style={styles.passwordContainer}>
-              <TextInput
+              <AdminInput
                 style={styles.passwordInput}
                 placeholder="Password"
                 value={formData.password}
@@ -808,15 +841,15 @@ export default function AdminDashboard() {
               </TouchableOpacity>
             </View>
 
-            <TextInput style={styles.input} placeholder="Mobile Number (03XXXXXXXXX)" value={formData.mobileNumber} onChangeText={(text) => setFormData({...formData, mobileNumber: text})} keyboardType="phone-pad" />
-            <TextInput style={styles.input} placeholder="Blood Group" value={formData.bloodGroup} onChangeText={(text) => setFormData({...formData, bloodGroup: text})} />
-            <TextInput style={styles.input} placeholder="City" value={formData.city} onChangeText={(text) => setFormData({...formData, city: text})} />
-            <TextInput style={styles.input} placeholder="Country" value={formData.country} onChangeText={(text) => setFormData({...formData, country: text})} />
-            <TextInput style={styles.input} placeholder="Gender" value={formData.gender} onChangeText={(text) => setFormData({...formData, gender: text})} />
-            <TextInput style={styles.input} placeholder="Date of Birth (YYYY-MM-DD)" value={formData.dateOfBirth} onChangeText={(text) => setFormData({...formData, dateOfBirth: text})} />
-            <TextInput style={styles.input} placeholder="Can Donate Blood (yes/no)" value={formData.canDonateBlood} onChangeText={(text) => setFormData({...formData, canDonateBlood: text})} />
-            <TextInput style={styles.input} placeholder="Age" value={formData.age} onChangeText={(text) => setFormData({...formData, age: text})} keyboardType="numeric" />
-            <TextInput style={styles.input} placeholder="About" value={formData.about} onChangeText={(text) => setFormData({...formData, about: text})} multiline />
+            <AdminInput style={styles.input} placeholder="Mobile Number (03XXXXXXXXX)" value={formData.mobileNumber} onChangeText={(text) => setFormData({...formData, mobileNumber: text})} keyboardType="phone-pad" />
+            <AdminInput style={styles.input} placeholder="Blood Group" value={formData.bloodGroup} onChangeText={(text) => setFormData({...formData, bloodGroup: text})} />
+            <AdminInput style={styles.input} placeholder="City" value={formData.city} onChangeText={(text) => setFormData({...formData, city: text})} />
+            <AdminInput style={styles.input} placeholder="Country" value={formData.country} onChangeText={(text) => setFormData({...formData, country: text})} />
+            <AdminInput style={styles.input} placeholder="Gender" value={formData.gender} onChangeText={(text) => setFormData({...formData, gender: text})} />
+            <AdminInput style={styles.input} placeholder="Date of Birth (YYYY-MM-DD)" value={formData.dateOfBirth} onChangeText={(text) => setFormData({...formData, dateOfBirth: text})} />
+            <AdminInput style={styles.input} placeholder="Can Donate Blood (yes/no)" value={formData.canDonateBlood} onChangeText={(text) => setFormData({...formData, canDonateBlood: text})} />
+            <AdminInput style={styles.input} placeholder="Age" value={formData.age} onChangeText={(text) => setFormData({...formData, age: text})} keyboardType="numeric" />
+            <AdminInput style={styles.input} placeholder="About" value={formData.about} onChangeText={(text) => setFormData({...formData, about: text})} multiline />
 
             <AdminModalSaveBtn activeKey={actionKey} thisKey="save-user-create" onPress={saveNewUser} label="Add User" />
 
@@ -832,82 +865,82 @@ export default function AdminDashboard() {
           <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
             <Text style={styles.modalTitle}>Update Blood Request</Text>
 
-            <TextInput
+            <AdminInput
               style={styles.input}
               placeholder="Patient name"
               value={donorRequestForm.patientName}
               onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, patientName: text })}
             />
-            <TextInput
+            <AdminInput
               style={styles.input}
               placeholder="Blood group"
               value={donorRequestForm.bloodGroup}
               onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, bloodGroup: text })}
             />
-            <TextInput
+            <AdminInput
               style={styles.input}
               placeholder="Required units"
               value={donorRequestForm.amount}
               onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, amount: text })}
               keyboardType="numeric"
             />
-            <TextInput
+            <AdminInput
               style={styles.input}
               placeholder="Patient age"
               value={donorRequestForm.age}
               onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, age: text })}
               keyboardType="numeric"
             />
-            <TextInput
+            <AdminInput
               style={styles.input}
               placeholder="Donation date (YYYY-MM-DD)"
               value={donorRequestForm.date}
               onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, date: text })}
             />
-            <TextInput
+            <AdminInput
               style={styles.input}
               placeholder="Hospital name"
               value={donorRequestForm.hospitalName}
               onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, hospitalName: text })}
             />
-            <TextInput
+            <AdminInput
               style={styles.input}
               placeholder="Location / address"
               value={donorRequestForm.location}
               onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, location: text })}
               multiline
             />
-            <TextInput
+            <AdminInput
               style={styles.input}
               placeholder="Contact info"
               value={donorRequestForm.contactInfo}
               onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, contactInfo: text })}
             />
-            <TextInput
+            <AdminInput
               style={styles.input}
               placeholder="City"
               value={donorRequestForm.city}
               onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, city: text })}
             />
-            <TextInput
+            <AdminInput
               style={styles.input}
               placeholder="Start time"
               value={donorRequestForm.startTime}
               onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, startTime: text })}
             />
-            <TextInput
+            <AdminInput
               style={styles.input}
               placeholder="End time"
               value={donorRequestForm.endTime}
               onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, endTime: text })}
             />
-            <TextInput
+            <AdminInput
               style={styles.input}
               placeholder="Urgency level (low/medium/high/critical)"
               value={donorRequestForm.urgencyLevel}
               onChangeText={(text) => setDonorRequestForm({ ...donorRequestForm, urgencyLevel: text })}
             />
-            <TextInput
+            <AdminInput
               style={styles.input}
               placeholder="Reason"
               value={donorRequestForm.reason}
@@ -1125,10 +1158,80 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  nameBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+
   name: {
     fontWeight: "bold",
     fontSize: 16,
     color: COLORS.text,
+  },
+
+  roleBadge: {
+    fontSize: 10,
+    fontWeight: "700",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+
+  adminRoleBadge: {
+    backgroundColor: "#FF3B3020",
+    color: "#CC2900",
+  },
+
+  userRoleBadge: {
+    backgroundColor: "#88888820",
+    color: "#555",
+  },
+
+  roleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 12,
+  },
+
+  roleLabel: {
+    fontSize: 14,
+    color: COLORS.text,
+    fontWeight: "600",
+    minWidth: 40,
+  },
+
+  roleToggleRow: {
+    flexDirection: "row",
+    gap: 8,
+    flex: 1,
+  },
+
+  roleToggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: "#B8B8B8",
+    alignItems: "center",
+  },
+
+  roleToggleBtnActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+
+  roleToggleBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+  },
+
+  roleToggleBtnTextActive: {
+    color: "#fff",
   },
 
   statusBadge: {
