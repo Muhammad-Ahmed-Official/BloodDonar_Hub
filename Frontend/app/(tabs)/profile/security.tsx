@@ -9,14 +9,18 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  Image,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import { COLORS, PAKISTAN_CITIES } from "@/constants/theme";
-import { changeNumber, updateAccountInfo, getProfile } from "@/services/user.service";
+import { changeNumber, updateAccountInfo, getProfile, updateProfile } from "@/services/user.service";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { SafeAreaView } from "react-native-safe-area-context";
+
 
 export default function AccountSecurityScreen() {
   const router = useRouter();
@@ -35,6 +39,8 @@ export default function AccountSecurityScreen() {
   // Account info modal
   const [accountModal, setAccountModal] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [existingAvatarUrl, setExistingAvatarUrl] = useState<string | null>(null);
   const [userName, setUserName] = useState(user?.userName ?? "");
   const [selectedCity, setSelectedCity] = useState("");
   const [citySearch, setCitySearch] = useState("");
@@ -74,6 +80,8 @@ export default function AccountSecurityScreen() {
   // ── Account info ────────────────────────────────────────────────────────────
 
   const handleOpenAccountModal = async () => {
+    setAvatarUri(null);
+    setExistingAvatarUrl(null);
     setUserName(user?.userName ?? "");
     setSelectedCity("");
     setCitySearch("");
@@ -82,11 +90,11 @@ export default function AccountSecurityScreen() {
     setAccountError("");
     setAccountModal(true);
 
-    // Pre-fill city and about from saved profile
     setLoadingProfile(true);
     try {
       const res = await getProfile();
       const info = res?.data?.userInfo;
+      if (info?.pic) setExistingAvatarUrl(info.pic);
       if (info?.city) setSelectedCity(info.city);
       if (info?.about) setAbout(info.about);
     } catch {
@@ -96,25 +104,49 @@ export default function AccountSecurityScreen() {
     }
   };
 
+  const handlePickAvatar = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert("Permission needed", "Please allow photo access to change your profile picture.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: Platform.OS === "ios",
+      ...(Platform.OS === "ios" ? { aspect: [1, 1] as [number, number] } : {}),
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      setAvatarUri(result.assets[0].uri);
+    }
+  };
+
   const handleSaveAccount = async () => {
     setAccountError("");
     const trimmedName = userName.trim();
     const trimmedAbout = about.trim();
 
-    if (!trimmedName && !selectedCity && !trimmedAbout) {
-      setAccountError("Please fill at least one field");
+    if (!trimmedName && !selectedCity && !trimmedAbout && !avatarUri) {
+      setAccountError("Please update at least one field");
       return;
     }
 
-    const payload: { userName?: string; city?: string; about?: string } = {};
-    if (trimmedName) payload.userName = trimmedName;
-    if (selectedCity) payload.city = selectedCity;
-    if (trimmedAbout) payload.about = trimmedAbout;
-
     setSavingAccount(true);
     try {
-      await updateAccountInfo(payload);
-      if (payload.userName) updateUser({ userName: payload.userName });
+      const textPayload: { userName?: string; city?: string; about?: string } = {};
+      if (trimmedName) textPayload.userName = trimmedName;
+      if (selectedCity) textPayload.city = selectedCity;
+      if (trimmedAbout) textPayload.about = trimmedAbout;
+
+      if (Object.keys(textPayload).length > 0) {
+        await updateAccountInfo(textPayload);
+        if (textPayload.userName) updateUser({ userName: textPayload.userName });
+      }
+
+      if (avatarUri) {
+        await updateProfile({}, avatarUri);
+      }
+
       setAccountModal(false);
       Alert.alert("Success", t("security.accountInfoUpdated"));
     } catch (e: unknown) {
@@ -197,6 +229,21 @@ export default function AccountSecurityScreen() {
                 {loadingProfile && (
                   <ActivityIndicator color={COLORS.primary} style={{ marginBottom: 16 }} />
                 )}
+
+                {/* Avatar picker */}
+                <TouchableOpacity style={styles.avatarPicker} onPress={handlePickAvatar}>
+                  {(avatarUri || existingAvatarUrl) ? (
+                    <Image source={{ uri: avatarUri || existingAvatarUrl! }} style={styles.avatarImage} />
+                  ) : (
+                    <View style={styles.avatarPlaceholder}>
+                      <Ionicons name="person" size={40} color="#999" />
+                    </View>
+                  )}
+                  <View style={styles.avatarEditBadge}>
+                    <Ionicons name="camera" size={14} color={COLORS.white} />
+                  </View>
+                </TouchableOpacity>
+                <Text style={styles.avatarHint}>{t("security.changePhoto")}</Text>
 
                 {/* Username */}
                 <Text style={styles.inputLabel}>Username</Text>
@@ -568,6 +615,45 @@ const styles = StyleSheet.create({
     color: "#999",
     fontSize: 14,
     paddingVertical: 8,
+  },
+
+  /* Avatar picker */
+  avatarPicker: {
+    alignSelf: "center",
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    marginBottom: 4,
+  },
+  avatarImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+  },
+  avatarPlaceholder: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "#F0F0F0",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarEditBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarHint: {
+    textAlign: "center",
+    color: COLORS.primary,
+    fontSize: 13,
+    marginBottom: 20,
   },
 
   /* Language modal */

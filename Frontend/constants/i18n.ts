@@ -29,6 +29,7 @@ export const translations: Record<AppLanguage, Record<string, string>> = {
     "security.cityPlaceholder": "Enter city",
     "security.aboutPlaceholder": "Tell something about yourself",
     "security.accountInfoUpdated": "Account info updated",
+    "security.changePhoto": "Change photo",
 
     "home.searchLocation": "Search Location",
     "home.selectGroup": "Select group",
@@ -138,6 +139,7 @@ export const translations: Record<AppLanguage, Record<string, string>> = {
     "security.cityPlaceholder": "شہر درج کریں",
     "security.aboutPlaceholder": "اپنے بارے میں بتائیں",
     "security.accountInfoUpdated": "اکاؤنٹ معلومات اپڈیٹ ہو گئی",
+    "security.changePhoto": "تصویر تبدیل کریں",
 
     "home.searchLocation": "شہر تلاش کریں",
     "home.selectGroup": "بلڈ گروپ منتخب کریں",
@@ -155,7 +157,7 @@ export const translations: Record<AppLanguage, Record<string, string>> = {
     "search.bloodGroup": "بلڈ گروپ",
     "search.results": "نتائج",
     "search.noCards": "آپ کے فلٹر کے مطابق کوئی کارڈ نہیں ملا۔",
-
+  
     "inbox.title": "ان باکس",
     "inbox.searchPlaceholder": "نام یا پیغام تلاش کریں",
     "inbox.noUsers": "کوئی صارف نہیں ملا۔",
@@ -166,6 +168,7 @@ export const translations: Record<AppLanguage, Record<string, string>> = {
     "profile.blood": "بلڈ",
     "profile.canDonate": "عطیہ دے سکتا ہے",
     "profile.requested": "درخواستیں",
+    "profile.completed": "مکمل",
     "profile.availableToggle": "میں خون عطیہ کرنے کے لیے دستیاب ہوں",
     "profile.logoutConfirm": "کیا آپ واقعی لاگ آؤٹ کرنا چاہتے ہیں؟",
     "profile.menuCreateRequestBlood": "خون کی درخواست بنائیں",
