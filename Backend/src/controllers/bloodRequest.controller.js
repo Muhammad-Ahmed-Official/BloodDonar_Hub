@@ -9,12 +9,15 @@ import { responseMessages } from "../constants/responseMessages.js";
 import {
     notifyDonorBloodRequest,
     notifyDonorConfirmation,
+    sendPushNotification,
 } from "../services/notification.service.js";
+import { User } from "../models/user.model.js";
 
 const {
     GET_SUCCESS_MESSAGES,
     ADD_SUCCESS_MESSAGES,
     UPDATE_SUCCESS_MESSAGES,
+    DELETED_SUCCESS_MESSAGES,
     MISSING_FIELDS,
     NO_DATA_FOUND,
     UNAUTHORIZED_REQUEST,
@@ -136,7 +139,10 @@ export const createBloodRequest = asyncHandler(async (req, res) => {
         selected.map(async (ui, idx) => {
             const token = ui.user.expoPushToken;
             if (token) {
-                await notifyDonorBloodRequest(token, bloodRequest._id, receiverId);
+                await notifyDonorBloodRequest(token, bloodRequest._id, receiverId, {
+                    city: String(city),
+                    bloodType: String(bloodGroup),
+                });
                 await BloodRequest.updateOne(
                     { _id: bloodRequest._id, "donors._id": bloodRequest.donors[idx]._id },
                     { $set: { "donors.$.notificationSent": true } }
@@ -310,6 +316,89 @@ export const confirmDonation = asyncHandler(async (req, res) => {
 });
 
 
+// ─── CHECK IF USER HAS AN ACTIVE REQUEST ─────────────────────────────────────
+// GET /api/v1/bloodRequest/check-active
+export const checkActiveRequest = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const now = new Date();
+
+    const active = await BloodRequest.findOne({
+        createdBy: userId,
+        status: { $ne: "completed" },
+        expiresAt: { $gt: now },
+    }).select("_id patientName expiresAt status");
+
+    return res.status(StatusCodes.OK).send(
+        new ApiResponse(StatusCodes.OK, GET_SUCCESS_MESSAGES, {
+            hasActive: !!active,
+            expiresAt: active?.expiresAt ?? null,
+            patientName: active?.patientName ?? null,
+        })
+    );
+});
+
+
+// ─── RECEIVER ACCEPTS OR REJECTS A RESPONDING DONOR ──────────────────────────
+// PATCH /api/v1/bloodRequest/:id/receiver-respond
+export const receiverRespondToDonor = asyncHandler(async (req, res) => {
+    const receiverId = req.user._id;
+    const { id } = req.params;
+    const { donorId, action } = req.body;
+
+    if (!["accept", "reject"].includes(action)) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "action must be 'accept' or 'reject'");
+    }
+    if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(donorId)) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid id");
+    }
+
+    const bloodRequest = await BloodRequest.findOne({ _id: id, createdBy: receiverId });
+    if (!bloodRequest) {
+        throw new ApiError(StatusCodes.NOT_FOUND, "Request not found or not authorized");
+    }
+
+    const donorEntry = bloodRequest.donors.find(
+        (d) => String(d.donor) === String(donorId)
+    );
+    if (!donorEntry) {
+        throw new ApiError(StatusCodes.NOT_FOUND, "Donor not found in this request");
+    }
+
+    const io = req.app.get("io");
+
+    if (action === "accept") {
+        const donorUser = await User.findById(donorId).select("expoPushToken");
+        if (donorUser?.expoPushToken) {
+            await sendPushNotification(
+                donorUser.expoPushToken,
+                "Your offer was accepted! 🎉",
+                "Please be ready to donate blood at the scheduled time.",
+                { type: "DONOR_ACCEPTED", requestId: String(id) }
+            );
+        }
+        io.to(String(donorId)).emit("requestUpdated", {
+            requestId: String(id),
+            event: "receiver_accepted_you",
+        });
+    } else {
+        await BloodRequest.findOneAndUpdate(
+            { _id: id, "donors.donor": donorId },
+            { $set: { "donors.$.status": "rejected", "donors.$.respondedAt": new Date() } }
+        );
+        const refreshed = await BloodRequest.findById(id);
+        if (refreshed) await findAndAssignReplacementDonor(refreshed, donorId, io);
+        io.to(String(donorId)).emit("requestUpdated", {
+            requestId: String(id),
+            event: "receiver_rejected_you",
+        });
+    }
+
+    return res.status(StatusCodes.OK).send(
+        new ApiResponse(StatusCodes.OK, UPDATE_SUCCESS_MESSAGES, { action })
+    );
+});
+
+
 // ─── GET RECEIVER'S OWN BLOOD REQUESTS (Receiver tab) ────────────────────────
 // GET /api/v1/bloodRequest/my-requests
 export const getMyRequests = asyncHandler(async (req, res) => {
@@ -318,6 +407,22 @@ export const getMyRequests = asyncHandler(async (req, res) => {
     const requests = await BloodRequest.find({ createdBy: receiverId })
         .populate({ path: "donors.donor", select: "userName" })
         .sort({ createdAt: -1 });
+
+    // Batch-load UserInfo for donor bloodGroup + pic
+    const allDonorIds = [];
+    requests.forEach((r) => {
+        r.donors.forEach((d) => {
+            if (d.donor?._id) allDonorIds.push(d.donor._id);
+        });
+    });
+
+    const userInfoMap = {};
+    if (allDonorIds.length > 0) {
+        const infos = await UserInfo.find({ user: { $in: allDonorIds } }).select("user bloodGroup pic");
+        infos.forEach((info) => {
+            userInfoMap[String(info.user)] = { bloodGroup: info.bloodGroup, pic: info.pic ?? null };
+        });
+    }
 
     // One card per donor assignment so the receiver sees each donor separately
     const result = requests.flatMap((r) => {
@@ -337,16 +442,28 @@ export const getMyRequests = asyncHandler(async (req, res) => {
             return [{
                 _id: String(r._id),
                 ...base,
+                donorId: null,
                 donarName: "Searching for donors…",
+                donorBloodGroup: null,
+                donorPic: null,
                 status: "pending",
+                donorStatus: "pending",
             }];
         }
-        return r.donors.map((d) => ({
-            _id: String(d._id),
-            ...base,
-            donarName: d.donor?.userName ?? "Unknown",
-            status: mapReceiverStatus(d.status, r.status),
-        }));
+        return r.donors.map((d) => {
+            const did = d.donor?._id ? String(d.donor._id) : null;
+            const info = did ? (userInfoMap[did] ?? null) : null;
+            return {
+                _id: String(d._id),
+                ...base,
+                donorId: did,
+                donarName: d.donor?.userName ?? "Unknown",
+                donorBloodGroup: info?.bloodGroup ?? null,
+                donorPic: info?.pic ?? null,
+                status: mapReceiverStatus(d.status, r.status),
+                donorStatus: d.status,
+            };
+        });
     });
 
     return res.status(StatusCodes.OK).send(
@@ -571,7 +688,8 @@ async function findAndAssignReplacementDonor(bloodRequest, rejectedDonorId, io) 
         await notifyDonorBloodRequest(
             replacement.user.expoPushToken,
             bloodRequest._id,
-            bloodRequest.createdBy
+            bloodRequest.createdBy,
+            { city: bloodRequest.city, bloodType: bloodRequest.bloodGroup }
         );
         const lastEntry = updated.donors[updated.donors.length - 1];
         await BloodRequest.updateOne(

@@ -17,19 +17,23 @@ interface Props {
 }
 
 export default function BloodRequestModal({ visible, requestId, onClose }: Props) {
-  const [loading, setLoading] = useState<"accept" | "reject" | null>(null);
+  const [loading, setLoading] = useState<"yes" | "later" | null>(null);
 
-  async function handleAction(action: "accept" | "reject") {
+  async function handleYes() {
     if (!requestId) return;
-    setLoading(action);
+    setLoading("yes");
     try {
-      await respondToRequest(requestId, action);
+      await respondToRequest(requestId, "accept");
     } catch (err) {
-      console.error("[BloodRequestModal] respond error:", err);
+      console.error("[BloodRequestModal] accept error:", err);
     } finally {
       setLoading(null);
       onClose();
     }
+  }
+
+  function handleMaybeLater() {
+    onClose();
   }
 
   return (
@@ -46,33 +50,29 @@ export default function BloodRequestModal({ visible, requestId, onClose }: Props
             <Text style={styles.icon}>🩸</Text>
           </View>
 
-          <Text style={styles.title}>Blood donation request received</Text>
+          <Text style={styles.title}>Are you available to donate?</Text>
           <Text style={styles.body}>
-            A patient urgently needs your blood donation. Would you like to help?
+            Someone near you needs blood urgently. Would you like to help by donating?
           </Text>
 
           <View style={styles.actions}>
             <TouchableOpacity
-              style={[styles.btn, styles.rejectBtn]}
-              onPress={() => handleAction("reject")}
+              style={[styles.btn, styles.laterBtn]}
+              onPress={handleMaybeLater}
               disabled={loading !== null}
             >
-              {loading === "reject" ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.btnText}>Reject</Text>
-              )}
+              <Text style={styles.laterBtnText}>Maybe Later</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.btn, styles.acceptBtn]}
-              onPress={() => handleAction("accept")}
+              style={[styles.btn, styles.yesBtn]}
+              onPress={handleYes}
               disabled={loading !== null}
             >
-              {loading === "accept" ? (
+              {loading === "yes" ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.btnText}>Accept</Text>
+                <Text style={styles.btnText}>Yes</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -111,9 +111,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 16,
   },
-  icon: {
-    fontSize: 30,
-  },
+  icon: { fontSize: 30 },
   title: {
     fontSize: 18,
     fontWeight: "700",
@@ -140,15 +138,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  acceptBtn: {
-    backgroundColor: COLORS.primary,
+  yesBtn: { backgroundColor: COLORS.primary },
+  laterBtn: {
+    backgroundColor: "#F2F2F7",
   },
-  rejectBtn: {
-    backgroundColor: "#FF3B30",
-  },
-  btnText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 15,
-  },
+  btnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  laterBtnText: { color: "#666", fontWeight: "700", fontSize: 15 },
 });

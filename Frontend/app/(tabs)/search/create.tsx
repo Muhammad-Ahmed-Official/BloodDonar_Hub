@@ -17,7 +17,7 @@ import { COLORS, SIZES, PAKISTAN_CITIES } from "../../../constants/theme";
 import Input from "@/components/common/Input";
 import Button from "@/components/common/Button";
 import Label from "@/components/common/Label";
-import { createBloodRequest } from "@/services/bloodRequest.service";
+import { createBloodRequest, checkActiveRequest } from "@/services/bloodRequest.service";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 
 const BLOOD_GROUPS = ["A+", "B+", "O+", "AB+", "A-", "B-", "O-", "AB-"];
@@ -112,6 +112,19 @@ export default function CreateRequestScreen() {
 
     setSubmitting(true);
     try {
+      // Duplicate request guard — block if user already has an unexpired active request
+      const activeCheck = await checkActiveRequest();
+      if (activeCheck.hasActive) {
+        const expiry = activeCheck.expiresAt
+          ? new Date(activeCheck.expiresAt).toLocaleString()
+          : "the scheduled time";
+        setFormError(
+          `You already have an active donation request${activeCheck.patientName ? ` for ${activeCheck.patientName}` : ""}. ` +
+          `You cannot create another until your current request expires (${expiry}).`
+        );
+        setSubmitting(false);
+        return;
+      }
       await createBloodRequest({
         patientName:  patientName.trim(),
         bloodGroup:   selectedGroup,

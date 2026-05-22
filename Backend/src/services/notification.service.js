@@ -65,18 +65,20 @@ export async function sendPushNotification(token, title, body, data = {}) {
 /**
  * Notify a donor that a blood request needs their help.
  * data.type = "BLOOD_REQUEST" — frontend opens Accept/Reject modal on tap.
+ * @param {object} options - { city?: string, bloodType?: string }
  */
-export async function notifyDonorBloodRequest(token, requestId, receiverId) {
-    await sendPushNotification(
-        token,
-        "Blood Donation Request",
-        "A patient needs urgent blood donation. Tap to respond.",
-        {
-            requestId: String(requestId),
-            receiverId: String(receiverId),
-            type: "BLOOD_REQUEST",
-        }
-    );
+export async function notifyDonorBloodRequest(token, requestId, receiverId, options = {}) {
+    const { city, bloodType } = options;
+    const title = city ? `Blood Needed in ${city} 🩸` : "Blood Donation Request";
+    const body = bloodType && city
+        ? `Someone in ${city} needs ${bloodType} blood. Can you help?`
+        : "A patient needs urgent blood donation. Tap to respond.";
+
+    await sendPushNotification(token, title, body, {
+        requestId: String(requestId),
+        receiverId: String(receiverId),
+        type: "BLOOD_REQUEST",
+    });
 }
 
 /**

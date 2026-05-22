@@ -102,6 +102,35 @@ export const getBloodRequestById = async (id: string) => {
   }
 };
 
+export const checkActiveRequest = async (): Promise<{
+  hasActive: boolean;
+  expiresAt: string | null;
+  patientName: string | null;
+}> => {
+  try {
+    const res = await api.get("bloodRequest/check-active");
+    return res.data?.data ?? { hasActive: false, expiresAt: null, patientName: null };
+  } catch (error: any) {
+    throw error?.response?.data || { message: "Failed to check active request" };
+  }
+};
+
+export const receiverRespondToDonor = async (
+  requestId: string,
+  donorId: string,
+  action: "accept" | "reject"
+) => {
+  try {
+    const res = await api.patch(`bloodRequest/${requestId}/receiver-respond`, {
+      donorId,
+      action,
+    });
+    return res.data;
+  } catch (error: any) {
+    throw error?.response?.data || { message: "Failed to respond to donor" };
+  }
+};
+
 export const savePushToken = async (token: string) => {
   try {
     const res = await api.patch("user/push-token", { expoPushToken: token });
