@@ -34,6 +34,8 @@ export async function sendPushNotification(token, title, body, data = {}) {
         channelId: "blood-requests",
     };
 
+    console.log(`[Push] Sending → token=${token.slice(0, 30)}… title="${title}" data.type=${data.type ?? "—"}`);
+
     try {
         const response = await fetch(EXPO_PUSH_URL, {
             method: "POST",
@@ -45,20 +47,36 @@ export async function sendPushNotification(token, title, body, data = {}) {
             body: JSON.stringify(payload),
         });
 
+        console.log(`[Push] Expo HTTP status: ${response.status}`);
         const result = await response.json();
+
+        if (!response.ok) {
+            console.error("[Push] Expo rejected request:", JSON.stringify(result));
+            return;
+        }
 
         if (Array.isArray(result?.data)) {
             result.data.forEach((ticket) => {
-                if (ticket.status === "error") {
-                    console.error("[Push] Ticket error:", ticket.message, ticket.details);
+                if (ticket.status === "ok") {
+                    console.log(`[Push] Ticket OK — id=${ticket.id}`);
+                } else if (ticket.status === "error") {
+                    console.error(
+                        `[Push] Ticket error — message="${ticket.message}" error=${ticket.details?.error ?? "unknown"}`,
+                        ticket.details ?? ""
+                    );
                     if (ticket.details?.error === "DeviceNotRegistered") {
                         clearStaleToken(token);
                     }
+                } else {
+                    console.warn("[Push] Unexpected ticket:", JSON.stringify(ticket));
                 }
             });
+        } else {
+            console.warn("[Push] Unexpected Expo response shape:", JSON.stringify(result));
         }
     } catch (err) {
-        console.error("[Push] Network error sending notification:", err.message);
+        console.error("[Push] Network/fetch error:", err.message);
+        console.error("[Push] Payload that failed:", JSON.stringify(payload));
     }
 }
 
