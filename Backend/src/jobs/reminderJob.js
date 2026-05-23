@@ -1,6 +1,5 @@
 import cron from "node-cron";
 import { BloodRequest } from "../models/bloodRequest.model.js";
-import { Donar } from "../models/donar.models.js";
 import { User } from "../models/user.model.js";
 import { notifyDonorConfirmation } from "../services/notification.service.js";
 
@@ -141,48 +140,22 @@ async function runAutoCancelJob(io) {
     }
 }
 
-// ─── JOB 3: Donar Model Cleanup ───────────────────────────────────────────────
+// ─── JOB 3: BloodRequest Cleanup ─────────────────────────────────────────────
 // Runs daily at 02:00 AM.
-// Removes completed / cancelled Donar request items AND items whose blood
-// donation window ended more than 2 hours ago.
-async function runDonarCleanupJob() {
+// Permanently deletes BloodRequest documents that are completed or cancelled
+// and older than 30 days, keeping the collection lean.
+async function runBloodRequestCleanupJob() {
     try {
-        const now = new Date();
+        const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
 
-        const donars = await Donar.find({
-            "requests.0": { $exists: true },
+        const result = await BloodRequest.deleteMany({
+            status: { $in: ["completed", "cancelled"] },
+            createdAt: { $lt: cutoff },
         });
 
-        let removedTotal = 0;
-
-        for (const donar of donars) {
-            const before = donar.requests.length;
-
-            donar.requests = donar.requests.filter((r) => {
-                // Always remove completed or cancelled
-                if (r.status === "completed" || r.status === "cancelled") return false;
-
-                // Remove if donation window has expired (date + endTime + 2 h buffer)
-                if (r.date && r.endTime) {
-                    const combined = new Date(`${r.date} ${r.endTime}`);
-                    if (!isNaN(combined.getTime())) {
-                        const expiry = new Date(combined.getTime() + 2 * 60 * 60 * 1000);
-                        if (now > expiry) return false;
-                    }
-                }
-
-                return true;
-            });
-
-            if (donar.requests.length < before) {
-                removedTotal += before - donar.requests.length;
-                await donar.save();
-            }
-        }
-
-        console.log(`[DonarCleanup] Removed ${removedTotal} expired/closed request items`);
+        console.log(`[BloodRequestCleanup] Deleted ${result.deletedCount} old completed/cancelled requests`);
     } catch (err) {
-        console.error("[DonarCleanup] Error:", err.message);
+        console.error("[BloodRequestCleanup] Error:", err.message);
     }
 }
 
@@ -200,11 +173,11 @@ export function startReminderJob(io) {
         runAutoCancelJob(io);
     });
 
-    // Daily at 02:00 AM — clean up expired/completed Donar requests
+    // Daily at 02:00 AM — delete old completed/cancelled BloodRequest records
     cron.schedule("0 2 * * *", () => {
-        console.log("[Jobs] Running Donar request cleanup…");
-        runDonarCleanupJob();
+        console.log("[Jobs] Running BloodRequest cleanup…");
+        runBloodRequestCleanupJob();
     });
 
-    console.log("[Jobs] Reminder (30 min), auto-cancel (60 min), and Donar cleanup (2 AM) jobs started");
+    console.log("[Jobs] Reminder (30 min), auto-cancel (60 min), and BloodRequest cleanup (2 AM) jobs started");
 }
