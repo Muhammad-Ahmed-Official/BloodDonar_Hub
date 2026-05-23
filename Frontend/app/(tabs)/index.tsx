@@ -13,14 +13,14 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, SIZES, SHADOW } from "../../constants/theme";
+import { COLORS, SIZES } from "../../constants/theme";
 import Button from "@/components/common/Button";
 import Card from "@/components/common/Card";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import Input from "@/components/common/Input";
 import { getAllRequests, getProfile, deleteRequest } from "@/services/user.service";
-import { getAssignedBloodRequests, getMyAssignments, getMyRequests, respondToRequest, confirmDonation, getBloodRequestFeed, deleteBloodRequest } from "@/services/bloodRequest.service";
+import { getAssignedBloodRequests, getMyAssignments, getMyRequests, getBloodRequestFeed, deleteBloodRequest } from "@/services/bloodRequest.service";
 import { getRealtimeSocket } from "@/services/realtime";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -80,10 +80,7 @@ export default function HomeScreen() {
   const [canDonateBlood, setCanDonateBlood] = useState<"yes" | "no" | "">("");
   const [hasMedicalInfo, setHasMedicalInfo] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [assignedRequests, setAssignedRequests] = useState<AssignedRequest[]>([]);
-  const [donatingId, setDonatingId] = useState<string | null>(null);
   const [donatedIds, setDonatedIds] = useState<Set<string>>(new Set());
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [activityStats, setActivityStats] = useState({
     donorAssignments: 0,
     completedDonations: 0,
@@ -126,15 +123,12 @@ export default function HomeScreen() {
     try {
       const res = await getAssignedBloodRequests();
       const list = Array.isArray(res?.data) ? res.data : [];
-      setAssignedRequests(list);
-      // Pre-populate already-accepted ones as donated
-      setDonatedIds((prev) => {
-        const next = new Set(prev);
-        list.forEach((r: AssignedRequest) => {
-          if (r.donorStatus === "accepted") next.add(r._id);
-        });
-        return next;
+      // Rebuild donatedIds from active assignments (all non-rejected/cancelled statuses)
+      const next = new Set<string>();
+      list.forEach((r: AssignedRequest) => {
+        if (r.donorStatus !== "rejected" && r.donorStatus !== "cancelled") next.add(r._id);
       });
+      setDonatedIds(next);
     } catch {
       // silently ignore — not critical
     }
@@ -168,6 +162,15 @@ export default function HomeScreen() {
       const myRequests = Array.isArray(myRequestsRes?.data)
         ? myRequestsRes.data
         : [];
+
+      // Merge all-time assignments into donatedIds so completed donations also disable feed cards
+      setDonatedIds((prev) => {
+        const next = new Set(prev);
+        allAssignments
+          .filter((a: any) => a.donorStatus !== "rejected" && a.donorStatus !== "cancelled")
+          .forEach((a: any) => { if (a.requestId) next.add(a.requestId); });
+        return next;
+      });
 
       const uniqueRequestCount = new Set(
         myRequests.map((item: any) => item.requestId).filter(Boolean)
@@ -245,35 +248,6 @@ export default function HomeScreen() {
       Alert.alert("Error", msg);
     } finally {
       setDeletingId(null);
-    }
-  };
-
-  const handleDonateBloodRequest = async (requestId: string) => {
-    if (donatingId) return;
-    setDonatingId(requestId);
-    try {
-      await respondToRequest(requestId, "accept");
-      setDonatedIds((prev) => new Set([...prev, requestId]));
-      await loadAssigned();
-    } catch (err: any) {
-      const msg = err?.message || err?.error || "Failed to respond to request.";
-      Alert.alert("Error", msg);
-    } finally {
-      setDonatingId(null);
-    }
-  };
-
-  const handleConfirmDonation = async (requestId: string) => {
-    if (confirmingId) return;
-    setConfirmingId(requestId);
-    try {
-      await confirmDonation(requestId, true);
-      await loadAssigned();
-    } catch (err: any) {
-      const msg = err?.message || err?.error || "Failed to confirm donation.";
-      Alert.alert("Error", msg);
-    } finally {
-      setConfirmingId(null);
     }
   };
 
@@ -485,44 +459,6 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {assignedRequests.length > 0 && (
-            <>
-              <Text style={styles.sectionTitle}>Assigned to You</Text>
-              {assignedRequests.map((r) => {
-                if (r.donorStatus === "accepted") {
-                  // Feature 4: Distinct "You're assigned to donate" card with only [Donate] button
-                  return (
-                    <AssignedDonorCard
-                      key={`assigned-${r._id}`}
-                      request={r}
-                      isConfirming={confirmingId === r._id}
-                      onDonate={() => handleConfirmDonation(r._id)}
-                    />
-                  );
-                }
-                // Pending assignment: donor hasn't accepted yet
-                const isDonated = donatedIds.has(r._id);
-                const isDonating = donatingId === r._id;
-                return (
-                  <Card
-                    key={`assigned-${r._id}`}
-                    bloodGroup={r.bloodGroup}
-                    patientName={r.patientName}
-                    city={r.city}
-                    hospital={r.hospitalName}
-                    date={r.donationDate ? new Date(r.donationDate).toLocaleDateString() : "—"}
-                    address={r.location}
-                    isEmergency={r.urgencyLevel === "critical" || r.urgencyLevel === "high"}
-                    isShow={true}
-                    donated={isDonated}
-                    donateDisabled={isDonating}
-                    onDonate={!isDonated ? () => handleDonateBloodRequest(r._id) : undefined}
-                  />
-                );
-              })}
-            </>
-          )}
-
           {loading ? (
             <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} />
           ) : (
@@ -536,6 +472,7 @@ export default function HomeScreen() {
                 </View>
               {filteredRequests.map((r) => {
                 const isOwner = String(getRequestOwnerId(r)) === String(user?._id);
+                const isAlreadyDonated = r.source === "bloodRequest" && donatedIds.has(r._id);
                 const handleDonate = () => {
                   if (!hasMedicalInfo) {
                     router.push("/(tabs)/profile/medicalInfo");
@@ -554,11 +491,12 @@ export default function HomeScreen() {
                     address={r.location ?? "—"}
                     isEmergency={requestLooksEmergency(r.reason)}
                     donationRequestId={r._id}
-                    donateDisabled={canDonateBlood !== "yes"}
+                    donated={isAlreadyDonated}
+                    donateDisabled={isAlreadyDonated || canDonateBlood !== "yes"}
                     isOwner={isOwner}
                     onDelete={isOwner ? () => handleDelete(r._id, r.source) : undefined}
                     isDeleting={deletingId === r._id}
-                    onDonate={!isOwner ? handleDonate : undefined}
+                    onDonate={isOwner || isAlreadyDonated ? undefined : handleDonate}
                   />
                 );
               })}
@@ -574,106 +512,6 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
-
-// ─── Feature 4: Assigned Donor Card ──────────────────────────────────────────
-// Shown only when the donor's status is "accepted" (receiver confirmed them).
-// Single [Donate] button calls confirmDonation to mark the donation complete.
-
-function AssignedDonorCard({
-  request,
-  isConfirming,
-  onDonate,
-}: {
-  request: AssignedRequest;
-  isConfirming: boolean;
-  onDonate: () => void;
-}) {
-  const dateStr = request.donationDate
-    ? new Date(request.donationDate).toLocaleDateString("en-GB", {
-        day: "numeric", month: "short", year: "numeric",
-      })
-    : "—";
-
-  return (
-    <View style={assignedCardStyles.card}>
-      <View style={assignedCardStyles.header}>
-        <Text style={assignedCardStyles.icon}>🩸</Text>
-        <Text style={assignedCardStyles.title}>You&apos;re assigned to donate</Text>
-      </View>
-      <View style={assignedCardStyles.row}>
-        <Text style={assignedCardStyles.label}>Blood Type</Text>
-        <Text style={assignedCardStyles.value}>{request.bloodGroup}</Text>
-      </View>
-      <View style={assignedCardStyles.row}>
-        <Text style={assignedCardStyles.label}>Patient</Text>
-        <Text style={assignedCardStyles.value}>{request.patientName}</Text>
-      </View>
-      <View style={assignedCardStyles.row}>
-        <Text style={assignedCardStyles.label}>Hospital</Text>
-        <Text style={assignedCardStyles.value}>{request.hospitalName}</Text>
-      </View>
-      <View style={assignedCardStyles.row}>
-        <Text style={assignedCardStyles.label}>Date</Text>
-        <Text style={assignedCardStyles.value}>{dateStr}</Text>
-      </View>
-      {request.donationWindow && (
-        <View style={assignedCardStyles.row}>
-          <Text style={assignedCardStyles.label}>Time</Text>
-          <Text style={assignedCardStyles.value}>
-            {request.donationWindow.startTime} – {request.donationWindow.endTime}
-          </Text>
-        </View>
-      )}
-      <TouchableOpacity
-        style={[assignedCardStyles.donateBtn, isConfirming && { opacity: 0.6 }]}
-        onPress={onDonate}
-        disabled={isConfirming}
-      >
-        {isConfirming ? (
-          <ActivityIndicator color="#fff" size="small" />
-        ) : (
-          <Text style={assignedCardStyles.donateBtnText}>Donate</Text>
-        )}
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-const assignedCardStyles = StyleSheet.create({
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
-    borderLeftWidth: 4,
-    borderLeftColor: "#34C759",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 4,
-    gap: 8,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 4,
-  },
-  icon: { fontSize: 22 },
-  title: { fontSize: 16, fontWeight: "700", color: "#1A1A1A" },
-  row: { flexDirection: "row", justifyContent: "space-between" },
-  label: { fontSize: 13, color: "#888", fontWeight: "600" },
-  value: { fontSize: 13, color: "#1A1A1A", fontWeight: "600", maxWidth: "60%", textAlign: "right" },
-  donateBtn: {
-    backgroundColor: "#34C759",
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 6,
-  },
-  donateBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
-});
 
 const styles = StyleSheet.create({
   safeArea: {

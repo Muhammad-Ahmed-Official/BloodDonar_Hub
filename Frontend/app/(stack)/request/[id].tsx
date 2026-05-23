@@ -6,13 +6,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Pressable,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "@/constants/theme";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { getRequestById } from "@/services/user.service";
-import { getBloodRequestById } from "@/services/bloodRequest.service";
+import { getBloodRequestById, respondToRequest } from "@/services/bloodRequest.service";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -38,8 +39,10 @@ export default function RequestDetails() {
   const requestId = Array.isArray(id) ? id[0] : id;
 
   const { user } = useAuth();
-  const [data, setData] = useState(null);
+  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [donating, setDonating] = useState(false);
+  const [donorStatus, setDonorStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!requestId) return;
@@ -48,7 +51,15 @@ export default function RequestDetails() {
         // Try BloodRequest (new system) first
         const res = await getBloodRequestById(requestId);
         const raw = res?.data ?? null;
-        setData(raw ? normalizeBloodRequest(raw) : null);
+        const normalized = raw ? normalizeBloodRequest(raw) : null;
+        setData(normalized);
+        // Detect current user's donor status from the donors array
+        if (normalized && user?._id) {
+          const entry = normalized.donors?.find(
+            (d: any) => String(d.donor?._id ?? d.donor) === String(user._id)
+          );
+          if (entry) setDonorStatus(entry.status);
+        }
       } catch {
         // Fall back to old Donar system
         try {
@@ -61,7 +72,20 @@ export default function RequestDetails() {
         setLoading(false);
       }
     })();
-  }, [requestId]);
+  }, [requestId, user?._id]);
+
+  const handleDonate = async () => {
+    if (donating || !requestId) return;
+    setDonating(true);
+    try {
+      await respondToRequest(requestId, "accept");
+      setDonorStatus("pending");
+    } catch (err: any) {
+      Alert.alert("Error", err?.message ?? "Failed to respond to request");
+    } finally {
+      setDonating(false);
+    }
+  };
 
   if (loading) {
     return <ActivityIndicator style={{ marginTop: 50 }} />;
@@ -143,18 +167,41 @@ export default function RequestDetails() {
         <Text style={styles.activity}>Request Sent {timeAgo(data.createdAt)}</Text>
       </Section>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: false }}
-        // onPress={onDonate ?? (() => router.push("/(tabs)/profile/medicalInfo"))}
-        style={({ pressed }) => [
-          styles.donateBtn,
-          // !donationRequestId && styles.donateBtnFull,
-          pressed && styles.donateBtnPressed,
-        ]}
-      >
-        <Text style={styles.donateText}>Donate</Text>
-      </Pressable>
+      {(() => {
+        const isOwner = String(data?.userId?._id ?? data?.createdBy) === String(user?._id);
+        const hasAlreadyResponded =
+          donorStatus != null && !["rejected", "cancelled"].includes(donorStatus);
+        if (isOwner) return null;
+        if (hasAlreadyResponded) {
+          return (
+            <View
+              accessibilityRole="button"
+              accessibilityState={{ disabled: true }}
+              style={[styles.donateBtn, styles.donateBtnDonated]}
+            >
+              <Text style={styles.donateText}>Donated</Text>
+            </View>
+          );
+        }
+        return (
+          <Pressable
+            accessibilityRole="button"
+            onPress={handleDonate}
+            disabled={donating}
+            style={({ pressed }) => [
+              styles.donateBtn,
+              pressed && styles.donateBtnPressed,
+              donating && { opacity: 0.6 },
+            ]}
+          >
+            {donating ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.donateText}>Donate</Text>
+            )}
+          </Pressable>
+        );
+      })()}
     </ScrollView>
     </SafeAreaView>
   );
@@ -355,6 +402,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     margin: 10
+  },
+  donateBtnDonated: {
+    backgroundColor: "#2E7D32",
   },
   donateBtnDisabled: {
     backgroundColor: "#B8B8B8",
