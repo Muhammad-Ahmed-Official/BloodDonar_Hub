@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,7 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import Input from "@/components/common/Input";
 import { getAllRequests, getProfile, deleteRequest } from "@/services/user.service";
-import { getAssignedBloodRequests, getMyAssignments, getMyRequests, getBloodRequestFeed, deleteBloodRequest } from "@/services/bloodRequest.service";
+import { getAssignedBloodRequests, getMyAssignments, getMyRequests, getBloodRequestFeed, deleteBloodRequest, checkActiveRequest } from "@/services/bloodRequest.service";
 import { getRealtimeSocket } from "@/services/realtime";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -81,6 +82,7 @@ export default function HomeScreen() {
   const [hasMedicalInfo, setHasMedicalInfo] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [donatedIds, setDonatedIds] = useState<Set<string>>(new Set());
+  const [hasActiveRequest, setHasActiveRequest] = useState(false);
   const [activityStats, setActivityStats] = useState({
     donorAssignments: 0,
     completedDonations: 0,
@@ -138,13 +140,16 @@ export default function HomeScreen() {
     setLoading(true);
     setError("");
     try {
-      const [prof, , , allAssignmentsRes, myRequestsRes] = await Promise.all([
+      const [prof, , , allAssignmentsRes, myRequestsRes, activeReqRes] = await Promise.all([
         getProfile().catch(() => null),
         loadFeed(),
         loadAssigned(),
         getMyAssignments().catch(() => null),
         getMyRequests().catch(() => null),
+        checkActiveRequest().catch(() => null),
       ]);
+
+      setHasActiveRequest(activeReqRes?.hasActive === true);
 
       const info = prof?.data?.userInfo;
       const medList = prof?.data?.medicalInfo;
@@ -468,7 +473,27 @@ export default function HomeScreen() {
                   <Text style={styles.createRequestSubText}>
                     You are available as donor. Create your donation request.
                   </Text>
-                  <Button title={t("search.createRequest")} onPress={() => router.push("/(tabs)/search/create")} />
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {
+                      if (hasActiveRequest) {
+                        Alert.alert(
+                          "Request Active",
+                          "You cannot create another request until your current request is completed or its time duration ends."
+                        );
+                        return;
+                      }
+                      router.push("/(tabs)/search/create");
+                    }}
+                    style={({ pressed }) => [
+                      createBtnStyles.btn,
+                      hasActiveRequest ? createBtnStyles.btnDisabled : pressed ? createBtnStyles.btnPressed : null,
+                    ]}
+                  >
+                    <Text style={[createBtnStyles.text, hasActiveRequest && createBtnStyles.textDisabled]}>
+                      {t("search.createRequest")}
+                    </Text>
+                  </Pressable>
                 </View>
               {filteredRequests.map((r) => {
                 const isOwner = String(getRequestOwnerId(r)) === String(user?._id);
@@ -742,5 +767,28 @@ const styles = StyleSheet.create({
   activityCount: {
     fontSize: 12,
     color: COLORS.black,
+  },
+});
+
+const createBtnStyles = StyleSheet.create({
+  btn: {
+    backgroundColor: COLORS.primary,
+    padding: SIZES.padding,
+    borderRadius: SIZES.radius,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  btnDisabled: {
+    backgroundColor: "#BDBDBD",
+  },
+  btnPressed: {
+    opacity: 0.88,
+  },
+  text: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  textDisabled: {
+    color: "#F5F5F5",
   },
 });

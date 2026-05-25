@@ -180,5 +180,5 @@ export function startReminderJob(io) {
         runBloodRequestCleanupJob();
     });
 
-    console.log("[Jobs] Reminder (30 min), auto-cancel (60 min), and BloodRequest cleanup (2 AM) jobs started");
+    console.log("[Jobs] Reminder (30 min), auto-cancel (60 min), and BloodRequest cleanup (12 AM) jobs started");
 }
