@@ -87,9 +87,9 @@ export async function sendPushNotification(token, title, body, data = {}) {
  */
 export async function notifyDonorBloodRequest(token, requestId, receiverId, options = {}) {
     const { city, bloodType } = options;
-    const title = city ? `Blood Needed in ${city} 🩸` : "Blood Donation Request";
+    const title = city ? `Blood Needed in Your City 🩸` : "Blood Donation Request";
     const body = bloodType && city
-        ? `Someone in ${city} needs ${bloodType} blood. Can you help?`
+        ? `Someone in ${city} needs ${bloodType} blood. Can you donate?`
         : "A patient needs urgent blood donation. Tap to respond.";
 
     await sendPushNotification(token, title, body, {
@@ -100,14 +100,14 @@ export async function notifyDonorBloodRequest(token, requestId, receiverId, opti
 }
 
 /**
- * Ask donor if they completed the donation.
+ * Ask donor if they completed the donation (STEP 6 — 30-min reminder).
  * data.type = "DONATION_CONFIRMATION" — frontend opens Yes/No confirmation modal on tap.
  */
 export async function notifyDonorConfirmation(token, requestId, donorId) {
     await sendPushNotification(
         token,
-        "Donation Confirmation",
-        "Did you donate blood successfully?",
+        "Did You Donate? ⏰",
+        "Your donation window is almost over. Did you donate blood?",
         {
             requestId: String(requestId),
             donorId: String(donorId),

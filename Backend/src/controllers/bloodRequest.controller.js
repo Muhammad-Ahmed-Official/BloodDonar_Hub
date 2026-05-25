@@ -8,7 +8,6 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { responseMessages } from "../constants/responseMessages.js";
 import {
     notifyDonorBloodRequest,
-    notifyDonorConfirmation,
     sendPushNotification,
 } from "../services/notification.service.js";
 import { User } from "../models/user.model.js";
@@ -23,7 +22,11 @@ const {
     UNAUTHORIZED_REQUEST,
 } = responseMessages;
 
-// Donor blood groups compatible with each patient blood group
+// Valid blood groups — used to validate the request's bloodGroup field.
+// Dead code note: COMPATIBLE_DONORS and shuffleArray were part of the old smart-selection
+// model (pre-assign N blood-compatible donors). The current city-broadcast model no longer
+// uses them — any city resident can respond and be accepted by the receiver.
+// TODO: Remove after confirming the old model is fully retired.
 const COMPATIBLE_DONORS = {
     "A+":  ["A+", "A-", "O+", "O-"],
     "A-":  ["A-", "O-"],
@@ -35,6 +38,7 @@ const COMPATIBLE_DONORS = {
     "O-":  ["O-"],
 };
 
+// TODO: Remove — no longer called after switching to city-broadcast model.
 function shuffleArray(arr) {
     const a = [...arr];
     for (let i = a.length - 1; i > 0; i--) {
@@ -82,37 +86,32 @@ export const createBloodRequest = asyncHandler(async (req, res) => {
         throw new ApiError(StatusCodes.BAD_REQUEST, "requiredUnits must be at least 1");
     }
 
-    const compatibleGroups = COMPATIBLE_DONORS[bloodGroup];
-    if (!compatibleGroups) {
+    if (!COMPATIBLE_DONORS[bloodGroup]) {
         throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid blood group");
     }
 
-    // Find eligible donors: blood-compatible, willing, not suspended, not the receiver
-    const eligibleUserInfos = await UserInfo.find({
-        bloodGroup: { $in: compatibleGroups },
-        canDonateBlood: "yes",
+    // STEP 2: Find ALL users in the same city to broadcast the notification.
+    // No blood-type filter — any city resident can respond. Admin users and the
+    // request creator are excluded. Suspended accounts are skipped.
+    const cityUserInfos = await UserInfo.find({
+        city: { $regex: new RegExp(`^${String(city).trim()}$`, "i") },
     }).populate({
         path: "user",
-        match: { suspended: false, _id: { $ne: receiverId } },
+        match: {
+            suspended: false,
+            _id: { $ne: receiverId },
+            role: { $ne: "admin" },
+        },
         select: "_id expoPushToken",
     });
 
-    const eligible = eligibleUserInfos.filter((ui) => ui.user != null);
-
-    // Randomly select up to requiredUnits donors (max 1 unit per donor)
-    // If no eligible donors exist right now the request is still saved with an
-    // empty donors array; getMyRequests shows it as "Searching for donors…".
-    const selected = shuffleArray(eligible).slice(0, units);
-
-    const donorsArr = selected.map((ui) => ({
-        donor: ui.user._id,
-        status: "pending",
-        notificationSent: false,
-    }));
+    const cityUsers = cityUserInfos.filter((ui) => ui.user != null);
+    console.log(`[BloodRequest] City broadcast: ${cityUsers.length} users in "${city}" will be notified`);
 
     const donationDateObj = new Date(donationDate);
     const expiresAt = buildExpiresAt(donationDateObj, donationWindow.endTime);
 
+    // Donors array starts empty — users add themselves by responding Yes to the notification
     const bloodRequest = await BloodRequest.create({
         patientName,
         bloodGroup,
@@ -131,22 +130,19 @@ export const createBloodRequest = asyncHandler(async (req, res) => {
         ...(reason && { reason: String(reason).trim() }),
         ...(expiresAt && { expiresAt }),
         createdBy: receiverId,
-        donors: donorsArr,
+        donors: [],
     });
 
-    // Send push notifications to each selected donor — fire and settle
+    // Broadcast push notification to every city user who has a push token
     const notifyResults = await Promise.allSettled(
-        selected.map(async (ui, idx) => {
+        cityUsers.map(async (ui) => {
             const token = ui.user.expoPushToken;
             if (token) {
                 await notifyDonorBloodRequest(token, bloodRequest._id, receiverId, {
                     city: String(city),
                     bloodType: String(bloodGroup),
                 });
-                await BloodRequest.updateOne(
-                    { _id: bloodRequest._id, "donors._id": bloodRequest.donors[idx]._id },
-                    { $set: { "donors.$.notificationSent": true } }
-                );
+                console.log(`[BloodRequest] Notified user ${ui.user._id}`);
             }
         })
     );
@@ -171,8 +167,10 @@ export const createBloodRequest = asyncHandler(async (req, res) => {
 });
 
 
-// ─── DONOR RESPONDS (ACCEPT / REJECT) ────────────────────────────────────────
+// ─── DONOR RESPONDS TO NOTIFICATION (STEP 3) ─────────────────────────────────
 // PATCH /api/v1/bloodRequest/:id/respond
+// Called when a city user taps "Yes, I'm Available" or "Maybe Later" on the
+// notification modal. "accept" adds them as a responder; "reject" is a no-op.
 export const respondToRequest = asyncHandler(async (req, res) => {
     const donorId = req.user._id;
     const { id } = req.params;
@@ -185,63 +183,72 @@ export const respondToRequest = asyncHandler(async (req, res) => {
         throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid request id");
     }
 
-    const newStatus = action === "accept" ? "accepted" : "rejected";
+    // "Maybe Later" — user declined via the notification modal. No DB change needed.
+    if (action === "reject") {
+        console.log(`[Respond] Donor ${donorId} declined request ${id}`);
+        return res.status(StatusCodes.OK).send(
+            new ApiResponse(StatusCodes.OK, UPDATE_SUCCESS_MESSAGES, { action })
+        );
+    }
 
-    // Atomic positional update — only succeeds when donor status is still "pending".
-    // Prevents race conditions from double-taps or simultaneous requests.
-    const bloodRequest = await BloodRequest.findOneAndUpdate(
+    // "Yes, I'm Available" — add this donor as a responder for the request.
+    // status "pending" = responded Yes, waiting for receiver to accept/reject them.
+    const bloodRequest = await BloodRequest.findOne({ _id: id, status: "in_progress" });
+
+    if (!bloodRequest) {
+        const existing = await BloodRequest.findById(id);
+        if (!existing) throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
+        throw new ApiError(StatusCodes.CONFLICT, "This request is no longer active");
+    }
+
+    // Idempotent — if donor already responded (double-tap / retry), return success without adding duplicate
+    const alreadyResponded = bloodRequest.donors.some(
+        (d) => String(d.donor) === String(donorId)
+    );
+    if (alreadyResponded) {
+        console.log(`[Respond] Donor ${donorId} already responded to request ${id} — skipping duplicate`);
+        return res.status(StatusCodes.OK).send(
+            new ApiResponse(StatusCodes.OK, UPDATE_SUCCESS_MESSAGES, { action })
+        );
+    }
+
+    // Atomic push: add donor as a new responder entry
+    const updated = await BloodRequest.findOneAndUpdate(
+        { _id: id, status: "in_progress" },
         {
-            _id: id,
-            status: "in_progress",
-            donors: { $elemMatch: { donor: donorId, status: "pending" } },
-        },
-        {
-            $set: {
-                "donors.$.status": newStatus,
-                "donors.$.respondedAt": new Date(),
+            $push: {
+                donors: {
+                    donor: donorId,
+                    status: "pending",
+                    notificationSent: true,
+                    respondedAt: new Date(),
+                },
             },
         },
         { returnDocument: "after" }
     );
 
-    if (!bloodRequest) {
-        // Diagnose failure to return a helpful error
-        const existing = await BloodRequest.findById(id);
-        if (!existing) throw new ApiError(StatusCodes.NOT_FOUND, NO_DATA_FOUND);
-        if (existing.status !== "in_progress") {
-            throw new ApiError(StatusCodes.CONFLICT, "This request is no longer active");
-        }
-        const donorEntry = existing.donors.find((d) => String(d.donor) === String(donorId));
-        if (!donorEntry) throw new ApiError(StatusCodes.FORBIDDEN, UNAUTHORIZED_REQUEST);
-        throw new ApiError(StatusCodes.CONFLICT, "You have already responded to this request");
+    if (!updated) {
+        throw new ApiError(StatusCodes.CONFLICT, "This request is no longer active");
     }
 
+    console.log(`[Respond] Donor ${donorId} responded Yes to request ${id}`);
+
+    // Real-time: notify receiver that a new donor has responded
     const io = req.app.get("io");
-    const receiverId = String(bloodRequest.createdBy);
+    const receiverId = String(updated.createdBy);
 
-    if (action === "accept") {
-        io.to(receiverId).emit("requestUpdated", {
-            requestId: String(bloodRequest._id),
-            donorId: String(donorId),
-            donorStatus: "accepted",
-            event: "donor_accepted",
-        });
-        io.to(String(donorId)).emit("requestUpdated", {
-            requestId: String(bloodRequest._id),
-            donorStatus: "accepted",
-            event: "donor_accepted",
-        });
-    } else {
-        io.to(receiverId).emit("requestUpdated", {
-            requestId: String(bloodRequest._id),
-            donorId: String(donorId),
-            donorStatus: "rejected",
-            event: "donor_rejected",
-        });
-        findAndAssignReplacementDonor(bloodRequest, donorId, io).catch((err) => {
-            console.error("[Replacement] Error:", err.message);
-        });
-    }
+    io.to(receiverId).emit("requestUpdated", {
+        requestId: String(updated._id),
+        donorId: String(donorId),
+        donorStatus: "pending",
+        event: "donor_responded",
+    });
+    io.to(String(donorId)).emit("requestUpdated", {
+        requestId: String(updated._id),
+        donorStatus: "pending",
+        event: "donor_responded",
+    });
 
     return res.status(StatusCodes.OK).send(
         new ApiResponse(StatusCodes.OK, UPDATE_SUCCESS_MESSAGES, { action })
@@ -367,29 +374,48 @@ export const receiverRespondToDonor = asyncHandler(async (req, res) => {
     const io = req.app.get("io");
 
     if (action === "accept") {
+        // STEP 5: Update donor status to "accepted" in DB.
+        // Critical: the 30-min reminder cron and confirmDonation both require status === "accepted".
+        await BloodRequest.findOneAndUpdate(
+            { _id: id, "donors.donor": donorId },
+            { $set: { "donors.$.status": "accepted", "donors.$.respondedAt": new Date() } }
+        );
+
+        // Send DONOR_ACCEPTED push notification to the accepted donor
         const donorUser = await User.findById(donorId).select("expoPushToken");
         if (donorUser?.expoPushToken) {
             await sendPushNotification(
                 donorUser.expoPushToken,
-                "Your offer was accepted! 🎉",
-                "Please be ready to donate blood at the scheduled time.",
+                "Request Accepted 🎉",
+                "Your offer to donate blood has been accepted. Please be ready.",
                 { type: "DONOR_ACCEPTED", requestId: String(id) }
             );
         }
+
         io.to(String(donorId)).emit("requestUpdated", {
             requestId: String(id),
             event: "receiver_accepted_you",
         });
+        io.to(receiverId).emit("requestUpdated", {
+            requestId: String(id),
+            donorId: String(donorId),
+            event: "receiver_accepted_donor",
+        });
     } else {
+        // Receiver rejected this donor — mark as rejected.
+        // No replacement needed: other city responders remain visible in the receiver's list.
         await BloodRequest.findOneAndUpdate(
             { _id: id, "donors.donor": donorId },
             { $set: { "donors.$.status": "rejected", "donors.$.respondedAt": new Date() } }
         );
-        const refreshed = await BloodRequest.findById(id);
-        if (refreshed) await findAndAssignReplacementDonor(refreshed, donorId, io);
         io.to(String(donorId)).emit("requestUpdated", {
             requestId: String(id),
             event: "receiver_rejected_you",
+        });
+        io.to(receiverId).emit("requestUpdated", {
+            requestId: String(id),
+            donorId: String(donorId),
+            event: "receiver_rejected_donor",
         });
     }
 
@@ -424,7 +450,9 @@ export const getMyRequests = asyncHandler(async (req, res) => {
         });
     }
 
-    // One card per donor assignment so the receiver sees each donor separately
+    // STEPS 4 & 8: One card per unit slot.
+    // Active donors (not rejected/cancelled) fill slots 1..N in order.
+    // Any slots beyond active donors up to requiredUnits show "Waiting for donor".
     const result = requests.flatMap((r) => {
         const base = {
             requestId: String(r._id),
@@ -437,25 +465,42 @@ export const getMyRequests = asyncHandler(async (req, res) => {
             urgencyLevel: r.urgencyLevel,
             reason: r.reason ?? "",
             units: 1,
+            totalUnits: r.requiredUnits,
         };
-        if (r.donors.length === 0) {
-            return [{
-                _id: String(r._id),
-                ...base,
-                donorId: null,
-                donarName: "Searching for donors…",
-                donorBloodGroup: null,
-                donorPic: null,
-                status: "pending",
-                donorStatus: "pending",
-            }];
-        }
-        return r.donors.map((d) => {
+
+        // Rejected/cancelled donors are hidden — they occupied a slot but are no longer valid
+        const activeDonors = r.donors.filter(
+            (d) => !["rejected", "cancelled"].includes(d.status)
+        );
+
+        // Show at least requiredUnits slots, more if there are extra responders
+        const totalSlots = Math.max(activeDonors.length, r.requiredUnits);
+
+        return Array.from({ length: totalSlots }, (_, i) => {
+            const unitNumber = i + 1;
+            const d = activeDonors[i];
+
+            if (!d) {
+                // Unit slot has no responder yet
+                return {
+                    _id: `${r._id}-slot-${i}`,
+                    ...base,
+                    unitNumber,
+                    donorId: null,
+                    donarName: "Waiting for donor",
+                    donorBloodGroup: null,
+                    donorPic: null,
+                    status: "pending",
+                    donorStatus: "pending",
+                };
+            }
+
             const did = d.donor?._id ? String(d.donor._id) : null;
             const info = did ? (userInfoMap[did] ?? null) : null;
             return {
                 _id: String(d._id),
                 ...base,
+                unitNumber,
                 donorId: did,
                 donarName: d.donor?.userName ?? "Unknown",
                 donorBloodGroup: info?.bloodGroup ?? null,
@@ -632,6 +677,11 @@ export const getBloodRequestById = asyncHandler(async (req, res) => {
 });
 
 
+// TODO: Dead code — findAndAssignReplacementDonor is no longer called.
+// In the old model, rejecting a pre-assigned donor triggered automatic replacement.
+// In the current city-broadcast model, other responders remain in the receiver's
+// activity list naturally — no automated replacement is needed.
+// Safe to delete once confirmed the old model is fully retired.
 async function findAndAssignReplacementDonor(bloodRequest, rejectedDonorId, io) {
     const compatibleGroups = COMPATIBLE_DONORS[bloodRequest.bloodGroup];
     if (!compatibleGroups) return;

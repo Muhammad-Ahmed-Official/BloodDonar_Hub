@@ -49,6 +49,8 @@ type ReceiverItem = {
   bloodGroup: string;
   hospitalName: string;
   units: number;
+  totalUnits?: number;
+  unitNumber?: number;
   status: "pending" | "completed" | "cancelled";
   donorStatus: string;
   donationDate?: string;
@@ -307,11 +309,14 @@ function ReceiverCard({
   const isConfirming = confirmingId === item.requestId;
   const anyBusy = isAccepting || isRejecting || isConfirming;
 
-  // "Searching for donors" placeholder
+  // Empty unit slot — no donor has responded for this slot yet
   if (!item.donorId) {
     return (
       <Pressable onPress={onPress}>
         <View style={styles.card}>
+          {item.unitNumber !== undefined && item.totalUnits !== undefined && (
+            <Text style={styles.unitLabel}>Unit {item.unitNumber} of {item.totalUnits}</Text>
+          )}
           <View style={styles.topRow}>
             <Text style={styles.cardName}>{item.patientName}</Text>
             <View style={[styles.statusBadge, { backgroundColor: "#FF9500" }]}>
@@ -320,7 +325,7 @@ function ReceiverCard({
           </View>
           <Text style={styles.locationText}>{item.city}</Text>
           <View style={styles.divider} />
-          <Text style={styles.waitingText}>Waiting for donors to respond…</Text>
+          <Text style={styles.waitingText}>Waiting for a donor to respond…</Text>
         </View>
       </Pressable>
     );
@@ -332,6 +337,10 @@ function ReceiverCard({
   return (
     <Pressable onPress={onPress}>
       <View style={styles.card}>
+        {/* Unit slot header — shows "Unit N of M" when backend provides it */}
+        {item.unitNumber !== undefined && item.totalUnits !== undefined && (
+          <Text style={styles.unitLabel}>Unit {item.unitNumber} of {item.totalUnits}</Text>
+        )}
         {/* Donor info row */}
         <View style={styles.donorRow}>
           {item.donorPic ? (
@@ -536,6 +545,7 @@ const styles = StyleSheet.create({
   donorBloodGroup: { fontSize: 12, color: COLORS.primary, fontWeight: "600", marginTop: 2 },
 
   waitingText: { fontSize: 13, color: "#999", textAlign: "center", paddingVertical: 4 },
+  unitLabel: { fontSize: 11, fontWeight: "700", color: COLORS.primary, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.6 },
 
   actionRow: { flexDirection: "row", gap: 10 },
   actionBtn: {

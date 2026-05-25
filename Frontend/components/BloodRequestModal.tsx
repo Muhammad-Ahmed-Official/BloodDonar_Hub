@@ -50,9 +50,9 @@ export default function BloodRequestModal({ visible, requestId, onClose }: Props
             <Text style={styles.icon}>🩸</Text>
           </View>
 
-          <Text style={styles.title}>Are you available to donate?</Text>
+          <Text style={styles.title}>Are you available to donate blood?</Text>
           <Text style={styles.body}>
-            Someone near you needs blood urgently. Would you like to help by donating?
+            Someone in your city needs blood urgently. Would you like to help by donating?
           </Text>
 
           <View style={styles.actions}>
@@ -61,7 +61,7 @@ export default function BloodRequestModal({ visible, requestId, onClose }: Props
               onPress={handleMaybeLater}
               disabled={loading !== null}
             >
-              <Text style={styles.laterBtnText}>Maybe Later</Text>
+              <Text style={styles.laterBtnText}>❌ No, Maybe Later</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -72,7 +72,7 @@ export default function BloodRequestModal({ visible, requestId, onClose }: Props
               {loading === "yes" ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.btnText}>Yes</Text>
+                <Text style={styles.btnText}>✅ Yes, I'm Available</Text>
               )}
             </TouchableOpacity>
           </View>
