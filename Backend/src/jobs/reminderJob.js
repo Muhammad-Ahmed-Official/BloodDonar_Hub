@@ -146,11 +146,12 @@ async function runAutoCancelJob(io) {
 // and older than 30 days, keeping the collection lean.
 async function runBloodRequestCleanupJob() {
     try {
-        const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
+        const now = new Date();
 
+        // Delete completed/cancelled requests whose donation window has already passed
         const result = await BloodRequest.deleteMany({
             status: { $in: ["completed", "cancelled"] },
-            createdAt: { $lt: cutoff },
+            expiresAt: { $lt: now },
         });
 
         console.log(`[BloodRequestCleanup] Deleted ${result.deletedCount} old completed/cancelled requests`);
@@ -173,8 +174,8 @@ export function startReminderJob(io) {
         runAutoCancelJob(io);
     });
 
-    // Daily at 02:00 AM — delete old completed/cancelled BloodRequest records
-    cron.schedule("0 2 * * *", () => {
+    // Daily at 12:00 AM (midnight) — delete old completed/cancelled BloodRequest records
+    cron.schedule("0 0 * * *", () => {
         console.log("[Jobs] Running BloodRequest cleanup…");
         runBloodRequestCleanupJob();
     });
