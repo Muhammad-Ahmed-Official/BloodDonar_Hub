@@ -9,6 +9,8 @@ import {
   Pressable,
   ActivityIndicator,
   Image,
+  Platform,
+  ToastAndroid,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -19,6 +21,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getProfile, updateProfile } from "@/services/user.service";
 import { useLanguage } from "@/context/LanguageContext";
 import { saveExpoPushTokenToBackend, clearExpoPushToken, getLocalPushToken } from "@/services/notifications";
+import { getMyRequests, getMyAssignments } from "@/services/bloodRequest.service";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ProfileScreen() {
@@ -47,7 +50,8 @@ export default function ProfileScreen() {
     canDonateBlood?: string;
     city?: string;
   } | null>(null);
-  const [inProgressDonationCount, setInProgressDonationCount] = useState(0);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [requestedCount, setRequestedCount] = useState(0);
   const [savingAvail, setSavingAvail] = useState(false);
 
   useEffect(() => {
@@ -55,27 +59,33 @@ export default function ProfileScreen() {
     (async () => {
       setProfileLoading(true);
       try {
-        const [res, notifPref] = await Promise.all([
+        const [res, notifPref, myRequestsRes, myAssignmentsRes] = await Promise.all([
           getProfile(),
           AsyncStorage.getItem("notifications_enabled"),
+          getMyRequests().catch(() => null),
+          getMyAssignments().catch(() => null),
         ]);
         const d = res?.data;
         if (cancelled) return;
         setUserInfo(d?.userInfo ?? null);
-        const rawList = d?.donationRequests;
-        const list = Array.isArray(rawList) ? rawList : [];
-        const cnt = list.filter(
-          (r: { status?: string; donarName?: string }) =>
-            r?.status === "in_progress" && r?.donarName && String(r.donarName).trim()
-        ).length;
-        setInProgressDonationCount(cnt);
         setProfilePic(d?.userInfo?.pic || null);
         setIsAvailable(d?.userInfo?.canDonateBlood === "yes");
         setIsNotif(notifPref !== "false");
+
+        // Count unique BloodRequests created by this user (receiver perspective)
+        const requestItems: any[] = Array.isArray(myRequestsRes?.data) ? myRequestsRes.data : [];
+        const uniqueIds = new Set(requestItems.map((r: any) => r.requestId).filter(Boolean));
+        setRequestedCount(uniqueIds.size);
+
+        // Count successful donations by this user (donor perspective)
+        const assignItems: any[] = Array.isArray(myAssignmentsRes?.data) ? myAssignmentsRes.data : [];
+        const doneCount = assignItems.filter((a: any) => a.donorStatus === "completed").length;
+        setCompletedCount(doneCount);
       } catch {
         if (!cancelled) {
           setUserInfo(null);
-          setInProgressDonationCount(0);
+          setCompletedCount(0);
+          setRequestedCount(0);
         }
       } finally {
         if (!cancelled) setProfileLoading(false);
@@ -86,18 +96,18 @@ export default function ProfileScreen() {
     };
   }, []);
 
-  const onAvailChange = async (val: boolean) => {
-    setIsAvailable(val);
-    setSavingAvail(true);
-    try {
-      await updateProfile({ canDonateBlood: val ? "yes" : "no" });
-      setUserInfo((prev) => (prev ? { ...prev, canDonateBlood: val ? "yes" : "no" } : prev));
-    } catch {
-      setIsAvailable(!val);
-    } finally {
-      setSavingAvail(false);
-    }
-  };
+  // const onAvailChange = async (val: boolean) => {
+  //   setIsAvailable(val);
+  //   setSavingAvail(true);
+  //   try {
+  //     await updateProfile({ canDonateBlood: val ? "yes" : "no" });
+  //     setUserInfo((prev) => (prev ? { ...prev, canDonateBlood: val ? "yes" : "no" } : prev));
+  //   } catch {
+  //     setIsAvailable(!val);
+  //   } finally {
+  //     setSavingAvail(false);
+  //   }
+  // };
 
   const onNotifChange = async (val: boolean) => {
     setIsNotif(val);
@@ -109,6 +119,10 @@ export default function ProfileScreen() {
         if (token) await saveExpoPushTokenToBackend(token, user?._id ?? "");
       } else {
         await clearExpoPushToken();
+      }
+      const msg = val ? "Notifications enabled" : "Notifications disabled";
+      if (Platform.OS === "android") {
+        ToastAndroid.show(msg, ToastAndroid.SHORT);
       }
     } catch {
       setIsNotif(!val);
@@ -182,23 +196,34 @@ export default function ProfileScreen() {
               )}
             </View>
           </View>
-          <Switch
-            value={isNotif}
-            onValueChange={onNotifChange}
-            disabled={savingNotif || profileLoading}
-            trackColor={{ true: '#f38e8e', false: "#B8B8B8" }}
-            thumbColor={COLORS.white}
-            ios_backgroundColor="#B8B8B8"
-          />
+          <View style={styles.notifToggleWrap}>
+            <Ionicons
+              name={isNotif ? "notifications" : "notifications-off"}
+              size={14}
+              color="rgba(255,255,255,0.9)"
+              style={{ marginBottom: 2 }}
+            />
+            <Text style={styles.notifToggleLabel}>
+              {isNotif ? "On" : "Off"}
+            </Text>
+            <Switch
+              value={isNotif}
+              onValueChange={onNotifChange}
+              disabled={savingNotif || profileLoading}
+              trackColor={{ true: "rgba(255,255,255,0.5)", false: "rgba(0,0,0,0.3)" }}
+              thumbColor={isNotif ? COLORS.white : "#ccc"}
+              ios_backgroundColor="rgba(0,0,0,0.3)"
+            />
+          </View>
         </View>
 
         <View style={styles.statsRow}>
-           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{String(inProgressDonationCount)}</Text>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>{String(completedCount)}</Text>
             <Text style={styles.statLabel}>{t("profile.completed")}</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{String(inProgressDonationCount)}</Text>
+            <Text style={styles.statNumber}>{String(requestedCount)}</Text>
             <Text style={styles.statLabel}>{t("profile.requested")}</Text>
           </View>
         </View>
@@ -357,6 +382,16 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.8)",
     fontSize: 12,
     marginTop: 2,
+  },
+
+  notifToggleWrap: {
+    alignItems: "center",
+    gap: 2,
+  },
+  notifToggleLabel: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 11,
+    fontWeight: "600",
   },
 
   // Stats

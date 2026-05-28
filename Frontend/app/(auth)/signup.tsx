@@ -7,6 +7,8 @@ import { COLORS } from "../../constants/theme";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Label from "@/components/common/Label";
 import { useAuth } from "@/context/AuthContext";
+import { registerForPushNotificationsAsync } from "@/hooks/usePushNotifications";
+import { saveExpoPushTokenToBackend } from "@/services/notifications";
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -36,6 +38,10 @@ export default function SignupScreen() {
     setLoading(true);
     try {
       await signup(userName.trim(), email.trim().toLowerCase(), password);
+      // JWT is in storage now — save push token immediately.
+      registerForPushNotificationsAsync().then((token) => {
+        if (token) saveExpoPushTokenToBackend(token, "");
+      });
       // route guard redirects to /(auth)/verification automatically
     } catch (err: any) {
       setError(err?.message || "Signup failed. Please try again.");

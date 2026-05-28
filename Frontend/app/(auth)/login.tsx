@@ -7,6 +7,8 @@ import { COLORS } from "../../constants/theme";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Label from "@/components/common/Label";
 import { useAuth } from "@/context/AuthContext";
+import { registerForPushNotificationsAsync } from "@/hooks/usePushNotifications";
+import { saveExpoPushTokenToBackend } from "@/services/notifications";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -38,6 +40,13 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await login(email, password);
+      // Explicitly save push token right after login so it is always in DB.
+      // PushNotificationSetup in _layout.tsx also does this reactively, but
+      // an explicit call here guarantees the token is saved even if the effect
+      // fires before user._id is available (race condition on first install).
+      registerForPushNotificationsAsync().then((token) => {
+        if (token) saveExpoPushTokenToBackend(token, "");
+      });
     } catch (err: any) {
       setError(err?.message || "Login failed. Please try again.");
     } finally {
