@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "883993669390",
+    "project_id": "blooddonarhub",
+    "storage_bucket": "blooddonarhub.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:883993669390:android:d19d819d05808dad16b15f",
+        "android_client_info": {
+          "package_name": "com.amahmed.blood_donar_hub"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDVcuZyaxRBoGdJOeODdd3ytx8LwpI6hKI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
