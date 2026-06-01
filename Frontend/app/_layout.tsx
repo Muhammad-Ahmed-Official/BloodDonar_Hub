@@ -6,6 +6,7 @@ import {
   View,
   Platform,
   StatusBar,
+  Alert,
 } from "react-native";
 import * as NavigationBar from "expo-navigation-bar";
 import * as Notifications from "expo-notifications";
@@ -14,7 +15,7 @@ import "react-native-reanimated";
 import AppProvider from "@/context/AppProvider";
 import { useAuth } from "@/context/AuthContext";
 import { COLORS } from "@/constants/theme";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { registerForPushNotificationsAsync } from "@/hooks/usePushNotifications";
 import { saveExpoPushTokenToBackend } from "@/services/notifications";
 import BloodRequestModal from "@/components/BloodRequestModal";
 import ConfirmDonationModal from "@/components/ConfirmDonationModal";
@@ -68,18 +69,41 @@ function RouteGuard() {
 }
 
 // ─── Push Token Registration ──────────────────────────────────────────────────
+// Single owner of push token registration. Runs once per login session.
+// registerForPushNotificationsAsync is called here — NOT in usePushNotifications
+// hook — so the permission dialog fires after the user is authenticated, not on
+// cold start during navigation, which can silently fail on some Android versions.
 function PushNotificationSetup() {
   const { user } = useAuth();
-  const { expoPushToken } = usePushNotifications();
+  const registeredRef = useRef(false);
 
   useEffect(() => {
-    if (!expoPushToken || !user?._id) return;
-    AsyncStorage.getItem("notifications_enabled").then((stored) => {
-      if (stored !== "false") {
-        saveExpoPushTokenToBackend(expoPushToken, user._id).catch(console.error);
+    if (!user?._id) {
+      // Reset on logout so next login triggers registration again
+      registeredRef.current = false;
+      return;
+    }
+    if (registeredRef.current) return;
+    registeredRef.current = true;
+
+    const register = async () => {
+      const stored = await AsyncStorage.getItem("notifications_enabled");
+      if (stored === "false") {
+        console.log("[PushToken] Skipped — user disabled notifications");
+        return;
       }
-    });
-  }, [expoPushToken, user?._id]);
+      console.log("[PushToken] Registering after login...");
+      const token = await registerForPushNotificationsAsync();
+      if (!token) {
+        console.log("[PushToken] Token unavailable — check permissions and FCM config");
+        Alert.alert("Push Token Failed", "Check logs for details");
+        return;
+      }
+      await saveExpoPushTokenToBackend(token, user._id);
+    };
+
+    register().catch(console.error);
+  }, [user?._id]);
 
   return null;
 }

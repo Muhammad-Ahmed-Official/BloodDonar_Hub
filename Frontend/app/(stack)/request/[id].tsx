@@ -120,7 +120,7 @@ export default function RequestDetails() {
           <TouchableOpacity
             style={styles.btn}
             onPress={() =>
-              router.push({ pathname: "/(stack)/request/", params: { userId: data.userId._id } })
+              router.push({ pathname: "/(stack)/request", params: { userId: data.userId._id } })
             }
           >
             <Text style={styles.btnText}>View Profile</Text>
