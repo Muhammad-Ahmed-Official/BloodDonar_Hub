@@ -6,3 +6,4 @@
 
 # Local tooling/config
 .claude/settings.local.json
+google-services.json

@@ -6,7 +6,6 @@ import {
   View,
   Platform,
   StatusBar,
-  Alert,
 } from "react-native";
 import * as NavigationBar from "expo-navigation-bar";
 import * as Notifications from "expo-notifications";
@@ -19,6 +18,8 @@ import { registerForPushNotificationsAsync } from "@/hooks/usePushNotifications"
 import { saveExpoPushTokenToBackend } from "@/services/notifications";
 import BloodRequestModal from "@/components/BloodRequestModal";
 import ConfirmDonationModal from "@/components/ConfirmDonationModal";
+import DebugLogOverlay from "@/components/DebugLogOverlay";
+import { debugLog } from "@/utils/debugLog";
 
 const PENDING_NOTIFICATION_KEY = "pendingNotificationData";
 
@@ -89,17 +90,18 @@ function PushNotificationSetup() {
     const register = async () => {
       const stored = await AsyncStorage.getItem("notifications_enabled");
       if (stored === "false") {
-        console.log("[PushToken] Skipped — user disabled notifications");
+        debugLog("[PushToken] Skipped — user disabled notifications");
         return;
       }
-      console.log("[PushToken] Registering after login...");
+      debugLog("[PushToken] Registering after login for user: " + user._id);
       const token = await registerForPushNotificationsAsync();
       if (!token) {
-        console.log("[PushToken] Token unavailable — check permissions and FCM config");
-        Alert.alert("Push Token Failed", "Check logs for details");
+        debugLog("[PushToken] FAILED — token unavailable (check permissions/FCM)");
         return;
       }
+      debugLog("[PushToken] Token: " + token.slice(0, 40) + "…");
       await saveExpoPushTokenToBackend(token, user._id);
+      debugLog("[PushToken] Token saved to backend");
     };
 
     register().catch(console.error);
@@ -134,30 +136,45 @@ function NotificationHandler() {
   // After login: check AsyncStorage for a notification the user tapped while logged out
   useEffect(() => {
     if (!isAuthenticated) return;
+    debugLog("[NotifHandler] Auth state: logged in — checking pending notification");
     AsyncStorage.getItem(PENDING_NOTIFICATION_KEY)
       .then((stored) => {
-        if (!stored) return;
+        if (!stored) {
+          debugLog("[NotifHandler] No pending notification in storage");
+          return;
+        }
         AsyncStorage.removeItem(PENDING_NOTIFICATION_KEY);
         try {
           const data = JSON.parse(stored) as { type?: string; requestId?: string };
+          debugLog("[NotifHandler] Restored pending: type=" + data?.type + " requestId=" + data?.requestId);
           if (data?.type === "BLOOD_REQUEST") {
             setPending({ type: "BLOOD_REQUEST", requestId: data.requestId ?? "" });
           } else if (data?.type === "DONATION_CONFIRMATION") {
             setPending({ type: "DONATION_CONFIRMATION", requestId: data.requestId ?? "" });
           }
-        } catch {}
+        } catch (e) {
+          debugLog("[NotifHandler] Failed to parse pending notification: " + e);
+        }
       })
-      .catch(() => {});
+      .catch((e) => debugLog("[NotifHandler] AsyncStorage error: " + e));
   }, [isAuthenticated]);
 
   // Register response listener once on mount
   useEffect(() => {
-    // Handle taps that reopened the app from a killed/background state
+    debugLog("[NotifHandler] Mounted — registering listeners");
     Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response) handleResponse(response);
+      if (response) {
+        debugLog("[NotifHandler] Cold-start notification tap detected");
+        handleResponse(response);
+      } else {
+        debugLog("[NotifHandler] No cold-start notification");
+      }
     });
 
-    listenerRef.current = Notifications.addNotificationResponseReceivedListener(handleResponse);
+    listenerRef.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      debugLog("[NotifHandler] Notification tap received (foreground/background)");
+      handleResponse(response);
+    });
     return () => {
       listenerRef.current?.remove();
     };
@@ -165,21 +182,28 @@ function NotificationHandler() {
 
   function handleResponse(response: Notifications.NotificationResponse) {
     const responseId = response.notification.request.identifier;
-    // Deduplicate: each notification should only be handled once
-    if (handledIdRef.current === responseId) return;
+    if (handledIdRef.current === responseId) {
+      debugLog("[NotifHandler] Duplicate — skipping id: " + responseId);
+      return;
+    }
     handledIdRef.current = responseId;
 
     const data = response.notification.request.content.data as {
       type?: string;
       requestId?: string;
     };
-    if (!data?.type || !data?.requestId) return;
+    debugLog("[NotifHandler] Data: type=" + data?.type + " requestId=" + data?.requestId);
+
+    if (!data?.type || !data?.requestId) {
+      debugLog("[NotifHandler] Missing type or requestId — ignored");
+      return;
+    }
 
     const notifType = data.type;
     const requestId = data.requestId;
 
     if (!isAuthRef.current) {
-      // User not logged in — store the pending action and send to login screen
+      debugLog("[NotifHandler] User not logged in — saving to AsyncStorage and redirecting to login");
       AsyncStorage.setItem(
         PENDING_NOTIFICATION_KEY,
         JSON.stringify({ type: notifType, requestId })
@@ -189,14 +213,18 @@ function NotificationHandler() {
     }
 
     if (notifType === "BLOOD_REQUEST") {
+      debugLog("[NotifHandler] Opening BloodRequestModal for requestId: " + requestId);
       router.replace("/(tabs)");
       setPending({ type: "BLOOD_REQUEST", requestId });
     } else if (notifType === "DONATION_CONFIRMATION") {
+      debugLog("[NotifHandler] Opening ConfirmDonationModal for requestId: " + requestId);
       router.replace("/(tabs)");
       setPending({ type: "DONATION_CONFIRMATION", requestId });
     } else if (notifType === "DONOR_ACCEPTED") {
-      // Informational — just navigate home, no modal needed
+      debugLog("[NotifHandler] DONOR_ACCEPTED — navigating home");
       router.replace("/(tabs)");
+    } else {
+      debugLog("[NotifHandler] Unknown type: " + notifType);
     }
   }
 
@@ -251,6 +279,7 @@ export default function RootLayout() {
         <Stack.Screen name="(stack)" />
       </Stack>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} translucent={false} />
+      <DebugLogOverlay />
     </AppProvider>
   );
 }

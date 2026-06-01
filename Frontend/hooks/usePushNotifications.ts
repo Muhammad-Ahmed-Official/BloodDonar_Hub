@@ -3,6 +3,7 @@ import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import { debugLog } from "@/utils/debugLog";
 
 // Show alerts even when app is in foreground
 Notifications.setNotificationHandler({
@@ -30,6 +31,8 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   // notification listener so modal handlers can react to incoming pushes.
   useEffect(() => {
     notificationListener.current = Notifications.addNotificationReceivedListener((notif) => {
+      const data = notif.request.content.data as { type?: string; requestId?: string };
+      debugLog("[NotifReceived] Foreground notification: type=" + data?.type + " requestId=" + data?.requestId);
       setNotification(notif);
     });
 
@@ -48,14 +51,12 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     }
 
     if (!Device.isDevice) {
-      // In development on an emulator/simulator, return a recognisable fake token
-      // so the entire save-to-DB and notification dispatch flow can be tested
-      // without a physical device or APK build.
       if (__DEV__) {
         const fakeToken = "ExponentPushToken[SIMULATOR-DEV-TOKEN]";
-        console.log("[PushNotifications] Dev emulator — using fake token:", fakeToken);
+        debugLog("[PushToken] Dev emulator — using fake token");
         return fakeToken;
       }
+      debugLog("[PushToken] FAILED — not a physical device (emulator/simulator). Push tokens require a real device.");
       return null;
     }
 
@@ -93,24 +94,22 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     }
 
     if (!granted) {
-      console.warn("[PushNotifications] Permission denied by user");
+      debugLog("[PushToken] ERROR — permission denied by user");
       return null;
     }
+    debugLog("[PushToken] Permission granted");
 
     const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
     if (!projectId) {
-      console.error("[PushNotifications] Missing EAS projectId in app.json");
+      debugLog("[PushToken] ERROR — missing EAS projectId in app.json");
       return null;
     }
 
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
-    console.log("[PushNotifications] Token obtained:", token?.slice(0, 30) + "…");
+    debugLog("[PushToken] Token obtained: " + token?.slice(0, 35) + "…");
     return token;
   } catch (err) {
-    // Fails in Expo Go (SDK 55+) — works correctly in EAS/standalone builds.
-    // Common causes on real devices: FCM not configured (missing google-services.json
-    // in EAS build), Play Services unavailable, or network unreachable.
-    console.error("[PushNotifications] Token registration failed:", err);
+    debugLog("[PushToken] EXCEPTION: " + String(err));
     return null;
   }
 }

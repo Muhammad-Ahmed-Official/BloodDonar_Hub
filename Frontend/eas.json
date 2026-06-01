@@ -11,13 +11,13 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://blooddonar-hub.onrender.com/api/v1/"
+        "EXPO_PUBLIC_API_URL": "https://backend-bdh-production.up.railway.app/api/v1/"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://blooddonar-hub.onrender.com/api/v1/"
+        "EXPO_PUBLIC_API_URL": "https://backend-bdh-production.up.railway.app/api/v1/"
       }
     }
   },
