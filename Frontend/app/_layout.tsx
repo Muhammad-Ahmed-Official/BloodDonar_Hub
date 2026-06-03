@@ -279,7 +279,7 @@ export default function RootLayout() {
         <Stack.Screen name="(stack)" />
       </Stack>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} translucent={false} />
-      <DebugLogOverlay />
+      {/* <DebugLogOverlay /> */}
     </AppProvider>
   );
 }
