@@ -157,7 +157,7 @@ export default function RequestDetails() {
           leftLabel="Case"
           leftValue={data.reason || "Emergency"}
           rightLabel="Timing"
-          rightValue={`${data.startTime} - ${data.endTime}`}
+          rightValue={`${formatHHMMto12h(data.startTime)} - ${formatHHMMto12h(data.endTime)}`}
           isLast
         />
       </Section>
@@ -207,6 +207,17 @@ export default function RequestDetails() {
   );
 }
 
+
+function formatHHMMto12h(timeStr?: string): string {
+  if (!timeStr) return "—";
+  const parts = timeStr.split(":");
+  let h = parseInt(parts[0], 10);
+  const m = parts[1] ?? "00";
+  if (isNaN(h)) return timeStr;
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+}
 
 function timeAgo(dateStr?: string): string {
   if (!dateStr) return "";

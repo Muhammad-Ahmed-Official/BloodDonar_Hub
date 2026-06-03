@@ -13,7 +13,7 @@ const RESEND_SECONDS = 60;
 
 export default function VerificationScreen() {
   const router   = useRouter();
-  const { verifyOtp, user } = useAuth();
+  const { verifyOtp, user, logout } = useAuth();
 
   const [otp, setOtp]           = useState("");
   const [loading, setLoading]   = useState(false);
@@ -83,7 +83,13 @@ export default function VerificationScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
 
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={async () => {
+          await logout();
+          router.replace("/(auth)/signup");
+        }}
+      >
         <Ionicons name="chevron-back" size={28} color="#000" />
       </TouchableOpacity>
 

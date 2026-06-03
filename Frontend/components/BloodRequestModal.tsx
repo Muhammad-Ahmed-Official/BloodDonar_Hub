@@ -61,7 +61,7 @@ export default function BloodRequestModal({ visible, requestId, onClose }: Props
               onPress={handleMaybeLater}
               disabled={loading !== null}
             >
-              <Text style={styles.laterBtnText}>❌ No, Maybe Later</Text>
+              <Text style={styles.laterBtnText}>No, Maybe Later</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -72,7 +72,7 @@ export default function BloodRequestModal({ visible, requestId, onClose }: Props
               {loading === "yes" ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.btnText}>✅ Yes, I'm Available</Text>
+                <Text style={styles.btnText}>Yes, I'm Available</Text>
               )}
             </TouchableOpacity>
           </View>
