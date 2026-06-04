@@ -18,7 +18,7 @@ import {
   getMyAssignments,
   getMyRequests,
   receiverRespondToDonor,
-  confirmDonation,
+  markDonationDone,
 } from "@/services/bloodRequest.service";
 import { getRealtimeSocket } from "@/services/realtime";
 
@@ -116,13 +116,13 @@ export default function ActivityScreen() {
     [respondingId, fetchAll]
   );
 
-  // Donor marks their own donation as completed (receiver-side "Donated" button)
+  // Receiver marks a specific donor's donation as completed
   const handleMarkDonated = useCallback(
-    async (requestId: string) => {
-      if (confirmingId) return;
+    async (requestId: string, donorId: string | null) => {
+      if (!donorId || confirmingId) return;
       setConfirmingId(requestId);
       try {
-        await confirmDonation(requestId, true);
+        await markDonationDone(requestId, donorId);
         await fetchAll();
       } catch (err: any) {
         Alert.alert("Error", err?.message ?? "Could not confirm donation");
@@ -190,7 +190,7 @@ export default function ActivityScreen() {
                 confirmingId={confirmingId}
                 onAccept={() => handleReceiverRespond(item.requestId, item.donorId, "accept")}
                 onReject={() => handleReceiverRespond(item.requestId, item.donorId, "reject")}
-                onMarkDonated={() => handleMarkDonated(item.requestId)}
+                onMarkDonated={() => handleMarkDonated(item.requestId, item.donorId)}
                 onPress={() => router.push(`/(stack)/request/${item.requestId}`)}
               />
             )}

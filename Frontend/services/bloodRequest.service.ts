@@ -131,6 +131,15 @@ export const receiverRespondToDonor = async (
   }
 };
 
+export const markDonationDone = async (requestId: string, donorId: string) => {
+  try {
+    const res = await api.patch(`bloodRequest/${requestId}/mark-done`, { donorId });
+    return res.data;
+  } catch (error: any) {
+    throw error?.response?.data || { message: "Failed to mark donation as done" };
+  }
+};
+
 export const savePushToken = async (token: string) => {
   try {
     const res = await api.patch("user/push-token", { expoPushToken: token });
