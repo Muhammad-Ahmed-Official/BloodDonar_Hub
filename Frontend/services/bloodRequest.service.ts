@@ -14,6 +14,7 @@ export interface CreateBloodRequestData {
     startTime: string;            // "HH:mm"  e.g. "09:00"
     endTime: string;              // "HH:mm"  e.g. "12:00"
   };
+  expiresAt: string;              // UTC ISO — computed on device using local timezone
   age?: number;
   reason?: string;
 }

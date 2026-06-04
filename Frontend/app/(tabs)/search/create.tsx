@@ -125,6 +125,17 @@ export default function CreateRequestScreen() {
         setSubmitting(false);
         return;
       }
+      // Build expiresAt using local-time constructor so the device timezone is applied.
+      // new Date(y, m, d, h, min) uses LOCAL time → .toISOString() gives correct UTC.
+      const localExpiresAt = new Date(
+        neededDate.getFullYear(),
+        neededDate.getMonth(),
+        neededDate.getDate(),
+        endTimeDate.getHours(),
+        endTimeDate.getMinutes(),
+        0, 0
+      );
+
       await createBloodRequest({
         patientName:  patientName.trim(),
         bloodGroup:   selectedGroup,
@@ -139,6 +150,7 @@ export default function CreateRequestScreen() {
           startTime: formatHHMM(startTimeDate),
           endTime:   formatHHMM(endTimeDate),
         },
+        expiresAt: localExpiresAt.toISOString(),
         ...(ageNum !== undefined && { age: ageNum }),
         ...(reason.trim() && { reason: reason.trim() }),
       });
