@@ -152,69 +152,12 @@ export const medicalInfo = async (data: {
 };
 
 
-export const donarRequest = async (data: {
-  donarName: string;
-  bloodGroup: string;
-  amount: string;
-  age: number;
-  date: string;
-  hospitalName: string;
-  location: string;
-  contactPersonName: string;
-  mobileNumber: string;
-  city: string;
-  startTime: string;
-  endTime: string;
-  reason: string;
-  donateTo?: string;
-}) => {
-  try {
-    const res = await api.post("user/donarRequest", data);
-    return res.data;
-  } catch (error: any) {
-    throw error?.response?.data || { message: "Donation request failed" };
-  }
-};
-
-
-export const getAllRequests = async (params?: {
-  bloodGroup?: string;
-  city?: string;
-  page?: number;
-  limit?: number;
-}) => {
-  try {
-    const res = await api.get("user/requests", { params });
-    return res.data;
-  } catch (error: any) {
-    throw error?.response?.data || { message: "Failed to fetch requests" };
-  }
-};
-
-export const deleteRequest = async (requestId: string) => {
-  try {
-    const res = await api.delete(`user/requests/${requestId}`);
-    return res.data;
-  } catch (error: any) {
-    throw error?.response?.data || { message: "Failed to delete request" };
-  }
-};
-
 export const getMedicalInfo = async () => {
   try {
     const res = await api.get("user/medicalInfo");
     return res.data;
   } catch (error: any) {
     throw error?.response?.data || { message: "Failed to fetch medical info" };
-  }
-};
-
-export const getRequestById = async (id: string) => {
-  try {
-    const res = await api.get(`user/requests/${id}`);
-    return res.data;
-  } catch (error: any) {
-    throw error?.response?.data || { message: "Failed to fetch request" };
   }
 };
 

@@ -11,8 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "@/constants/theme";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
-import { getRequestById } from "@/services/user.service";
+import { useEffect, useRef, useState } from "react";
 import { getBloodRequestById, respondToRequest } from "@/services/bloodRequest.service";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
@@ -35,8 +34,9 @@ function normalizeBloodRequest(raw: any) {
 export default function RequestDetails() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { id } = useLocalSearchParams();
+  const { id, donate } = useLocalSearchParams();
   const requestId = Array.isArray(id) ? id[0] : id;
+  const autoDonatePending = useRef(donate === "1");
 
   const { user } = useAuth();
   const [data, setData] = useState<any>(null);
@@ -48,12 +48,10 @@ export default function RequestDetails() {
     if (!requestId) return;
     (async () => {
       try {
-        // Try BloodRequest (new system) first
         const res = await getBloodRequestById(requestId);
         const raw = res?.data ?? null;
         const normalized = raw ? normalizeBloodRequest(raw) : null;
         setData(normalized);
-        // Detect current user's donor status from the donors array
         if (normalized && user?._id) {
           const entry = normalized.donors?.find(
             (d: any) => String(d.donor?._id ?? d.donor) === String(user._id)
@@ -61,13 +59,7 @@ export default function RequestDetails() {
           if (entry) setDonorStatus(entry.status);
         }
       } catch {
-        // Fall back to old Donar system
-        try {
-          const res = await getRequestById(requestId);
-          setData(res?.data ?? null);
-        } catch {
-          setData(null);
-        }
+        setData(null);
       } finally {
         setLoading(false);
       }
@@ -86,6 +78,14 @@ export default function RequestDetails() {
       setDonating(false);
     }
   };
+
+  // Auto-trigger donate when navigated from home page donate button
+  useEffect(() => {
+    if (!loading && autoDonatePending.current && donorStatus == null && data) {
+      autoDonatePending.current = false;
+      handleDonate();
+    }
+  }, [loading, data, donorStatus]);
 
   if (loading) {
     return <ActivityIndicator style={{ marginTop: 50 }} />;

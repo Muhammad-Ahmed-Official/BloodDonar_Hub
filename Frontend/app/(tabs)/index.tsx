@@ -20,7 +20,7 @@ import Card from "@/components/common/Card";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import Input from "@/components/common/Input";
-import { getAllRequests, getProfile, deleteRequest } from "@/services/user.service";
+import { getProfile } from "@/services/user.service";
 import { getAssignedBloodRequests, getMyAssignments, getMyRequests, getBloodRequestFeed, deleteBloodRequest, checkActiveRequest } from "@/services/bloodRequest.service";
 import { getRealtimeSocket } from "@/services/realtime";
 import { useAuth } from "@/context/AuthContext";
@@ -106,19 +106,12 @@ export default function HomeScreen() {
 
   const loadFeed = useCallback(async () => {
     setError("");
-    const [reqRes, brRes] = await Promise.allSettled([
-      getAllRequests({ page: 1, limit: 100 }),
-      getBloodRequestFeed(),
-    ]);
-    const donarReqs =
-      reqRes.status === "fulfilled" && Array.isArray(reqRes.value?.data)
-        ? reqRes.value.data
-        : [];
+    const brRes = await Promise.allSettled([getBloodRequestFeed()]);
     const bloodReqs =
-      brRes.status === "fulfilled" && Array.isArray(brRes.value?.data)
-        ? brRes.value.data
+      brRes[0].status === "fulfilled" && Array.isArray(brRes[0].value?.data)
+        ? brRes[0].value.data
         : [];
-    setAllRequests([...donarReqs, ...bloodReqs]);
+    setAllRequests(bloodReqs);
   }, []);
 
   const loadAssigned = useCallback(async () => {
@@ -242,11 +235,7 @@ export default function HomeScreen() {
     if (deletingId) return;
     try {
       setDeletingId(requestId);
-      if (source === "bloodRequest") {
-        await deleteBloodRequest(requestId);
-      } else {
-        await deleteRequest(requestId);
-      }
+      await deleteBloodRequest(requestId);
       setAllRequests((prev) => prev.filter((r) => String(r._id) !== String(requestId)));
     } catch (err: any) {
       const msg = err?.message || err?.error || "Failed to delete request.";
@@ -503,7 +492,7 @@ export default function HomeScreen() {
                     router.push("/(tabs)/profile/medicalInfo");
                     return;
                   }
-                  if (r._id) router.push(`/(stack)/request/${r._id}`);
+                  if (r._id) router.push({ pathname: `/(stack)/request/${r._id}`, params: { donate: "1" } });
                 };
                 return (
                   <Card

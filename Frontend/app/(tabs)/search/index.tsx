@@ -15,7 +15,7 @@ import { useRouter } from "expo-router";
 import { COLORS, SIZES } from "../../../constants/theme";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Button from "@/components/common/Button";
-import { getAllRequests, getProfile, deleteRequest } from "@/services/user.service";
+import { getProfile } from "@/services/user.service";
 import { getBloodRequestFeed, deleteBloodRequest } from "@/services/bloodRequest.service";
 import Card from "@/components/common/Card";
 import { useLanguage } from "@/context/LanguageContext";
@@ -72,8 +72,7 @@ export default function SearchScreen() {
     else setSubmitting(true);
     setListError("");
     try {
-      const [reqRes, brRes, profRes] = await Promise.all([
-        getAllRequests({ page: 1, limit: 200 }),
+      const [brRes, profRes] = await Promise.all([
         getBloodRequestFeed().catch(() => null),
         getProfile().catch(() => null),
       ]);
@@ -82,9 +81,8 @@ export default function SearchScreen() {
       const medList = profRes?.data?.medicalInfo;
       setCanDonateBlood(info?.canDonateBlood === "yes" ? "yes" : "no");
       setHasMedicalInfo(Array.isArray(medList) ? medList.length > 0 : !!medList);
-      const donarReqs = Array.isArray(reqRes?.data) ? (reqRes.data as RequestRow[]) : [];
       const bloodReqs = Array.isArray(brRes?.data) ? (brRes.data as RequestRow[]) : [];
-      setRequests([...donarReqs, ...bloodReqs]);
+      setRequests(bloodReqs);
     } catch (e: unknown) {
       if (!mountedRef.current) return;
       const msg =
@@ -107,11 +105,7 @@ export default function SearchScreen() {
     if (deletingId) return;
     try {
       setDeletingId(requestId);
-      if (source === "bloodRequest") {
-        await deleteBloodRequest(requestId);
-      } else {
-        await deleteRequest(requestId);
-      }
+      await deleteBloodRequest(requestId);
       setRequests((prev) => prev.filter((r) => String(r._id) !== String(requestId)));
     } catch (err: any) {
       const msg = err?.message || err?.error || "Failed to delete request.";
