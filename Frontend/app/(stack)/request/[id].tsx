@@ -147,8 +147,8 @@ export default function RequestDetails() {
           leftValue={data.hospitalName}
           rightLabel="City"
           rightValue={data.city}
-          isLast
         />
+        <DetailRowFull label="Address" value={data.location} isLast />
       </Section>
 
       {/* Case */}
@@ -258,6 +258,17 @@ function DetailRow2({
       <View style={[styles.col, styles.rightCol]}>
         <Text style={styles.label}>{rightLabel}</Text>
         <Text style={styles.value}>{rightValue || "—"}</Text>
+      </View>
+    </View>
+  );
+}
+
+function DetailRowFull({ label, value, isLast }: any) {
+  return (
+    <View style={[styles.row]}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.value}>{value || "—"}</Text>
       </View>
     </View>
   );

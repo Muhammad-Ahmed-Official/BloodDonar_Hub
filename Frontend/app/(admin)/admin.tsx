@@ -67,7 +67,6 @@ interface DonorRequestRow {
   startTime: string;
   endTime: string;
   reason: string;
-  urgencyLevel: string;
 }
 
 // ─── Validation helpers ───────────────────────────────────────────────────────
@@ -245,7 +244,7 @@ export default function AdminDashboard() {
   const emptyDonorForm = {
     patientName: "", bloodGroup: "", amount: "", age: "", date: "",
     hospitalName: "", location: "", contactInfo: "", city: "",
-    startTime: "", endTime: "", reason: "", urgencyLevel: "",
+    startTime: "", endTime: "", reason: "",
   };
   const [donorRequestForm, setDonorRequestForm] = useState(emptyDonorForm);
 
@@ -275,7 +274,7 @@ export default function AdminDashboard() {
         r.bloodGroup.toLowerCase().includes(q) ||
         r.city.toLowerCase().includes(q) ||
         r.hospital.toLowerCase().includes(q) ||
-        r.urgencyLevel.toLowerCase().includes(q)
+        r.reason.toLowerCase().includes(q)
     );
   }, [donorRequests, postSearch]);
 
@@ -329,14 +328,13 @@ export default function AdminDashboard() {
           hospital: r.hospitalName ?? "—",
           date: r.donationDate ? new Date(r.donationDate).toLocaleDateString() : "—",
           address: r.location ?? "—",
-          isEmergency: r.urgencyLevel === "critical" || r.urgencyLevel === "high",
+          isEmergency: r.isEmergency ?? false,
           amount: r.requiredUnits != null ? String(r.requiredUnits) : "",
           age: r.age != null && r.age !== "" ? String(r.age) : "",
           contactInfo: r.contactInfo ?? "",
           startTime: r.donationWindow?.startTime ?? "",
           endTime: r.donationWindow?.endTime ?? "",
           reason: r.reason ?? "",
-          urgencyLevel: r.urgencyLevel ?? "low",
         };
       });
       setDonorRequests(mappedDonorRequests);
@@ -509,7 +507,6 @@ export default function AdminDashboard() {
       startTime: row.startTime,
       endTime: row.endTime,
       reason: row.reason,
-      urgencyLevel: row.urgencyLevel,
     });
     setDonorRequestModalVisible(true);
   };
@@ -546,7 +543,6 @@ export default function AdminDashboard() {
         startTime: f.startTime.trim(),
         endTime: f.endTime.trim(),
         reason: f.reason.trim(),
-        urgencyLevel: f.urgencyLevel.trim() || "low",
       });
       await loadDashboard();
       setDonorRequestModalVisible(false);
@@ -913,7 +909,6 @@ export default function AdminDashboard() {
               <AdminInput style={styles.input} placeholder="City" value={donorRequestForm.city} onChangeText={(t) => setDonorRequestForm({ ...donorRequestForm, city: t })} />
               <AdminInput style={styles.input} placeholder="Start time" value={donorRequestForm.startTime} onChangeText={(t) => setDonorRequestForm({ ...donorRequestForm, startTime: t })} />
               <AdminInput style={styles.input} placeholder="End time" value={donorRequestForm.endTime} onChangeText={(t) => setDonorRequestForm({ ...donorRequestForm, endTime: t })} />
-              <AdminInput style={styles.input} placeholder="Urgency level (low / medium / high / critical)" value={donorRequestForm.urgencyLevel} onChangeText={(t) => setDonorRequestForm({ ...donorRequestForm, urgencyLevel: t })} />
               <AdminInput style={styles.input} placeholder="Reason" value={donorRequestForm.reason} onChangeText={(t) => setDonorRequestForm({ ...donorRequestForm, reason: t })} multiline />
 
               <AdminModalSaveBtn activeKey={actionKey} thisKey="save-donor-request" onPress={saveDonorRequestUpdate} label="Save changes" />

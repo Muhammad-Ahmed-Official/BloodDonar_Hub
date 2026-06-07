@@ -57,14 +57,10 @@ type AssignedRequest = {
   location: string;
   donationDate: string;
   donationWindow: { startTime: string; endTime: string };
-  urgencyLevel: string;
   donorStatus: string;
 };
 
-function requestLooksEmergency(reason?: string) {
-  if (!reason) return false;
-  return /emergency|urgent|critical/i.test(reason);
-}
+
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -503,7 +499,7 @@ export default function HomeScreen() {
                     hospital={r.hospitalName ?? "—"}
                     date={r.date ?? "—"}
                     address={r.location ?? "—"}
-                    isEmergency={requestLooksEmergency(r.reason)}
+                    isEmergency={r.isEmergency}
                     donationRequestId={r._id}
                     donated={isAlreadyDonated}
                     donateDisabled={isAlreadyDonated || canDonateBlood !== "yes"}

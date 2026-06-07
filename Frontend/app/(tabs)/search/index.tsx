@@ -33,14 +33,10 @@ type RequestRow = {
   date?: string;
   location?: string;
   reason?: string;
+  isEmergency?: boolean;
   userId?: { _id: string; userName?: string; email?: string } | string;
   source?: "donar" | "bloodRequest";
 };
-
-function requestLooksEmergency(reason?: string) {
-  if (!reason) return false;
-  return /emergency|urgent|critical/i.test(reason);
-}
 
 const getRequestOwnerId = (r: RequestRow) =>
   typeof r.userId === "object" ? r.userId?._id : r.userId;
@@ -100,6 +96,7 @@ export default function SearchScreen() {
   useEffect(() => {
     loadLists("initial");
   }, [loadLists]);
+
 
   const handleDelete = async (requestId: string, source?: string) => {
     if (deletingId) return;
@@ -211,7 +208,7 @@ export default function SearchScreen() {
                   hospital={r.hospitalName ?? "—"}
                   date={r.date ?? "—"}
                   address={r.location ?? "—"}
-                  isEmergency={requestLooksEmergency(r.reason)}
+                  isEmergency={r.isEmergency}
                   donationRequestId={r._id}
                   donateDisabled={canDonateBlood !== "yes"}
                   isOwner={isOwner}

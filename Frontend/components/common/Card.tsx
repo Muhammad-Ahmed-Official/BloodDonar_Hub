@@ -10,7 +10,7 @@ export default function Card({
   hospital = "Hospital Name",
   date = "12 Dec 2025",
   address = "National Stadium Rd, Karachi",
-  isEmergency = true,
+  isEmergency = false,
   isShow = true,
   donationRequestId,
   donateDisabled = false,
@@ -21,6 +21,7 @@ export default function Card({
   onDonate,
 }: any) {
   const isDonateDisabled = donateDisabled || isOwner || donated;
+  console.log(isEmergency)
 
   return (
     <View style={styles.wrapper}>

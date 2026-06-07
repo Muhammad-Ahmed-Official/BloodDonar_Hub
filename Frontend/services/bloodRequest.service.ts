@@ -8,7 +8,7 @@ export interface CreateBloodRequestData {
   city: string;
   hospitalName: string;
   contactInfo: string;
-  urgencyLevel: "low" | "medium" | "high" | "critical";
+  isEmergency: boolean;
   donationDate: string;           // ISO date string e.g. "2026-05-10"
   donationWindow: {
     startTime: string;            // "HH:mm"  e.g. "09:00"

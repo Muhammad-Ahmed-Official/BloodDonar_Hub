@@ -21,14 +21,7 @@ import { createBloodRequest, checkActiveRequest } from "@/services/bloodRequest.
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 
 const BLOOD_GROUPS = ["A+", "B+", "O+", "AB+", "A-", "B-", "O-", "AB-"];
-const URGENCY_LEVELS = [
-  { value: "low",      label: "Low",      color: "#4CAF50" },
-  { value: "medium",   label: "Medium",   color: "#FF9800" },
-  { value: "high",     label: "High",     color: "#F44336" },
-  { value: "critical", label: "Critical", color: "#9C27B0" },
-] as const;
 
-type UrgencyLevel = "low" | "medium" | "high" | "critical";
 type ActivePicker = null | "date" | "start" | "end";
 
 function makeTime(hours: number, minutes: number) {
@@ -61,8 +54,7 @@ export default function CreateRequestScreen() {
   const { top } = useSafeAreaInsets();
   const [selectedGroup, setSelectedGroup] = useState("");
   const [showGroup, setShowGroup] = useState(false);
-  const [urgencyLevel, setUrgencyLevel] = useState<UrgencyLevel>("medium");
-  const [showUrgency, setShowUrgency] = useState(false);
+  const [isEmergency, setIsEmergency] = useState(false);
   const [selectedCity, setSelectedCity] = useState("");
   const [citySearch, setCitySearch] = useState("");
   const [showCity, setShowCity] = useState(false);
@@ -144,7 +136,7 @@ export default function CreateRequestScreen() {
         city:         selectedCity,
         hospitalName: hospitalName.trim(),
         contactInfo:  `${contactPerson.trim()}: ${contactName.trim()}`,
-        urgencyLevel,
+        isEmergency,
         donationDate: formatDateISO(neededDate),
         donationWindow: {
           startTime: formatHHMM(startTimeDate),
@@ -265,36 +257,20 @@ export default function CreateRequestScreen() {
           )}
         </View>
 
-        {/* Urgency Level */}
-        <View style={styles.fieldGroup}>
-          <Label title="Urgency Level" />
-          <TouchableOpacity
-            style={styles.dropdown}
-            onPress={() => setShowUrgency(!showUrgency)}
-          >
-            <Text style={styles.dropdownText}>
-              {URGENCY_LEVELS.find((u) => u.value === urgencyLevel)?.label ?? "Select urgency"}
-            </Text>
-            <Ionicons name="chevron-down" size={18} color="#888" />
-          </TouchableOpacity>
-          {showUrgency && (
-            <View style={styles.listContainer}>
-              {URGENCY_LEVELS.map((item) => (
-                <TouchableOpacity
-                  key={item.value}
-                  style={styles.option}
-                  onPress={() => { setUrgencyLevel(item.value); setShowUrgency(false); }}
-                >
-                  <View style={[styles.urgencyDot, { backgroundColor: item.color }]} />
-                  <Text style={styles.optionText}>{item.label}</Text>
-                  {urgencyLevel === item.value && (
-                    <Ionicons name="checkmark" size={18} color={COLORS.primary} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
+        {/* Emergency */}
+        <TouchableOpacity
+          style={styles.emergencyRow}
+          onPress={() => setIsEmergency((v) => !v)}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.checkbox, isEmergency && styles.checkboxChecked]}>
+            {isEmergency && <Ionicons name="checkmark" size={14} color="#fff" />}
+          </View>
+          <View style={styles.emergencyLabelWrap}>
+            <Text style={styles.emergencyLabel}>Mark as Emergency</Text>
+            {/* <Text style={styles.emergencyHint}>Blood is needed urgently — an Emergency badge will appear on the post</Text> */}
+          </View>
+        </TouchableOpacity>
 
         {/* Amount of blood request */}
         <View style={styles.fieldGroup}>
@@ -593,11 +569,44 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
 
-  urgencyDot: {
-    width: 10,
-    height: 10,
+  emergencyRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 8,
+    backgroundColor: "#FFF5F5",
+    borderWidth: 1,
+    borderColor: "#FFCDD2",
+    borderRadius: 12,
+    padding: 14,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
     borderRadius: 5,
-    marginRight: 10,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  checkboxChecked: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  emergencyLabelWrap: {
+    flex: 1,
+  },
+  emergencyLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: COLORS.primary,
+    marginBottom: 2,
+  },
+  emergencyHint: {
+    fontSize: 12,
+    color: "#888",
+    lineHeight: 17,
   },
 
   optionText: {

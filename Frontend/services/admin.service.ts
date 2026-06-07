@@ -51,7 +51,6 @@ export const updateAdminDonationRequest = async (
     startTime?: string;
     endTime?: string;
     reason?: string;
-    urgencyLevel?: string;
   }
 ) => {
   try {
