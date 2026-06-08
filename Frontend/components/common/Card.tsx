@@ -276,5 +276,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 10,
     fontWeight: "bold",
+    width: 90,
+    textAlign: "center",
   },
 });

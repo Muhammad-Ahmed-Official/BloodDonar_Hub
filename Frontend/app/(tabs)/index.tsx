@@ -21,7 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import Input from "@/components/common/Input";
 import { getProfile } from "@/services/user.service";
-import { getAssignedBloodRequests, getMyAssignments, getMyRequests, getBloodRequestFeed, deleteBloodRequest, checkActiveRequest } from "@/services/bloodRequest.service";
+import { getAssignedBloodRequests, getMyAssignments, getMyRequests, getBloodRequestFeed, deleteBloodRequest, checkActiveRequest, respondToRequest } from "@/services/bloodRequest.service";
 import { getRealtimeSocket } from "@/services/realtime";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -483,12 +483,19 @@ export default function HomeScreen() {
               {filteredRequests.map((r) => {
                 const isOwner = String(getRequestOwnerId(r)) === String(user?._id);
                 const isAlreadyDonated = r.source === "bloodRequest" && donatedIds.has(r._id);
-                const handleDonate = () => {
+                const handleDonate = async () => {
                   if (!hasMedicalInfo) {
                     router.push("/(tabs)/profile/medicalInfo");
                     return;
                   }
-                  if (r._id) router.push({ pathname: `/(stack)/request/${r._id}`, params: { donate: "1" } });
+                  if (!r._id) return;
+                  setDonatedIds((prev) => new Set(prev).add(r._id));
+                  try {
+                    await respondToRequest(r._id, "accept");
+                  } catch (err: any) {
+                    setDonatedIds((prev) => { const next = new Set(prev); next.delete(r._id); return next; });
+                    Alert.alert("Error", err?.message ?? "Failed to respond to request");
+                  }
                 };
                 return (
                   <Card

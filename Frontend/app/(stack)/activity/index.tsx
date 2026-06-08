@@ -257,6 +257,9 @@ export default function ActivityScreen() {
                 }
                 onMarkDonated={handleMarkDonated}
                 onPress={(requestId) => router.push(`/(stack)/request/${requestId}`)}
+                onDonorPress={(donorId) =>
+                  router.push({ pathname: "/(stack)/request", params: { userId: donorId } } as any)
+                }
               />
             )}
             ListEmptyComponent={
@@ -356,6 +359,7 @@ type ReceiverRequestCardProps = {
   onReject: (requestId: string, donorId: string) => void;
   onMarkDonated: (requestId: string, donorId: string | null) => void;
   onPress: (requestId: string) => void;
+  onDonorPress?: (donorId: string) => void;
 };
 
 function ReceiverRequestCard({
@@ -366,6 +370,7 @@ function ReceiverRequestCard({
   onReject,
   onMarkDonated,
   onPress,
+  onDonorPress,
 }: ReceiverRequestCardProps) {
   const [expanded, setExpanded] = useState(false);
   const expired = isRequestExpired(group);
@@ -484,6 +489,7 @@ function ReceiverRequestCard({
                   onReject={() => donor.donorId && onReject(donor.requestId, donor.donorId)}
                   onMarkDonated={() => onMarkDonated(donor.requestId, donor.donorId)}
                   actionsDisabled={expired}
+                  onProfilePress={donor.donorId ? () => onDonorPress?.(donor.donorId!) : undefined}
                 />
               </View>
             ))
@@ -505,6 +511,7 @@ type DonorEntryProps = {
   onReject: () => void;
   onMarkDonated: () => void;
   actionsDisabled?: boolean;
+  onProfilePress?: () => void;
 };
 
 function DonorEntry({
@@ -515,6 +522,7 @@ function DonorEntry({
   onReject,
   onMarkDonated,
   actionsDisabled = false,
+  onProfilePress,
 }: DonorEntryProps) {
   // Empty slot — no donor responded yet
   if (!item.donorId) {
@@ -535,8 +543,13 @@ function DonorEntry({
 
   return (
     <View style={styles.donorEntry}>
-      {/* Avatar + name + status */}
-      <View style={styles.donorEntryRow}>
+      {/* Avatar + name + status — tappable to view donor profile */}
+      <TouchableOpacity
+        style={styles.donorEntryRow}
+        onPress={onProfilePress}
+        disabled={!onProfilePress}
+        activeOpacity={onProfilePress ? 0.7 : 1}
+      >
         {item.donorPic ? (
           <Image source={{ uri: item.donorPic }} style={styles.donorAvatar} />
         ) : (
@@ -551,7 +564,7 @@ function DonorEntry({
           )}
         </View>
         <ReceiverStatusBadge status={item.donorStatus} />
-      </View>
+      </TouchableOpacity>
 
       {item.donorStatus === "completed" && (
         <View style={[styles.scheduledRow, { marginTop: 4 }]}>
